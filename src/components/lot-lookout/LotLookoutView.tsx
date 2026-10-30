@@ -1,76 +1,99 @@
-// Lot Lookout as its own FG module. Aaron, 2026-10-15: *"What do you think of having lot outlook as an FG
-// module?"* ... *"A now thing for us to polish"*.
+// Lot Lookout as its own FG module, renovated into the bay log on 2026-10-29. Aaron: *"removing the airport status and
+// swatches making it strictly erin st / turning it into a VSA module for cleaning / look up vehicle, enter odo ...
+// someone with the read-only link can see which vehicle we're currently cleaning ... once done, goes on the cleaned
+// list"*. Ticket: docs/ticket-lot-lookout-bay-log.md. (Its first life, 2026-10-15: today's crew and the airport's live
+// taps. The airport went: *"airport lot data is hard to keep track of"*.)
 //
-// One full screen for what had been spread across a My Day card and three outside links: today's crew with the named
-// list open (it had been squeezed into a fold), and the airport with live taps. Signed in
-// to FG, so there is no PIN anywhere here — api/lot.ts takes the session for every action, and the crew ONLY from a
-// session. The drivers' /lot page, /lot/erin and /lot/view are untouched; this is another door to the same rows.
-//
-// ⭐ No Erin St section (2026-10-18): *"while we now have the header for erin st. how bout removing it from "my day" and
-// "lot loookout" modules"*. The Erin pill in the top bar opens the same count with more taps (ErinCountSheet).
-import { useCallback } from 'react';
+// Top to bottom, in the order he uses it: the car in the bay and its exits, Erin St's count (the SAME blocks as the
+// Erin pill's sheet: *"steppers, use the same style as the header"*), today's list, the crew, the links.
+import { useCallback, useState } from 'react';
 import { initialsOf } from '../../lib/lotLookout';
-import { useLotAirport } from '../../hooks/useLotAirport';
-import { useAirportTaps } from '../../hooks/useAirportTaps';
-import { postLotSignedIn, type LotPost } from '../../hooks/useLotPin';
+import { inTheBay } from '../../lib/lotBayLog';
+import { shiftDayLabel } from '../../lib/shiftDay';
+import { useBayLog } from '../../hooks/useBayLog';
+import { useLotBay } from '../../hooks/useLotBay';
+import { useBayTapsSignedIn } from '../../hooks/useBayTaps';
 import { useLotCrew } from '../../hooks/useLotCrew';
-import { useLotToast } from '../../hooks/useLotToast';
+import { useUndoNote } from '../../hooks/useUndoNote';
 import { useAuth } from '../../context/AuthContext';
+import { useScanRouter } from '../../context/scanRouter';
 import { ModuleHeader } from '../shared/ModuleHeader';
 import { LotCrewLine } from '../lot/LotCrewLine';
-import { AirportNotches } from '../lot/AirportNotches';
-import { LotToast } from '../lot/LotChrome';
+import { BayInTheBay } from '../lot/BayInTheBay';
+import { BayLogList } from '../lot/BayLogList';
+import { ErinCountBlocks, UndoNoteBar } from '../lot/ErinCountBlocks';
 import { LotCrewPanel } from '../my-day/LotCrewPanel';
 import { LotLinks } from './LotLinks';
+import type { Screen } from '../../types';
 
-const SECTION_HEAD = 'text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400';
+const SECTION_HEAD = 'px-0.5 text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400';
 
-export function LotLookoutView() {
-  const airport = useLotAirport('lot-airport-module');
-  const { crew, leaveOff } = useLotCrew({ signedIn: true });
+export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void }) {
   const { user } = useAuth();
-  const by = initialsOf(user?.name ?? null);
-  const [toastMsg, toast] = useLotToast();
-  const fail = useCallback((r: LotPost) => toast(r.error ?? 'The tap did not save.'), [toast]);
-  const airTaps = useAirportTaps({ airport, send: postLotSignedIn, by: by || 'FG', queueKey: 'lot_airport_queue_fg', onFail: fail, toast });
+  const by = initialsOf(user?.name ?? null) || 'FG';
+  const [note, show, clearNote] = useUndoNote();
+  const bay = useBayLog();
+  const erin = useLotBay();
+  const taps = useBayTapsSignedIn(erin, show, by);
+  const { crew, leaveOff } = useLotCrew({ signedIn: true });
+  const { search } = useScanRouter();
+  const [busy, setBusy] = useState(false);
+  const [bumped, setBumped] = useState(false);
+  const open = inTheBay(bay.rows);
+
+  /** One exit, said out loud: the note names the car, and Clean / Skip can be taken back for 5 s. */
+  const settle = useCallback(async (run: () => Promise<string | null>, done: string, undo?: () => void) => {
+    setBusy(true);
+    const err = await run();
+    setBusy(false);
+    if (err) { show(err); return false; }
+    show(done, undo);
+    return true;
+  }, [show]);
+
+  const exitHere = (kind: 'clean' | 'skip') => {
+    if (!open) return;
+    const { id, plate } = open;
+    const undo = () => void settle(() => bay.undoExit(id), `${plate} is back in the bay`).then(ok => { if (ok) setBumped(false); });
+    void settle(() => bay.exit(id, kind), kind === 'clean' ? `${plate} clean` : `${plate} bumped, still to do`, undo)
+      .then(ok => { if (ok) setBumped(kind === 'skip'); });
+  };
 
   return (
-    <div className="max-w-xl mx-auto px-4 py-6 pb-24 space-y-6">
-      <ModuleHeader title="Lot Lookout" subtitle="The airport and today's crew, live" />
+    <div className="max-w-xl mx-auto px-4 py-6 pb-24 space-y-5">
+      <ModuleHeader title="Lot Lookout" subtitle="Erin St · the bay log" />
+
+      {bay.error && <p className="text-sm text-red-700 dark:text-red-400">{bay.error}</p>}
+      {bay.loaded && (
+        <BayInTheBay open={open} busy={busy} bumped={bumped}
+          onExit={exitHere}
+          onHold={kind => open && onNavigate({ name: 'new-hold', vehicleId: open.vehicle_id, prefillNonce: Date.now(), bayExit: { id: open.id, kind } })}
+          onCloseHeld={kind => open && void settle(() => bay.exit(open.id, kind), `${open.plate} closed as held`)}
+          onFindCar={search} />
+      )}
+      {/* Only while it has something to say: an empty bar left a hole under the card (render check, 2026-10-29). */}
+      {note && <UndoNoteBar note={note} clear={clearNote} />}
+
+      {erin.bay && (
+        <section aria-label="Erin St" className="space-y-2">
+          <h2 className={SECTION_HEAD}>Erin St</h2>
+          <ErinCountBlocks erin={erin} taps={taps} drivers={crew?.summary.driver.on ?? 0} />
+        </section>
+      )}
+
+      <BayLogList rows={bay.rows} heading={`Today · ${shiftDayLabel()}`} />
 
       {crew && (
         <section aria-label="Crew" className="space-y-2">
           <LotCrewLine summary={crew.summary} />
           {crew.members && crew.members.length > 0 && (
-            <LotCrewPanel members={crew.members} toast={toast}
-              leftOff={crew.leftOff} leaveOff={(u, off) => leaveOff(u, off, by || 'FG')} />
+            <LotCrewPanel members={crew.members} toast={show}
+              leftOff={crew.leftOff} leaveOff={(u, off) => leaveOff(u, off, by)} />
           )}
         </section>
       )}
 
-      <section aria-label="Airport" className="space-y-2">
-        <div className="flex items-baseline justify-between gap-3 px-0.5">
-          <h2 className={SECTION_HEAD}>Airport</h2>
-          <span className="text-xs text-gray-500 dark:text-gray-400">1965 Wellington</span>
-        </div>
-        {airport.error && <p className="text-sm text-red-700 dark:text-red-400">{airport.error}</p>}
-        {airport.loaded && !airport.error && (
-          <>
-            {airTaps.waiting > 0 && (
-              <p role="status" className="text-sm font-semibold text-amber-800 dark:text-amber-300">
-                {airTaps.waiting} {airTaps.waiting === 1 ? 'tap' : 'taps'} waiting for signal. They send by themselves.
-              </p>
-            )}
-            <AirportNotches shown={airTaps.shown} nowMs={airport.nowMs} onTap={(f, v) => void airTaps.tap(f, v)} />
-            <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
-              Normally the drivers' readings. One tap saves, the newest reading wins. Your taps show as {by || 'FG'}.
-            </p>
-          </>
-        )}
-      </section>
-
       <LotLinks />
-      <LotToast msg={toastMsg} />
     </div>
   );
 }

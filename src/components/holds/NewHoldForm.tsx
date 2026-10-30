@@ -13,6 +13,7 @@ import { canRelease } from '../../types';
 import { NewHoldDetailsSection } from './NewHoldDetailsSection';
 import { PhotoError } from '../shared/PhotoError';
 import { formatUnitNumber } from '../../lib/formatUnitNumber';
+import { exitBayCarAsHeld } from '../../hooks/useBayLog';
 
 
 interface Props {
@@ -22,10 +23,18 @@ interface Props {
   onBack: () => void;
   onSuccess: (vehicleId: string) => void;
   onRegisterNew?: (prefill?: string) => void;
+  /** The bay log's M hold / B hold exit (Screen.bayExit): picks the type, and a saved hold closes the car's bay row. */
+  bayExit?: { id: number; kind: 'mhold' | 'bhold' };
 }
 
-export function NewHoldForm({ vehicleId: preselectedId, prefillNonce, onBack, onSuccess, onRegisterNew }: Props) {
-  const h = useNewHold(preselectedId, prefillNonce);
+export function NewHoldForm({ vehicleId: preselectedId, prefillNonce, onBack, onSuccess: onSaved, onRegisterNew, bayExit }: Props) {
+  const h = useNewHold(preselectedId, prefillNonce, bayExit ? (bayExit.kind === 'bhold' ? 'damage' : 'mechanical') : undefined);
+  // The hold is saved; now the car leaves the bay. If that write fails the car stays in, and the bay card offers
+  // "close it as held" off the hold it can see, so a failure here never asks him to flag the car twice.
+  const onSuccess = (vehicleId: string) => {
+    if (bayExit) void exitBayCarAsHeld(bayExit.id, bayExit.kind).finally(() => onSaved(vehicleId));
+    else onSaved(vehicleId);
+  };
   const { getVehicleByUnit, vehicles, addVehicle } = useVehicleHoldContext();
   const { user } = useAuth();
 

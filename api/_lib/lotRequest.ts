@@ -7,16 +7,17 @@
 // The one other door (2026-10-15): a signed-in FG session, for FG's own My Day card (bearerOf + auth.getUser).
 import { timingSafeEqual } from 'node:crypto';
 import type { BayRequest } from './lotBay.js';
-import { parseReading, type AirportRequest } from './lotAirport.js';
+import { parseBayLog, type BayLogRequest } from './lotBayLog.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// The airport's stall / undo / aisle actions (151, 152) were retired with the stall map on 2026-10-18 (migration 157):
-// *"scrap the stale time and stall map"*. The airport is two readings and an aisle flag now (`reading`).
+// The airport is gone (2026-10-29): first the stall map (151, 152 → 157, *"scrap the stale time and stall map"*), then
+// its two readings: *"airport lot data is hard to keep track of that's why i proposed cutting it altogether and focusing
+// on erin st"*. Its tables stay as history. Lot Lookout is Erin St's count and the bay log (161).
 export type LotRequest =
   | { action: 'check'; by: string }
-  | AirportRequest
   | BayRequest
+  | BayLogRequest
   | { action: 'leaveOff'; user: string; off: boolean; by: string };
 
 /** A typed count at Erin St (dirties, and cleans since migration 156). A cap, so a fat-fingered 2300 is refused. */
@@ -50,16 +51,18 @@ export function cleanBy(v: unknown): string {
   return s.slice(0, 12) || 'Lot';
 }
 
-export function parseLotRequest(body: unknown, nowMs = Date.now()): LotRequest | { error: string } {
+export function parseLotRequest(body: unknown): LotRequest | { error: string } {
   if (!body || typeof body !== 'object') return { error: 'Nothing was sent.' };
   const b = body as Record<string, unknown>;
   const by = cleanBy(b.by);
   switch (b.action) {
     case 'check':
       return { action: 'check', by };
-    // The airport (migration 157): a notch on room for cleans or returns, or the aisle flag, with its tap time.
-    case 'reading':
-      return parseReading(b, by, nowMs);
+    // The bay log (migration 161): Start a car, its exit, and an exit's Undo. Signed-in FG only; api/lot.ts enforces it.
+    case 'bayStart':
+    case 'bayExit':
+    case 'bayExitUndo':
+      return parseBayLog(b, by);
     // Erin St's count (migration 153).
     case 'cleans':
       if (b.delta !== 1 && b.delta !== -1) return { error: 'Cleans move one car at a time.' };

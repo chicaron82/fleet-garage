@@ -19,7 +19,7 @@ import { VehicleLookup } from '../shared/VehicleLookup';
 import { useLookupRecents } from '../../hooks/useLookupRecents';
 import { ScanPlateWatch } from './ScanPlateWatch';
 import { ErinPill } from '../lot/ErinPill';
-import { AirPill } from '../lot/AirPill';
+import { ScanBayStart } from './ScanBayStart';
 import { useTapOutsideClose } from '../../hooks/useTapOutsideClose';
 import { usePlateWatches } from '../../hooks/usePlateWatches';
 import { watchFor } from '../../lib/plateWatch';
@@ -273,7 +273,6 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
               between cars. *"when i'm here. i can't tap the count pill."* */}
           <div className="flex items-center gap-3">
             <ErinPill />
-            <AirPill where="scan" />
             <button type="button" onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg leading-none cursor-pointer">✕</button>
           </div>
         </div>
@@ -365,6 +364,9 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
                 conflictToast={conflictToast}
                 codexToast={codexToast}
               />
+
+              {/* The bay log's door (2026-10-29): under the flip, because the odo above is what Start is made on. */}
+              {vehicle && <ScanBayStart vehicle={vehicle} onOpenBay={started => go({ name: 'lot-lookout' }, started ? 'bay' : 'view')} />}
 
               <div className="space-y-1.5">
                 {actions.map(a => (

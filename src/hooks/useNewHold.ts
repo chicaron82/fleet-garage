@@ -12,7 +12,7 @@ import { usePhotoIntake } from './usePhotoIntake';
 
 const MAX_PHOTOS = 4;
 
-export function useNewHold(preselectedId?: string, preselectedNonce?: number) {
+export function useNewHold(preselectedId?: string, preselectedNonce?: number, preselectedType?: HoldType) {
   // A photo that fails to decode has to be SAID, not swallowed — see hooks/usePhotoIntake.
   const { photoError, takeMany } = usePhotoIntake();
   const { user } = useAuth();
@@ -27,14 +27,19 @@ export function useNewHold(preselectedId?: string, preselectedNonce?: number) {
   // the wrong vehicle. Render-time adjustment (not an effect: the repo lints set-state-in-effect).
   // Same class as the movement-log prefill bug (9d1535f). docs/ticket-scan-router-trip-prefill.md
   useRoutedProp(preselectedId, setSelectedVehicleId);
+  // The bay log's M hold / B hold picks the type for him (2026-10-29). Declared up here so the nonce re-seed below can
+  // set it: re-entering the mounted form from a second exit must not keep the first car's type.
+  const [holdTypes, setHoldTypes] = useState<HoldType[]>([preselectedType ?? 'damage']);
   // ...but a value-keyed re-seed only fires once per distinct id, and a SCAN is an EVENT: after
   // `clearVehicle` blanks the selection, re-scanning the SAME tag routes the identical vehicleId,
   // so the line above no-ops and the form stays empty — the scan looks dead. (Exactly the LZM531
   // bug fixed for Start-trip / Lost-&-found on 2026-07-21; new-hold was the route left unstamped.)
   // Keyed on the per-scan nonce so a repeat re-selects. Both are needed: the value re-seed covers
   // non-scan navigations (vehicle screen → Flag, register → hold), which carry no nonce.
-  useRoutedProp(preselectedNonce, () => setSelectedVehicleId(preselectedId ?? null));
-  const [holdTypes, setHoldTypes] = useState<HoldType[]>(['damage']);
+  useRoutedProp(preselectedNonce, () => {
+    setSelectedVehicleId(preselectedId ?? null);
+    if (preselectedType) setHoldTypes([preselectedType]);
+  });
   // The category most recently toggled ON — drives scroll-to-section so a newly
   // revealed sub-section comes into view (the tap otherwise looks like a no-op).
   const [lastRevealedType, setLastRevealedType] = useState<HoldType | null>(null);

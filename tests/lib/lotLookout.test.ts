@@ -13,9 +13,10 @@ describe('labels', () => {
 });
 
 describe('lotPageOf', () => {
-  it('the three Lot Lookout pages, trailing slash or not', () => {
-    expect(lotPageOf('/lot')).toBe('airport');
-    expect(lotPageOf('/lot/')).toBe('airport');
+  it('the Lot Lookout pages, trailing slash or not', () => {
+    // ⭐ /lot was the drivers' airport page; since 2026-10-29 it lands on the read-only bay, never a dead link.
+    expect(lotPageOf('/lot')).toBe('view');
+    expect(lotPageOf('/lot/')).toBe('view');
     expect(lotPageOf('/lot/erin')).toBe('erin');
     expect(lotPageOf('/lot/Erin/')).toBe('erin');
     expect(lotPageOf('/lot/view')).toBe('view');

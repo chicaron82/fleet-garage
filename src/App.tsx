@@ -182,6 +182,7 @@ export default function App() {
           <NewHoldForm
             vehicleId={screen.vehicleId}
             prefillNonce={screen.prefillNonce}
+            bayExit={screen.bayExit}
             onBack={() => goBack({ name: 'dashboard' })}
             /* ⭐ A SUBMITTED FORM MUST LEAVE THE STACK — and the three journeys here get three
                different answers, because "back" means something different from each origin.
@@ -191,7 +192,9 @@ export default function App() {
                form has the same shape and never got it. */
             onSuccess={(vehicleId) => {
               // If this hold came from a fresh registration, clean the history stack
-              if (screen.fromRegister) {
+              // From the bay log's hold exit: back to the bay, which is where the next car starts.
+              if (screen.bayExit) navigate({ name: 'lot-lookout' }, { replace: true });
+              else if (screen.fromRegister) {
                 window.history.replaceState({ appRoot: true }, '', '/');
                 window.history.pushState({ name: 'dashboard', _depth: 1 }, '', '/');
                 window.history.pushState({ name: 'vehicle', vehicleId, _depth: 2 }, '', `/vehicle/${vehicleId}`);
@@ -271,7 +274,7 @@ export default function App() {
       case 'manifest':
         return <ManifestView />;
       case 'lot-lookout':
-        return <LotLookoutView />;
+        return <LotLookoutView onNavigate={navigate} />;
       case 'fleet-master':
         return (
           <FleetMasterView

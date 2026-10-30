@@ -15,15 +15,15 @@ describe('pinMatches', () => {
 });
 
 describe('parseLotRequest', () => {
-  const NOW = Date.parse('2026-10-18T17:00:00Z');
-  it('a reading on the airport (migration 157) goes to the reading rules, with the tap time', () => {
-    expect(parseLotRequest({ action: 'reading', field: 'cleans', value: 0, at: '2026-10-18T16:50:00Z', by: 'AS' }, NOW))
-      .toEqual({ action: 'reading', field: 'cleans', value: 0, at: '2026-10-18T16:50:00.000Z', by: 'AS' });
+  it('⚠️ the retired airport actions are refused, so an old open tab or a queued tap cannot write them (2026-10-29)', () => {
+    expect(parseLotRequest({ action: 'reading', field: 'cleans', value: 0, at: '2026-10-18T16:50:00Z', by: 'AS' })).toHaveProperty('error');
+    expect(parseLotRequest({ action: 'stall', stall: 'O7', state: 'dirty', by: 'AS' })).toHaveProperty('error');
+    expect(parseLotRequest({ action: 'undo', stall: 'P7', prev: { state: null } })).toHaveProperty('error');
+    expect(parseLotRequest({ action: 'aisle', delta: 1 })).toHaveProperty('error');
   });
-  it('⚠️ the retired stall actions are refused, so an old open tab cannot write the stall board', () => {
-    expect(parseLotRequest({ action: 'stall', stall: 'O7', state: 'dirty', by: 'AS' }, NOW)).toHaveProperty('error');
-    expect(parseLotRequest({ action: 'undo', stall: 'P7', prev: { state: null } }, NOW)).toHaveProperty('error');
-    expect(parseLotRequest({ action: 'aisle', delta: 1 }, NOW)).toHaveProperty('error');
+  it('the bay log (migration 161) goes to its own rules', () => {
+    expect(parseLotRequest({ action: 'bayStart', vehicleId: 'v-123', by: 'AS' })).toEqual({ action: 'bayStart', vehicleId: 'v-123', by: 'AS' });
+    expect(parseLotRequest({ action: 'bayExit', id: 7, exit: 'skip', by: 'AS' })).toEqual({ action: 'bayExit', id: 7, exit: 'skip', by: 'AS' });
   });
   it('unknown or empty requests are refused', () => {
     expect(parseLotRequest({ action: 'drop table' })).toHaveProperty('error');

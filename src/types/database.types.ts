@@ -1128,6 +1128,62 @@ export type Database = {
         }
         Relationships: []
       }
+      lot_bay_log: {
+        Row: {
+          car: string | null
+          exit: string | null
+          exited_at: string | null
+          id: number
+          odometer: number | null
+          plate: string
+          redo_of: number | null
+          shift_day: string
+          started_at: string
+          started_by: string | null
+          took_dirty: boolean
+          unit_number: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          car?: string | null
+          exit?: string | null
+          exited_at?: string | null
+          id?: never
+          odometer?: number | null
+          plate: string
+          redo_of?: number | null
+          shift_day: string
+          started_at?: string
+          started_by?: string | null
+          took_dirty?: boolean
+          unit_number?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          car?: string | null
+          exit?: string | null
+          exited_at?: string | null
+          id?: never
+          odometer?: number | null
+          plate?: string
+          redo_of?: number | null
+          shift_day?: string
+          started_at?: string
+          started_by?: string | null
+          took_dirty?: boolean
+          unit_number?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lot_bay_log_redo_of_fkey"
+            columns: ["redo_of"]
+            isOneToOne: false
+            referencedRelation: "lot_bay_log"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lot_bay_taps: {
         Row: {
           id: number
@@ -2484,6 +2540,7 @@ export type Database = {
           created_at: string
           date: string
           end_time: string | null
+          extra_blocks: Json | null
           id: string
           is_stat: boolean
           notes: string | null
@@ -2538,6 +2595,7 @@ export type Database = {
           created_at: string
           date: string
           end_time: string | null
+          extra_blocks: Json | null
           id: string
           is_stat: boolean
           notes: string | null

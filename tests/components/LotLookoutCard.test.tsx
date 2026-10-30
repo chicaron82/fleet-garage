@@ -1,22 +1,21 @@
-// My Day's Lot Lookout card — a glance since Lot Lookout became its own module (2026-10-15). The named crew list and
-// the links live in the module, and the card's header opens it. The airport is two readings since 2026-10-18
-// (migration 157), and Erin St's count lives in the top bar's pill since the same day (*"how bout removing it from
-// "my day" and "lot loookout" modules"*).
-import { describe, it, expect, vi } from 'vitest';
+// My Day's Lot Lookout card — a glance since Lot Lookout became its own module (2026-10-15). Since 2026-10-29 it glances
+// at the bay log instead of the airport (*"strictly erin st"*). Erin St's count lives in the top bar's pill (2026-10-18).
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import type { BayLogRow } from '../../src/lib/lotBayLog';
 
-const NOW = Date.parse('2026-10-15T16:30:00Z');
-vi.mock('../../src/hooks/useLotAirport', () => ({
-  useLotAirport: () => ({
-    readings: { cleans: 0, cleansBy: 'LC', cleansAt: new Date(NOW - 14 * 60000).toISOString(), returns: 1, returnsBy: 'LC',
-      returnsAt: new Date(NOW - 11 * 60000).toISOString(), aisle: true, aisleBy: 'LC', aisleAt: new Date(NOW - 11 * 60000).toISOString() },
-    loaded: true, error: null, nowMs: NOW, setLocal: () => {},
-  }),
-}));
+const row = (id: number, exit: BayLogRow['exit'], over: Partial<BayLogRow> = {}): BayLogRow => ({
+  id, vehicle_id: `v${id}`, plate: `LUR${id}`, unit_number: null, car: null, odometer: null, took_dirty: false, redo_of: null,
+  shift_day: '2026-10-29', started_at: `2026-10-29T1${id}:00:00.000Z`, exit, exited_at: exit ? `2026-10-29T1${id}:30:00.000Z` : null, ...over,
+});
+let rows: BayLogRow[] = [];
+vi.mock('../../src/hooks/useBayLog', () => ({ useBayLog: () => ({ rows, loaded: true, error: null }) }));
 vi.mock('../../src/hooks/useLotCrew', () => ({
   useLotCrew: () => ({ crew: { summary: { vsa: { on: 2, out: 0 }, driver: { on: 3, out: 1 } }, members: [] } }),
 }));
 const { LotLookoutCard } = await import('../../src/components/my-day/LotLookoutCard');
+
+beforeEach(() => { rows = []; });
 
 describe('LotLookoutCard', () => {
   it('the header opens the Lot Lookout module', () => {
@@ -26,17 +25,23 @@ describe('LotLookoutCard', () => {
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
-  it('⭐ no Erin St strip: the count lives in the top bar\'s pill now (2026-10-18)', () => {
+  it('⭐ the bay at a glance: what is in it, and how the day is going', () => {
+    rows = [row(2, 'clean'), row(3, 'skip'), row(5, null)];
     render(<LotLookoutCard cardClass="" onOpen={() => {}} />);
-    expect(screen.queryByText('Erin St')).toBeNull();
-    expect(screen.queryByRole('button', { name: /Plus one clean/ })).toBeNull();
-    expect(screen.queryByRole('button', { name: /Dirties waiting/ })).toBeNull();
+    expect(screen.getByText('In the bay: LUR5 since 10:00')).toBeTruthy();
+    expect(screen.getByText('1 clean today · 1 still to do')).toBeTruthy();
   });
 
-  it('a glance: no notches, no named crew list, no links — those live in the module', () => {
+  it('an empty bay says so', () => {
     render(<LotLookoutCard cardClass="" onOpen={() => {}} />);
-    expect(screen.queryByRole('button', { name: /Cleans on the lot/ })).toBeNull();
-    expect(screen.queryByRole('button', { name: /Who is where/ })).toBeNull();
+    expect(screen.getByText("The bay's empty")).toBeTruthy();
+    expect(screen.getByText('0 clean today')).toBeTruthy();
+  });
+
+  it('⭐ no airport, no Erin St strip, no links: a glance', () => {
+    render(<LotLookoutCard cardClass="" onOpen={() => {}} />);
+    expect(screen.queryByText(/Airport/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Plus one clean/ })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Open' })).toBeNull();
   });
 
@@ -44,13 +49,5 @@ describe('LotLookoutCard', () => {
     render(<LotLookoutCard cardClass="" onOpen={() => {}} />);
     expect(screen.getByText('2 on')).toBeTruthy();
     expect(screen.getByText('3 on · 1 out')).toBeTruthy();
-  });
-
-  it('⭐ the airport reads the way the bay needs it: room, returns, the aisle, each with its time', () => {
-    render(<LotLookoutCard cardClass="" onOpen={() => {}} />);
-    expect(screen.getByText('Airport: Lots of room for cleans')).toBeTruthy();
-    expect(screen.getByText('Lots of returns')).toBeTruthy();
-    expect(screen.getByText('Cars in the aisle')).toBeTruthy();
-    expect(screen.getAllByText(/· 1[14]m$/)).toHaveLength(3);
   });
 });

@@ -1,5 +1,6 @@
-// POST /api/lot — the ONE writer of the airport's readings (lot_airport, lot_airport_taps — migration 157), of Erin St's
-// count (lot_bay, lot_bay_taps — migration 153), and of who is left off the crew line (migration 155).
+// POST /api/lot — the ONE writer of Erin St's count (lot_bay, lot_bay_taps — migration 153), of the bay log (lot_bay_log
+// — migration 161), and of who is left off the crew line (migration 155). The airport's readings (157) were retired on
+// 2026-10-29: *"airport lot data is hard to keep track of ... focusing on erin st"*.
 // GET /api/lot — today's crew: numbers for anyone (the read-only /lot/view), names only for a signed-in FG session.
 //
 // The /lot page has no FG login; a driver opens it with a shared PIN (Aaron, 2026-10-14). Migration 151 makes
@@ -8,7 +9,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { bearerOf, parseLotRequest, pinMatches } from './_lib/lotRequest.js';
 import { BAY_ACTIONS, bayChange, type BayRequest } from './_lib/lotBay.js';
-import { newerThanHeld, readingChange } from './_lib/lotAirport.js';
+import { BAY_LOG_ACTIONS, type BayLogRequest } from './_lib/lotBayLog.js';
+import { BayLogRefusal, exitCar, startCar, undoExit } from './_lib/lotBayLogDb.js';
 import type { LotRequest } from './_lib/lotRequest.js';
 import { shiftBusinessDate } from './_lib/shiftDay.js';
 import { leaveOff, loadCrew } from './_lib/lotCrewDb.js';
@@ -70,29 +72,22 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
       res.status(200).json({ ok: true });
       return;
     }
-    if (parsed.action === 'reading') {
-      const { data: row, error: readErr } = await db.from('lot_airport')
-        .select('cleans, cleans_at, returns, returns_at, aisle, aisle_at').eq('id', 1).single();
-      if (readErr) throw readErr;
-      const change = readingChange(row, parsed);
-      let airport: unknown = null;
-      if (change.patch) {
-        // The newer-wins check rides IN the update, not only in the read above: two phones out of the parkade at
-        // once both read the old row, and without it the older tap could land last and win.
-        const { data: saved, error } = await db.from('lot_airport').update(change.patch).eq('id', 1)
-          .or(newerThanHeld(parsed.field, change.tap.tapped_at)).select().maybeSingle();
-        if (error) throw error;
-        if (saved) airport = saved;
-        else {
-          // Another phone's fresher reading landed between our read and this write: logged, not written.
-          change.tap.applied = false;
-          const { data: fresh } = await db.from('lot_airport').select().eq('id', 1).single();
-          airport = fresh;
-        }
+    if (isBayLogRequest(parsed)) {
+      // His log, his taps: a signed-in FG session only, never the shared PIN (ticket-lot-lookout-bay-log).
+      if (!signedIn) {
+        res.status(403).json({ error: 'Sign in to FG to use the bay log.' });
+        return;
       }
-      await db.from('lot_airport_taps').insert(change.tap);
-      // applied = false is still a 200: the tap reached us, it was just older than what another phone had sent.
-      res.status(200).json({ ok: true, applied: change.tap.applied, airport });
+      const today = shiftBusinessDate(new Date(now));
+      try {
+        const out = parsed.action === 'bayStart' ? await startCar(db, parsed.vehicleId, parsed.by, now, today)
+          : parsed.action === 'bayExit' ? await exitCar(db, parsed.id, parsed.exit, parsed.by, now, today)
+          : await undoExit(db, parsed.id, parsed.by, now, today);
+        res.status(200).json({ ok: true, ...out });
+      } catch (e) {
+        if (!(e instanceof BayLogRefusal)) throw e;
+        res.status(409).json({ error: e.message });
+      }
       return;
     }
     if (parsed.action === 'leaveOff') {
@@ -129,6 +124,10 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
 /** Erin St's count: every action that writes lot_bay (the +1/−1, the typed dirties, and migration 156's quick taps). */
 function isBayRequest(r: LotRequest): r is BayRequest {
   return (BAY_ACTIONS as readonly string[]).includes(r.action);
+}
+
+function isBayLogRequest(r: LotRequest): r is BayLogRequest {
+  return (BAY_LOG_ACTIONS as readonly string[]).includes(r.action);
 }
 
 function safeJson(s: string): unknown {

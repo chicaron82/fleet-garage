@@ -8,12 +8,13 @@
 // driver who has opened the page once can reopen it with no signal (the precached shell).
 // ⚠️⚠️ BUT ONLY WHEN ASKED (same day, Reflection 87 → his call): registering downloads FG's whole copy (~6 MB). So the
 // prompt mounts only on a phone that already has a copy, or whose driver tapped "save for no-signal use" (lib/lotOffline).
-import { Suspense, lazy, useState } from 'react';
+// (That offer lived on the drivers' airport page, retired 2026-10-29; a phone that already said yes keeps its copy, and
+// this prompt is how it learns /lot is the read-only view now.)
+import { Suspense, lazy } from 'react';
 import type { LotPageKind } from '../../lib/lotLookout';
 import { LOT_OFFLINE_KEY, lotOfflineState, registersWorker } from '../../lib/lotOffline';
 import { PwaUpdatePrompt } from '../shared/PwaUpdatePrompt';
 
-const LotPage = lazy(() => import('./LotPage').then(m => ({ default: m.LotPage })));
 const LotBayPage = lazy(() => import('./LotBayPage').then(m => ({ default: m.LotBayPage })));
 const LotViewPage = lazy(() => import('./LotViewPage').then(m => ({ default: m.LotViewPage })));
 
@@ -22,17 +23,12 @@ function optedInBefore(): boolean {
 }
 
 export function LotEntry({ page }: { page: LotPageKind }) {
-  const [optedIn, setOptedIn] = useState(optedInBefore);
   const hasCopy = typeof navigator !== 'undefined' && !!navigator.serviceWorker?.controller;
-  const state = lotOfflineState(hasCopy, optedIn);
-  const save = () => {
-    try { localStorage.setItem(LOT_OFFLINE_KEY, '1'); } catch { /* private mode: it still registers for this visit */ }
-    setOptedIn(true);
-  };
+  const state = lotOfflineState(hasCopy, optedInBefore());
   return (
     <>
       <Suspense fallback={null}>
-        {page === 'erin' ? <LotBayPage /> : page === 'view' ? <LotViewPage /> : <LotPage offline={{ state, save }} />}
+        {page === 'erin' ? <LotBayPage /> : <LotViewPage />}
       </Suspense>
       {registersWorker(state) && <PwaUpdatePrompt />}
     </>
