@@ -14,6 +14,7 @@ import { NewHoldDetailsSection } from './NewHoldDetailsSection';
 import { PhotoError } from '../shared/PhotoError';
 import { formatUnitNumber } from '../../lib/formatUnitNumber';
 import { exitBayCarAsHeld } from '../../hooks/useBayLog';
+import { initialsOf } from '../../lib/lotLookout';
 
 
 interface Props {
@@ -32,7 +33,7 @@ export function NewHoldForm({ vehicleId: preselectedId, prefillNonce, onBack, on
   // The hold is saved; now the car leaves the bay. If that write fails the car stays in, and the bay card offers
   // "close it as held" off the hold it can see, so a failure here never asks him to flag the car twice.
   const onSuccess = (vehicleId: string) => {
-    if (bayExit) void exitBayCarAsHeld(bayExit.id, bayExit.kind).finally(() => onSaved(vehicleId));
+    if (bayExit) void exitBayCarAsHeld(bayExit.id, bayExit.kind, initialsOf(user?.name ?? null) || 'FG').finally(() => onSaved(vehicleId));
     else onSaved(vehicleId);
   };
   const { getVehicleByUnit, vehicles, addVehicle } = useVehicleHoldContext();

@@ -7,13 +7,16 @@
 // enters the bay without the reading he already takes at every car.
 import { useState } from 'react';
 import { useBayLog } from '../../hooks/useBayLog';
+import { useAuth } from '../../context/AuthContext';
+import { initialsOf } from '../../lib/lotLookout';
 import { hapticMedium } from '../../lib/haptics';
 import { startBlock, inTheBay } from '../../lib/lotBayLog';
 import { businessDateOf } from '../../lib/shiftDay';
 import type { Vehicle } from '../../types';
 
 export function ScanBayStart({ vehicle, onOpenBay }: { vehicle: Vehicle; onOpenBay: (started: boolean) => void }) {
-  const bay = useBayLog();
+  const { user } = useAuth();
+  const bay = useBayLog(initialsOf(user?.name ?? null) || 'FG');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   if (!bay.loaded) return null;

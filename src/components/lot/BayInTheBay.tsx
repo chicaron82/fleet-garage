@@ -45,7 +45,9 @@ export function BayInTheBay({ open, busy, onExit, onHold, onCloseHeld, onFindCar
     );
   }
   // A hold flagged on this car since it came in: the form saved it, the close did not land.
-  const heldSince = holds.find(h => h.vehicleId === open.vehicle_id && h.flaggedAt >= open.started_at);
+  // Compared as instants: the hold's ISO and Postgres' timestamptz text are spelled differently ("Z" vs "+00:00").
+  const startedMs = Date.parse(open.started_at);
+  const heldSince = holds.find(h => h.vehicleId === open.vehicle_id && Date.parse(h.flaggedAt) >= startedMs);
   const heldKind: 'mhold' | 'bhold' | null = heldSince ? (heldSince.holdTypes.includes('mechanical') ? 'mhold' : 'bhold') : null;
   const tap = (f: () => void) => () => { hapticMedium(); f(); };
 
