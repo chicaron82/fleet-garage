@@ -2,7 +2,7 @@
 // −1 is a clean USED (*"Erin St and the Regent location can poach cleans"*), counted for the shift-day; a −1 that
 // fixes this phone's own +1 within 5 s is not.
 import { describe, it, expect } from 'vitest';
-import { bayChange, type BayRow } from '../../api/_lib/lotBay';
+import { bayChange, heldExitChange, type BayRow } from '../../api/_lib/lotBay';
 
 const NOW = '2026-10-15T16:30:00.000Z';
 const TODAY = '2026-10-15';
@@ -75,5 +75,26 @@ describe('bayChange', () => {
   it('the first dirty count ever has nothing before it', () => {
     expect(bayChange(row({ dirties: null }), { action: 'dirties', count: 12, by: 'AS' }, NOW, TODAY))
       .toMatchObject({ tap: { prev: null, value: 12 } });
+  });
+});
+
+// 2026-10-29: a bay car out on M hold or B hold is off the dirties, never onto the cleans
+// (docs/ticket-bay-hold-exit-takes-a-dirty.md).
+describe('heldExitChange', () => {
+  it('take: one off the dirties, stamped, the cleans untouched', () => {
+    expect(heldExitChange(row(), 'take', 'AS', NOW)).toEqual({
+      patch: { dirties: 22, dirties_by: 'AS', dirties_at: NOW },
+      tap: { kind: 'held', value: 22, prev: 23, tapped_by: 'AS' },
+    });
+  });
+  it('take at 0, or never counted: nothing to write', () => {
+    expect(heldExitChange(row({ dirties: 0 }), 'take', 'AS', NOW)).toBeNull();
+    expect(heldExitChange(row({ dirties: null }), 'take', 'AS', NOW)).toBeNull();
+  });
+  it('give: the Undo puts it back, logged as an undo', () => {
+    expect(heldExitChange(row({ dirties: 22 }), 'give', 'AS', NOW)).toEqual({
+      patch: { dirties: 23, dirties_by: 'AS', dirties_at: NOW },
+      tap: { kind: 'undo', value: 23, prev: 22, tapped_by: 'AS' },
+    });
   });
 });

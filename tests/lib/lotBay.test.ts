@@ -64,6 +64,10 @@ describe('bayTapLine', () => {
     expect(bayTapLine({ kind: 'fill', value: 6 })).toBe('Filled from the drivers · 6 dirties');
     expect(bayTapLine({ kind: 'undo', value: 9 })).toBe('Undone · back to 9');
   });
+
+  it('a bay car out on hold says the dirties moved, not "ready" (migration 162)', () => {
+    expect(bayTapLine({ kind: 'held', value: 22 })).toBe('Held, off the dirties · 22 dirties');
+  });
 });
 
 describe('bayFromRow', () => {
