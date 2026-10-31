@@ -14,23 +14,17 @@ import { consolidateDamage } from '../../lib/consolidateDamage';
 import { formatUnitNumber } from '../../lib/formatUnitNumber';
 import { ScanIdentityHeader } from '../scan-router/ScanIdentityHeader';
 import { ScanDamageZones } from '../scan-router/ScanDamageZones';
-import type { ReactNode } from 'react';
 import type { Vehicle } from '../../types';
 
-/** `aside`: sits beside the header, top right (the pick card's "Different car"). The map stays full width under both. */
-export function BayCarHeader({ vehicle, onOpen, aside }: { vehicle: Vehicle; onOpen?: () => void; aside?: ReactNode }) {
+/** Full width, like the popup: anything beside it squeezes the plate line until the unit number breaks in two. */
+export function BayCarHeader({ vehicle, onOpen }: { vehicle: Vehicle; onOpen?: () => void }) {
   const { holds } = useVehicleHoldContext();
   const liveHolds = consolidateDamage(scanHoldLines(holds, vehicle.id)).length;
   return (
     <div className="min-w-0">
-      <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <ScanIdentityHeader
-            plateLine={`${vehicle.licensePlate}${vehicle.unitNumber ? ` · Unit ${formatUnitNumber(vehicle.unitNumber)}` : ''}`}
-            vehicle={vehicle} liveHolds={liveHolds} onOpen={onOpen} />
-        </div>
-        {aside}
-      </div>
+      <ScanIdentityHeader
+        plateLine={`${vehicle.licensePlate}${vehicle.unitNumber ? ` · Unit ${formatUnitNumber(vehicle.unitNumber)}` : ''}`}
+        vehicle={vehicle} liveHolds={liveHolds} onOpen={onOpen} />
       {/* Silent on a clear car; tap a panel for its photo. */}
       <ScanDamageZones holds={holds} vehicleId={vehicle.id} />
     </div>

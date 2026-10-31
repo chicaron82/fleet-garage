@@ -200,7 +200,7 @@ describe('LotLookoutView — the bay log', () => {
     expect(card).toHaveTextContent('0GK487 · Unit 542 9550');
     expect(card).toHaveTextContent('KSEL · class D');
     expect(card).toHaveTextContent('Clear');
-    expect(screen.getByRole('button', { name: 'Different car' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '← Different car' })).toBeTruthy();
     fireEvent.click(screen.getByTitle('Open the record'));
     expect(onNavigate).toHaveBeenCalledWith({ name: 'vehicle', vehicleId: 'v-487' });
   });

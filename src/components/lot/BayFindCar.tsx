@@ -31,13 +31,14 @@ export function BayFindCar({ bay, onMore, onOpenCar }: { bay: BayLogState; onMor
   if (car) {
     return (
       <div className="space-y-3 text-left">
+        {/* ⚠️ ABOVE the header, never beside it: beside, at 412 px, it squeezed the plate line until the unit number
+            broke in two ("Unit 542" / "9006"), on the line he copies onto the slip (render check, 2026-10-31). */}
+        <button type="button" onClick={() => setPickedId(null)}
+          className="-mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300 underline-offset-2 hover:underline cursor-pointer">
+          ← Different car
+        </button>
         {/* The popup's own header and damage map (BayCarHeader): Unit #, codes, status, and where the damage is. */}
-        <BayCarHeader vehicle={car} onOpen={() => onOpenCar(car.id)} aside={
-          <button type="button" onClick={() => setPickedId(null)}
-            className="shrink-0 rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 cursor-pointer">
-            Different car
-          </button>
-        } />
+        <BayCarHeader vehicle={car} onOpen={() => onOpenCar(car.id)} />
         <OdometerCapture isUs={car.isUs} vehicleId={car.id} resetKey={car.id} currentKm={car.odometer} currentAt={car.odometerAt}
           onSave={recordOdometer} onClear={clearOdometer} onCorrect={correctOdometer} />
         {/* Started: the module's own list gets the row, so this card turns into "In the bay" by itself. */}
