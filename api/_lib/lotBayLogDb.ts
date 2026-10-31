@@ -5,7 +5,7 @@
 // nothing. `took_dirty` records either kind of take, so an Undo or a lost race gives back only what was taken.
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { bayChange, heldExitChange, type BayChange, type BayRequest, type BayRow } from './lotBay.js';
-import { carLine, redoOf, undoAllowed, type BayExit, type DayRow } from './lotBayLog.js';
+import { carLine, redoOf, startOdometer, undoAllowed, type BayExit, type DayRow } from './lotBayLog.js';
 
 export const BAY_LOG_COLS = 'id, vehicle_id, plate, unit_number, car, odometer, started_at, exit, exited_at, took_dirty, redo_of, shift_day';
 
@@ -32,14 +32,14 @@ export async function startCar(db: SupabaseClient, vehicleId: string, by: string
   if (openErr) throw openErr;
   if (open) throw new BayLogRefusal(`${open.plate} is still in the bay. Give it an exit first.`);
   const { data: v, error: vErr } = await db.from('vehicles')
-    .select('id, license_plate, unit_number, year, make, model, color, odometer').eq('id', vehicleId).maybeSingle();
+    .select('id, license_plate, unit_number, year, make, model, color, odometer, odometer_at').eq('id', vehicleId).maybeSingle();
   if (vErr) throw vErr;
   if (!v) throw new BayLogRefusal('That car is not in FG.');
   const { data: day, error: dayErr } = await db.from('lot_bay_log')
     .select('id, vehicle_id, exit, redo_of, started_at').eq('shift_day', today);
   if (dayErr) throw dayErr;
   const { data: row, error } = await db.from('lot_bay_log').insert({
-    vehicle_id: v.id, plate: v.license_plate, unit_number: v.unit_number, car: carLine(v), odometer: v.odometer,
+    vehicle_id: v.id, plate: v.license_plate, unit_number: v.unit_number, car: carLine(v), odometer: startOdometer(v, today),
     started_at: nowIso, started_by: by, shift_day: today, redo_of: redoOf((day ?? []) as DayRow[], v.id),
   }).select(BAY_LOG_COLS).single();
   // 23505: the one-car index. Another phone started a car between the check above and this insert.

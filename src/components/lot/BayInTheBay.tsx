@@ -10,12 +10,17 @@
 //   bay that follows leads with Find a car, because the ASAP car is the next thing he does. Since 2026-10-29 that is
 //   the search box itself, in the card (BayFindCar): *"i'm already in the module"*.
 // • Every exit is one tap; Clean and Skip carry a 5-second Undo on the note (a wet thumb lands on the neighbour).
+// • The car shows as the 🔍 popup shows it, header and damage map (BayCarHeader), looked up live by the row's vehicle_id,
+//   so the zones stay on screen for the whole clean: *"did miss marking damage on a few"* (2026-10-30,
+//   docs/ticket-bay-log-first-shift-friction.md). A car with no live record falls back to the row's own plate and car line.
+//   No odo box here: on passenger side he first sees the odo when he parks, after Clean; the gas sheet backfills it.
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { hapticMedium } from '../../lib/haptics';
 import { clockOf } from '../../lib/lotBay';
 import type { BayExit, BayLogRow } from '../../lib/lotBayLog';
 import type { BayLogState } from '../../hooks/useBayLog';
 import { BayFindCar } from './BayFindCar';
+import { BayCarHeader } from './BayCarHeader';
 
 const EXIT_BTN = 'min-h-16 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-2 grid justify-items-center content-center gap-0.5 cursor-pointer touch-manipulation active:scale-95 transition disabled:opacity-40';
 
@@ -34,16 +39,18 @@ export interface BayInTheBayProps {
   bay: BayLogState;
   /** Set right after a Skip: the empty bay says what comes next. */
   bumped: boolean;
+  /** The header's tap: the car's record. Back returns here, and the car is still in (the row is the server's). */
+  onOpenCar: (vehicleId: string) => void;
 }
 
-export function BayInTheBay({ open, busy, onExit, onHold, onCloseHeld, onFindCar, bay, bumped }: BayInTheBayProps) {
-  const { holds } = useVehicleHoldContext();
+export function BayInTheBay({ open, busy, onExit, onHold, onCloseHeld, onFindCar, bay, bumped, onOpenCar }: BayInTheBayProps) {
+  const { holds, vehicles, archivedVehicles } = useVehicleHoldContext();
   if (!open) {
     return (
       <section aria-label="In the bay" className="rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 px-4 py-4 space-y-3 text-center">
         <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{bumped ? 'Bumped. Bring the ASAP car in.' : "The bay's empty."}</p>
-        <p className="text-xs text-gray-500 dark:text-gray-400">Look the car up, log its odo, and tap Start cleaning.</p>
-        <BayFindCar bay={bay} onMore={onFindCar} />
+        <p className="text-xs text-gray-500 dark:text-gray-400">Look the car up and tap Start cleaning. The odo is optional.</p>
+        <BayFindCar bay={bay} onMore={onFindCar} onOpenCar={onOpenCar} />
       </section>
     );
   }
@@ -53,16 +60,24 @@ export function BayInTheBay({ open, busy, onExit, onHold, onCloseHeld, onFindCar
   const heldSince = holds.find(h => h.vehicleId === open.vehicle_id && Date.parse(h.flaggedAt) >= startedMs);
   const heldKind: 'mhold' | 'bhold' | null = heldSince ? (heldSince.holdTypes.includes('mechanical') ? 'mhold' : 'bhold') : null;
   const tap = (f: () => void) => () => { hapticMedium(); f(); };
+  const car = vehicles.find(v => v.id === open.vehicle_id) ?? archivedVehicles.find(v => v.id === open.vehicle_id) ?? null;
+  const since = `Since ${clockOf(open.started_at)}${open.odometer != null ? ` · odo ${open.odometer.toLocaleString('en-CA')}` : ''}`;
 
   return (
     <section aria-label="In the bay" className="rounded-2xl border-2 border-amber-500 bg-white dark:bg-gray-900 px-4 py-3.5 space-y-3">
       <div>
-        <p className="text-[11px] font-extrabold uppercase tracking-wider text-amber-800 dark:text-amber-300">In the bay</p>
-        <p className="mt-1 font-mono text-lg font-bold text-gray-900 dark:text-gray-100">{open.plate}</p>
-        {open.car && <p className="text-sm text-gray-600 dark:text-gray-300">{open.car}</p>}
-        <p className="text-xs text-gray-500 dark:text-gray-400">
-          Since {clockOf(open.started_at)}{open.odometer != null ? ` · odo ${open.odometer.toLocaleString('en-CA')}` : ''}
-        </p>
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="text-[11px] font-extrabold uppercase tracking-wider text-amber-800 dark:text-amber-300">In the bay</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{since}</p>
+        </div>
+        {car ? (
+          <div className="mt-1"><BayCarHeader vehicle={car} onOpen={() => onOpenCar(car.id)} /></div>
+        ) : (
+          <>
+            <p className="mt-1 font-mono text-lg font-bold text-gray-900 dark:text-gray-100">{open.plate}</p>
+            {open.car && <p className="text-sm text-gray-600 dark:text-gray-300">{open.car}</p>}
+          </>
+        )}
       </div>
 
       {heldKind ? (

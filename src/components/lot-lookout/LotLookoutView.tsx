@@ -69,7 +69,8 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
           onExit={exitHere}
           onHold={kind => open && onNavigate({ name: 'new-hold', vehicleId: open.vehicle_id, prefillNonce: Date.now(), bayExit: { id: open.id, kind } })}
           onCloseHeld={kind => open && void settle(() => bay.exit(open.id, kind), `${open.plate} closed as held`)}
-          onFindCar={search} bay={bay} />
+          onFindCar={search} bay={bay}
+          onOpenCar={vehicleId => onNavigate({ name: 'vehicle', vehicleId })} />
       )}
       {/* Only while it has something to say: an empty bar left a hole under the card (render check, 2026-10-29). */}
       {note && <UndoNoteBar note={note} clear={clearNote} />}

@@ -4,6 +4,8 @@
 // His rulings, 2026-10-29: one car at a time (*"i can't start a new one when i'm still working on the previous one"*),
 // four exits, and a skipped car is a bump, not a verdict (*"skip to do later"*), so its restart points back at it.
 
+import { shiftBusinessDate } from './shiftDay.js';
+
 export type BayExit = 'clean' | 'mhold' | 'bhold' | 'skip';
 export const BAY_EXITS: readonly BayExit[] = ['clean', 'mhold', 'bhold', 'skip'];
 
@@ -49,6 +51,17 @@ export function carLine(v: { year?: number | null; make?: string | null; model?:
   const name = [v.year, v.make, v.model].filter(x => x != null && String(x).trim() !== '').join(' ');
   const color = (v.color ?? '').trim();
   return [name, color].filter(Boolean).join(' · ');
+}
+
+/** The odo a Start writes on the bay row: the car's reading only when it was taken on this shift-day, else null.
+ *  Since 2026-10-31 Start no longer waits on today's odo (docs/ticket-bay-log-first-shift-friction.md): Aaron, on a
+ *  passenger-side day, *"I don't see the odo until I take it out to park"*. So the record's reading may be yesterday's,
+ *  and the In the bay card would print it as if read today. A row says "odo" only for a reading from today. */
+export function startOdometer(v: { odometer?: number | null; odometer_at?: string | null }, today: string): number | null {
+  if (v.odometer == null || !v.odometer_at) return null;
+  const t = new Date(v.odometer_at);
+  if (Number.isNaN(t.getTime())) return null;
+  return shiftBusinessDate(t) === today ? v.odometer : null;
 }
 
 /** May this exit still be taken back? Only within the window, and only an exit that happened. */

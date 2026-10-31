@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseBayLog, carLine, undoAllowed, redoOf, EXIT_UNDO_MS, type DayRow } from '../../api/_lib/lotBayLog';
+import { parseBayLog, carLine, undoAllowed, redoOf, startOdometer, EXIT_UNDO_MS, type DayRow } from '../../api/_lib/lotBayLog';
 
 describe('parseBayLog', () => {
   it('a Start names the car', () => {
@@ -59,5 +59,30 @@ describe('redoOf: a restart of a skipped car points back at the skip', () => {
   });
   it('skipped twice: the latest open skip', () => {
     expect(redoOf([row(2, 'B', 'skip', '09:48'), row(3, 'B', 'skip', '10:20', 2), row(4, 'A', 'clean', '10:30')], 'B')).toBe(3);
+  });
+});
+
+describe('startOdometer: a bay row carries an odo only from today (docs/ticket-bay-log-first-shift-friction.md)', () => {
+  // Shift-day 2026-10-30 runs 04:00 Winnipeg on the 30th to 04:00 on the 31st, all of it CDT (UTC−5).
+  // ⚠️ Fixtures stay in October on purpose: from 2026-11-01 the answer depends on the runtime's tzdata (2026a still
+  // falls back to CST; 2026e keeps UTC−5), and a test must not pass on one Node and fail on another (bc67e515).
+  const today = '2026-10-30';
+  it('a reading taken this shift-day goes on the row', () => {
+    expect(startOdometer({ odometer: 38071, odometer_at: '2026-10-30T13:10:00.000Z' }, today)).toBe(38071);
+  });
+  it('⚠️ last night\'s reading does not: Start no longer waits on today\'s odo, so the row must not pass it off as today\'s', () => {
+    expect(startOdometer({ odometer: 38071, odometer_at: '2026-10-30T03:00:00.000Z' }, today)).toBeNull();   // 22:00 on the 29th
+    expect(startOdometer({ odometer: 38071, odometer_at: '2026-10-24T15:00:00.000Z' }, today)).toBeNull();
+  });
+  it('the 04:00 cutover decides, not midnight', () => {
+    expect(startOdometer({ odometer: 5, odometer_at: '2026-10-30T08:59:00.000Z' }, today)).toBeNull();      // 03:59, still the 29th
+    expect(startOdometer({ odometer: 5, odometer_at: '2026-10-30T09:00:00.000Z' }, today)).toBe(5);         // 04:00, the 30th
+    expect(startOdometer({ odometer: 5, odometer_at: '2026-10-31T08:30:00.000Z' }, today)).toBe(5);         // 03:30 next night, a closer's
+  });
+  it('no reading, or no time on it, is no odo', () => {
+    expect(startOdometer({ odometer: null, odometer_at: '2026-10-30T13:10:00.000Z' }, today)).toBeNull();
+    expect(startOdometer({ odometer: 38071, odometer_at: null }, today)).toBeNull();
+    expect(startOdometer({ odometer: 38071, odometer_at: 'not a date' }, today)).toBeNull();
+    expect(startOdometer({}, today)).toBeNull();
   });
 });

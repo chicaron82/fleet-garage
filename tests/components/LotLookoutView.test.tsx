@@ -31,7 +31,15 @@ vi.mock('../../src/hooks/useLookupRecents', () => ({ useLookupRecents: () => ({ 
 const seltos = {
   id: 'v-487', licensePlate: '0GK487', unitNumber: '5429550', year: 2026, make: 'Kia', model: 'Seltos', color: 'Gray',
   isHybrid: false, isTesla: false, isUs: false, odometer: 14315, odometerAt: new Date().toISOString(),
+  classCode: 'KSEL', rentalClass: 'D', status: 'CLEAR',
 };
+// The car the bay rows are about, when FG has it live (ticket-bay-log-first-shift-friction).
+const corolla = {
+  id: 'v-536', licensePlate: 'LZM536', unitNumber: '5423173', year: 2026, make: 'Toyota', model: 'Corolla Cross', color: 'Gray',
+  isHybrid: false, isTesla: false, isUs: false, odometer: 20275, odometerAt: '2026-10-28T15:00:00.000Z',
+  classCode: 'TCCR', rentalClass: 'F', status: 'CLEAR',
+};
+let vehicles: Record<string, unknown>[] = [seltos];
 vi.mock('../../src/hooks/useLotBay', () => ({
   useLotBay: () => ({ bay: { cleans: 12, cleansBy: 'AS', cleansAt: null, dirties: 9, dirtiesBy: 'AS', dirtiesAt: null, used: 0, usedOn: null },
     log: [], loaded: true, nowMs: Date.parse('2026-10-29T16:30:00Z'), setBay: () => {} }),
@@ -46,9 +54,9 @@ vi.mock('../../src/hooks/useLotCrew', () => ({
     leaveOff: vi.fn(async () => null),
   }),
 }));
-let holds: { vehicleId: string; flaggedAt: string; holdTypes: string[] }[] = [];
+let holds: { vehicleId: string; flaggedAt: string; holdTypes: string[]; id?: string; status?: string; damageZones?: string[] }[] = [];
 vi.mock('../../src/context/VehicleHoldContext', () => ({ useVehicleHoldContext: () => ({
-  holds, vehicles: [seltos], archivedVehicles: [], recordOdometer: vi.fn(async () => {}), clearOdometer: vi.fn(), correctOdometer: vi.fn(),
+  holds, vehicles, archivedVehicles: [], recordOdometer: vi.fn(async () => {}), clearOdometer: vi.fn(), correctOdometer: vi.fn(),
 }) }));
 vi.mock('../../src/context/AuthContext', () => ({ useAuth: () => ({ user: { name: 'Aaron Sauddin' } }) }));
 const search = vi.fn();
@@ -56,7 +64,13 @@ vi.mock('../../src/context/scanRouter', () => ({ useScanRouter: () => ({ search 
 
 const { LotLookoutView } = await import('../../src/components/lot-lookout/LotLookoutView');
 
-beforeEach(() => { rows = []; holds = []; vi.clearAllMocks(); });
+beforeEach(() => {
+  rows = []; holds = []; vehicles = [seltos]; vi.clearAllMocks();
+  // ⚠️ clearAllMocks keeps a queued mockResolvedValueOnce. The "cannot place" test queues one its Enter path never
+  // spends, and it answered the NEXT search anywhere in the file with no matches (found 2026-10-31). Reset it here.
+  searchVehicles.mockReset();
+  searchVehicles.mockImplementation(async () => ({ matches: [hit], failed: false }));
+});
 
 describe('LotLookoutView — the bay log', () => {
   it('⭐ strictly Erin St: no airport anywhere', () => {
@@ -160,5 +174,75 @@ describe('LotLookoutView — the bay log', () => {
   it('the outside links: Erin St\'s count and the read-only view (the driver link went with the airport)', () => {
     render(<LotLookoutView onNavigate={vi.fn()} />);
     expect(screen.getAllByRole('link', { name: 'Open' }).map(a => a.getAttribute('href'))).toEqual(['/lot/erin', '/lot/view']);
+  });
+
+  // ── first-shift friction (2026-10-31, docs/ticket-bay-log-first-shift-friction.md) ──
+  // ⭐ Aaron: *"When I work passenger side I don't see the odo until I take it out to park"* → *"leaving the odo optional"*.
+  it('⭐ Start cleaning works on a car with no odo today, and says so quietly', async () => {
+    vehicles = [{ ...seltos, odometerAt: '2026-10-20T15:00:00.000Z' }];
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    fireEvent.change(screen.getByRole('textbox', { name: /Look up a vehicle/ }), { target: { value: '0GK487' } });
+    fireEvent.click(await screen.findByRole('button', { name: /0GK487/ }));
+    expect(screen.getByText('No odo today. The gas sheet can fill it in.')).toBeTruthy();
+    const startBtn = screen.getByRole('button', { name: /Start cleaning/ });
+    expect(startBtn).not.toBeDisabled();
+    fireEvent.click(startBtn);
+    await waitFor(() => expect(start).toHaveBeenCalledWith('v-487'));
+  });
+
+  // ⭐ *"Also displaying the same info as the find a car / Unit# model code, class code"*.
+  it('⭐ the pick card wears the popup\'s header: Unit #, the codes line, the status; a tap opens the record', async () => {
+    const onNavigate = vi.fn();
+    render(<LotLookoutView onNavigate={onNavigate} />);
+    fireEvent.change(screen.getByRole('textbox', { name: /Look up a vehicle/ }), { target: { value: '0GK487' } });
+    fireEvent.click(await screen.findByRole('button', { name: /0GK487/ }));
+    const card = screen.getByRole('region', { name: 'In the bay' });
+    expect(card).toHaveTextContent('0GK487 · Unit 542 9550');
+    expect(card).toHaveTextContent('KSEL · class D');
+    expect(card).toHaveTextContent('Clear');
+    expect(screen.getByRole('button', { name: 'Different car' })).toBeTruthy();
+    fireEvent.click(screen.getByTitle('Open the record'));
+    expect(onNavigate).toHaveBeenCalledWith({ name: 'vehicle', vehicleId: 'v-487' });
+  });
+
+  it('⭐ the In the bay card wears it too, looked up live; the row\'s odo shows only when it has one', () => {
+    vehicles = [seltos, corolla];
+    rows = [row({ odometer: null })];
+    const onNavigate = vi.fn();
+    render(<LotLookoutView onNavigate={onNavigate} />);
+    const card = screen.getByRole('region', { name: 'In the bay' });
+    expect(card).toHaveTextContent('LZM536 · Unit 542 3173');
+    expect(card).toHaveTextContent('TCCR · class F');
+    expect(card).toHaveTextContent('Since 11:20');
+    expect(card).not.toHaveTextContent('odo');
+    fireEvent.click(screen.getByTitle('Open the record'));
+    expect(onNavigate).toHaveBeenCalledWith({ name: 'vehicle', vehicleId: 'v-536' });
+  });
+
+  it('a bay car FG no longer has live falls back to the row\'s own plate and car line', () => {
+    rows = [row({})];
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    const card = screen.getByRole('region', { name: 'In the bay' });
+    expect(card).toHaveTextContent('LZM536');
+    expect(card).toHaveTextContent('2026 Toyota Corolla Cross · Gray');
+    expect(card).toHaveTextContent('odo 20,275');
+    expect(screen.queryByTitle('Open the record')).toBeNull();
+  });
+
+  // ⭐ *"I don't see the damage map and did miss marking damage on a few"*.
+  it('⭐ the damage map rides on both bay cards for a car with zones, and stays silent on a clear one', async () => {
+    vehicles = [seltos, corolla];
+    holds = [{ id: 'h1', vehicleId: 'v-536', status: 'ACTIVE', holdTypes: ['damage'], flaggedAt: '2026-10-01T12:00:00Z', damageZones: ['front-bumper'] }];
+    rows = [row({})];
+    const { unmount } = render(<LotLookoutView onNavigate={vi.fn()} />);
+    expect(screen.getByRole('region', { name: 'In the bay' })).toContainElement(screen.getByTestId('scan-damage-zones'));
+    expect(screen.getByText('Front bumper')).toBeTruthy();
+    unmount();
+
+    rows = [];
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    fireEvent.change(screen.getByRole('textbox', { name: /Look up a vehicle/ }), { target: { value: '0GK487' } });
+    fireEvent.click(await screen.findByRole('button', { name: /0GK487/ }));
+    expect(screen.queryByTestId('scan-damage-zones')).toBeNull();      // the clear Seltos: nothing
   });
 });

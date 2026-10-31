@@ -3,8 +3,14 @@
 // is made on. Ticket: docs/ticket-lot-lookout-bay-log.md.
 //
 // One car at a time (*"i can't start a new one when i'm still working on the previous one"*): while a car is in, this
-// is "Finish <plate> first", and that gate is also the forgotten-close fix. Start also needs today's odo, so a car never
-// enters the bay without the reading he already takes at every car.
+// is "Finish <plate> first", and that gate is also the forgotten-close fix.
+//
+// ⚠️ The odo is NOT a gate (since 2026-10-31, docs/ticket-bay-log-first-shift-friction.md). It was, and on a
+// passenger-side day it fought him: *"When I work passenger side I don't see the odo until I take it out to park"*, so
+// he started each car one early to get past it. His call: *"How bout leaving the odo optional. You and I do gas sheets
+// later so whatever is missed would get entered that way."* He flips sides with the partner, so this is no side mode:
+// one screen serves both. The line under Start only says, quietly, when today's reading is missing. The server writes
+// the row's odo only from a reading taken today (startOdometer), so a stale one never reads as today's.
 import { useState } from 'react';
 import { useBayLog, type BayLogState } from '../../hooks/useBayLog';
 import { useAuth } from '../../context/AuthContext';
@@ -55,12 +61,12 @@ export function ScanBayStart({ vehicle, onOpenBay, bayLog }: { vehicle: Vehicle;
 
   return (
     <div className="space-y-1">
-      <button type="button" disabled={!odoToday || busy} onClick={() => void start()}
+      <button type="button" disabled={busy} onClick={() => void start()}
         className="w-full rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi py-3.5 text-base font-extrabold text-black cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
         {busy ? 'Starting…' : '▶ Start cleaning'}
       </button>
       <p className={`text-center text-xs ${err ? 'font-semibold text-red-700 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
-        {err || (odoToday ? 'Puts it in the bay and opens the bay log.' : "Log today's odo above to start cleaning it.")}
+        {err || (odoToday ? 'Puts it in the bay and opens the bay log.' : 'No odo today. The gas sheet can fill it in.')}
       </p>
     </div>
   );
