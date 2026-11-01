@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { bayLines, baySummary, inTheBay, startBlock, vehicleForPick, type BayLogRow } from '../../src/lib/lotBayLog';
+import { bayLines, bayReportLine, baySummary, inTheBay, startBlock, vehicleForPick, type BayLogRow } from '../../src/lib/lotBayLog';
 
 // Times are UTC; clockOf prints Winnipeg (CDT, UTC−5 on 2026-10-29).
 const row = (id: number, plate: string, start: string, exit: BayLogRow['exit'], exitAt: string | null, extra: Partial<BayLogRow> = {}): BayLogRow => ({
@@ -93,3 +93,11 @@ describe('vehicleForPick', () => {
   });
 });
 
+
+describe('bayReportLine (the shift report)', () => {
+  it('counts, zeros hidden; a bumped car that was redone is not still to do', () => {
+    expect(bayReportLine(DAY)).toBe('2 clean · 1 B hold · 1 M hold');
+    expect(bayReportLine([row(1, 'A', '12:00', 'clean', '12:30'), row(2, 'B', '13:00', 'skip', '13:10')])).toBe('1 clean · 1 bumped, still to do');
+  });
+  it('a day with no cars has no line', () => { expect(bayReportLine([])).toBeNull(); });
+});

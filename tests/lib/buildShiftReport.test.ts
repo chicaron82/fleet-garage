@@ -347,3 +347,13 @@ describe('reportOthBreakdown', () => {
     expect(b.wfw).toBe(20);
   });
 });
+
+describe('buildReport — the bay log line (ticket-lot-lookout-bay-log, Phase 2)', () => {
+  it('a day with cars gets a BAY LOG section; a day without gets none', () => {
+    const r = buildReport(baseData({ bay: '12 clean · 1 B hold · 2 bumped, still to do' }));
+    expect(r).toContain('BAY LOG');
+    expect(r).toContain('12 clean · 1 B hold · 2 bumped, still to do');
+    expect(buildReport(baseData({ bay: null }))).not.toContain('BAY LOG');
+    expect(buildReport(baseData())).not.toContain('BAY LOG');
+  });
+});

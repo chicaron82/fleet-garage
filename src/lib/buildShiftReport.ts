@@ -65,6 +65,8 @@ export interface ReportData {
   // Every reading the paper Gasoline Pump Card carries, surfaced in FG. null when
   // no fuel was logged for the day. The Pump 2 status doubles as the theft tripwire.
   fuel: FuelReport | null;
+  /** The bay log's day, one line (lotBayLog.bayReportLine); null/absent on a day with no cars. */
+  bay?: string | null;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -274,6 +276,8 @@ export function buildReport(d: ReportData): string {
       lines.push(`Carry-over from previous shift: ${t.carryOver} vehicle${t.carryOver !== 1 ? 's' : ''}`);
     }
   }
+
+  if (d.bay) lines.push('', 'BAY LOG', SEP, d.bay);
 
   // OTH summary (replaces full entry list)
   const offTotal = d.offStandard.reduce((s, e) => s + e.minutes, 0);

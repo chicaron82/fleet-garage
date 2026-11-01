@@ -108,3 +108,15 @@ export function vehicleForPick<V extends { licensePlate: string; unitNumber: str
   return vehicles.find(v => foldOZero(v.licensePlate) === key || (v.unitNumber ?? '') === key) ?? null;
 }
 
+
+/** The shift report's bay line (Aaron, 2026-11-01: *"you can include it, they aren't being sent anywhere. but its good to
+ *  have"*). Counts only, zeros hidden, a bumped car counted only while it's still to do; null on a day with no cars. */
+export function bayReportLine(rows: readonly BayLogRow[]): string | null {
+  if (!rows.length) return null;
+  const s = baySummary(rows);
+  const parts = [`${s.clean} clean`];
+  if (s.bhold) parts.push(`${s.bhold} B hold`);
+  if (s.mhold) parts.push(`${s.mhold} M hold`);
+  if (s.stillToDo) parts.push(`${s.stillToDo} bumped, still to do`);
+  return parts.join(' · ');
+}

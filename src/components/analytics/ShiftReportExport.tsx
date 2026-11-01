@@ -26,6 +26,7 @@ import {
   type ReportThroughput,
 } from '../../lib/buildShiftReport';
 import { buildFuelReport } from '../../lib/fuelReadings';
+import { BAY_LOG_COLUMNS, bayReportLine, type BayLogRow } from '../../lib/lotBayLog';
 import type { ShiftType } from '../../types';
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -62,7 +63,7 @@ export function ShiftReportExport({ date }: { date: string }) {
     const [
       othRes, tripRes, holdRes, ciRes, lfRes, auditRes, issueRes,
       fbRes, handoffRes, washbayRes, checkpointRes, midArrivalRes, midDepartureRes,
-      fuelRes,
+      fuelRes, bayRes,
     ] = await Promise.all([
       readOnce(() => supabase.from('off_standard_entries')
         .select('start_time, stop_time, minutes, reason, explanation, auto_from_trip, preset_reason')
@@ -156,9 +157,10 @@ export function ShiftReportExport({ date }: { date: string }) {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()),
+      readOnce(() => supabase.from('lot_bay_log').select(BAY_LOG_COLUMNS).eq('shift_day', date)),
     ]);
     // One failed read makes the whole report untrue (2026-10-18): a dead network used to build a report of zeros.
-    throwIfAnyFailed([othRes, tripRes, holdRes, ciRes, lfRes, auditRes, fbRes, handoffRes, washbayRes, checkpointRes, midArrivalRes, midDepartureRes, fuelRes], "Couldn't load your whole shift. Check the signal and try again.");
+    throwIfAnyFailed([othRes, tripRes, holdRes, ciRes, lfRes, auditRes, fbRes, handoffRes, washbayRes, checkpointRes, midArrivalRes, midDepartureRes, fuelRes, bayRes], "Couldn't load your whole shift. Check the signal and try again.");
 
     // Shift type + actual hours worked (drives the window when logged)
     const myShift = deriveUserShift(shifts, user.id, date);
@@ -340,6 +342,7 @@ export function ShiftReportExport({ date }: { date: string }) {
         || (washbayRow?.airport_flipping ?? false),
       airportFlipCount,
       fuel: buildFuelReport(fuelRes.data),
+      bay: bayReportLine((bayRes.data ?? []) as BayLogRow[]),
     };
   };
 
