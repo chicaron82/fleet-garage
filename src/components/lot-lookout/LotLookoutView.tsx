@@ -9,8 +9,9 @@
 import { useCallback, useState } from 'react';
 import { initialsOf } from '../../lib/lotLookout';
 import { inTheBay } from '../../lib/lotBayLog';
-import { shiftDayLabel } from '../../lib/shiftDay';
+import { shiftDateStr, shiftDayLabel } from '../../lib/shiftDay';
 import { useBayLog } from '../../hooks/useBayLog';
+import { useBayDay } from '../../hooks/useBayDay';
 import { useLotBay } from '../../hooks/useLotBay';
 import { useBayTapsSignedIn } from '../../hooks/useBayTaps';
 import { useLotCrew } from '../../hooks/useLotCrew';
@@ -21,6 +22,7 @@ import { ModuleHeader } from '../shared/ModuleHeader';
 import { LotCrewLine } from '../lot/LotCrewLine';
 import { BayInTheBay } from '../lot/BayInTheBay';
 import { BayLogList } from '../lot/BayLogList';
+import { BayDayHeader } from '../lot/BayDayHeader';
 import { ErinCountBlocks, UndoNoteBar } from '../lot/ErinCountBlocks';
 import { LotCrewPanel } from '../my-day/LotCrewPanel';
 import { LotLinks } from './LotLinks';
@@ -40,6 +42,12 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
   const [busy, setBusy] = useState(false);
   const [bumped, setBumped] = useState(false);
   const open = inTheBay(bay.rows);
+  // The day record (Phase 2): ‹ › back through his days. Today is the live log; an earlier day is history.
+  const [back, setBack] = useState(0);
+  const isToday = back === 0, day = shiftDateStr(-back);
+  const record = useBayDay(day, user?.id ?? null, isToday);
+  const [y, m, d] = day.split('-').map(Number);
+  const dayLabel = isToday ? `Today · ${shiftDayLabel()}` : shiftDayLabel(new Date(y!, m! - 1, d!, 12));
 
   /** One exit, said out loud: the note names the car, and Clean / Skip can be taken back for 5 s. */
   const settle = useCallback(async (run: () => Promise<string | null>, done: string, undo?: () => void) => {
@@ -64,7 +72,11 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
       <ModuleHeader title="Lot Lookout" subtitle="Erin St · the bay log" />
 
       {bay.error && <p className="text-sm text-red-700 dark:text-red-400">{bay.error}</p>}
-      {bay.loaded && (
+      <BayDayHeader label={dayLabel} isToday={isToday} canForward={back > 0} crew={record.crew} nowMs={erin.nowMs}
+        onBack={() => setBack(b => b + 1)} onForward={() => setBack(b => Math.max(0, b - 1))} onToday={() => setBack(0)} />
+      {record.error && <p className="text-sm text-red-700 dark:text-red-400">{record.error}</p>}
+
+      {isToday && bay.loaded && (
         <BayInTheBay open={open} busy={busy} bumped={bumped}
           onExit={exitHere}
           onHold={kind => open && onNavigate({ name: 'new-hold', vehicleId: open.vehicle_id, prefillNonce: Date.now(), bayExit: { id: open.id, kind } })}
@@ -75,16 +87,18 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
       {/* Only while it has something to say: an empty bar left a hole under the card (render check, 2026-10-29). */}
       {note && <UndoNoteBar note={note} clear={clearNote} />}
 
-      {erin.bay && (
+      {isToday && erin.bay && (
         <section aria-label="Erin St" className="space-y-2">
           <h2 className={SECTION_HEAD}>Erin St</h2>
           <ErinCountBlocks erin={erin} taps={taps} drivers={crew?.summary.driver.on ?? 0} />
         </section>
       )}
 
-      <BayLogList rows={bay.rows} heading={`Today · ${shiftDayLabel()}`} />
+      {isToday ? <BayLogList rows={bay.rows} heading="The bay log" />
+        : record.pastRows ? <BayLogList rows={record.pastRows} heading="The bay log" empty="No cars through the bay that day." />
+        : <p className="text-center text-sm text-gray-500 dark:text-gray-400">Loading that day…</p>}
 
-      {crew && (
+      {isToday && crew && (
         <section aria-label="Crew" className="space-y-2">
           <LotCrewLine summary={crew.summary} />
           {crew.members && crew.members.length > 0 && (

@@ -15,7 +15,7 @@ const TONE: Record<BayLineKind, string> = {
 
 const CHIP = 'rounded-full px-2.5 py-1 text-xs font-bold';
 
-export function BayLogList({ rows, readOnly = false, heading }: { rows: BayLogRow[]; readOnly?: boolean; heading: string }) {
+export function BayLogList({ rows, readOnly = false, heading, empty = 'No cars through the bay yet today.' }: { rows: BayLogRow[]; readOnly?: boolean; heading: string; empty?: string }) {
   const lines = bayLines(rows, { readOnly });
   const s = baySummary(rows);
   return (
@@ -23,7 +23,7 @@ export function BayLogList({ rows, readOnly = false, heading }: { rows: BayLogRo
       <h2 className="px-0.5 text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">{heading}</h2>
       {lines.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 px-4 py-5 text-center text-sm text-gray-500 dark:text-gray-400">
-          No cars through the bay yet today.
+          {empty}
         </p>
       ) : (
         <>
