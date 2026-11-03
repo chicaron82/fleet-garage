@@ -84,7 +84,10 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
           : parsed.action === 'bayExit' ? await exitCar(db, parsed.id, parsed.exit, parsed.by, now, today, parsed.odometer)
           : parsed.action === 'bayExitUndo' ? await undoExit(db, parsed.id, parsed.by, now, today)
           : parsed.action === 'bayStandbySet' ? await setStandby(db, parsed.vehicleId, parsed.by, now, today)
-          : await clearStandby(db);
+          : parsed.action === 'bayStandbyClear' ? await clearStandby(db)
+          // Named, not a catch-all: a new bay-log action with no arm here must fail the type check, never quietly
+          // clear his Next up car (2026-11-03, pass two after the "Unknown action." fix).
+          : unhandledBayLog(parsed);
         res.status(200).json({ ok: true, ...out });
       } catch (e) {
         if (!(e instanceof BayLogRefusal)) throw e;
@@ -126,6 +129,10 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
 /** Erin St's count: every action that writes lot_bay (the +1/−1, the typed dirties, and migration 156's quick taps). */
 function isBayRequest(r: LotRequest): r is BayRequest {
   return (BAY_ACTIONS as readonly string[]).includes(r.action);
+}
+
+function unhandledBayLog(r: never): never {
+  throw new Error(`bay log: no handler for ${(r as { action?: string }).action}`);
 }
 
 function isBayLogRequest(r: LotRequest): r is BayLogRequest {
