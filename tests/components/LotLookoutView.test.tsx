@@ -55,14 +55,14 @@ vi.mock('../../src/hooks/useLotCrew', () => ({
   }),
 }));
 let holds: { vehicleId: string; flaggedAt: string; holdTypes: string[]; id?: string; status?: string; damageZones?: string[] }[] = [];
-const logOdometer = vi.fn(async (..._args: unknown[]) => true);
+const recordOdometer = vi.fn(async (..._args: unknown[]) => true);
 const correctOdometer = vi.fn(async (..._args: unknown[]) => true);
 let standbyState: { standby: Record<string, unknown> | null; loaded: boolean; load: ReturnType<typeof vi.fn>; clear: ReturnType<typeof vi.fn> };
 const loadNext = vi.fn(async (..._args: unknown[]) => null as string | null);
 const clearNext = vi.fn(async () => null as string | null);
 vi.mock('../../src/hooks/useBayStandby', () => ({ useBayStandby: () => standbyState }));
 vi.mock('../../src/context/VehicleHoldContext', () => ({ useVehicleHoldContext: () => ({
-  holds, vehicles, archivedVehicles: [], recordOdometer: vi.fn(async () => {}), logOdometer, clearOdometer: vi.fn(), correctOdometer,
+  holds, vehicles, archivedVehicles: [], recordOdometer, clearOdometer: vi.fn(), correctOdometer,
 }) }));
 vi.mock('../../src/context/AuthContext', () => ({ useAuth: () => ({ user: { name: 'Aaron Sauddin' } }) }));
 const search = vi.fn();
@@ -265,8 +265,8 @@ describe('LotLookoutView — the bay log', () => {
     type('21,500');
     fireEvent.click(screen.getByRole('button', { name: /Clean · log 21,500 km/ }));
     await waitFor(() => expect(exit).toHaveBeenCalledWith(6, 'clean', 21500));
-    expect(logOdometer).toHaveBeenCalledWith('v-536', 21500);
-    expect(logOdometer.mock.invocationCallOrder[0]!).toBeLessThan(exit.mock.invocationCallOrder[0]!);
+    expect(recordOdometer).toHaveBeenCalledWith('v-536', 21500);
+    expect(recordOdometer.mock.invocationCallOrder[0]!).toBeLessThan(exit.mock.invocationCallOrder[0]!);
     expect(await screen.findByRole('button', { name: 'Undo' })).toBeTruthy();
     expect(screen.getByText(/LZM536 clean · odo 21,500/)).toBeTruthy();
   });
@@ -276,12 +276,12 @@ describe('LotLookoutView — the bay log', () => {
     render(<LotLookoutView onNavigate={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /^✓ Clean/ }));
     await waitFor(() => expect(exit).toHaveBeenCalledWith(6, 'clean'));
-    expect(logOdometer).not.toHaveBeenCalled();
+    expect(recordOdometer).not.toHaveBeenCalled();
   });
 
   it('⚠️ a reading that did not save leaves the car in and says so', async () => {
     inNoOdo();
-    logOdometer.mockResolvedValueOnce(false);
+    recordOdometer.mockResolvedValueOnce(false);
     render(<LotLookoutView onNavigate={vi.fn()} />);
     type('21500');
     fireEvent.click(screen.getByRole('button', { name: /Clean · log/ }));
@@ -322,7 +322,7 @@ describe('LotLookoutView — the bay log', () => {
     type('21500');
     fireEvent.click(screen.getByRole('button', { name: /B hold/ }));
     await waitFor(() => expect(onNavigate).toHaveBeenCalledWith(expect.objectContaining({ name: 'new-hold', bayExit: { id: 6, kind: 'bhold' } })));
-    expect(logOdometer).toHaveBeenCalledWith('v-536', 21500);
+    expect(recordOdometer).toHaveBeenCalledWith('v-536', 21500);
   });
 
   it('no box once today has a reading: from the Start, or logged on the car since', () => {

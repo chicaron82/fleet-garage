@@ -236,7 +236,7 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
           /* He tapped to open this. Finishing that gesture is the point — he is at the dash with
              one hand free, and the second tap was never carrying information. */
           autoFocus
-          onSave={async (id, km) => { await recordOdometer(id, km); setEditingOdo(false); }}
+          onSave={async (id, km) => { const ok = await recordOdometer(id, km); if (ok) setEditingOdo(false); return ok; }}
           /* Closes the editor on a successful clear, the same as a save — the row underneath then
              reads "Odometer not logged", which IS the confirmation. */
           onClear={async (id) => { const ok = await clearOdometer(id); if (ok) setEditingOdo(false); return ok; }}

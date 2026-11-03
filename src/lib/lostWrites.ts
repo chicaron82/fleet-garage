@@ -10,8 +10,8 @@ export interface FollowedWrite {
  * ⭐⭐ THE AIRPORT FLIP'S THREE (2026-09-19, docs/September/ticket-writes-that-vanish-into-void.md).
  * The key count, the odometer and the EV check used to go out as `void` and the capture card closed
  * on the next line. `recordKeyCount` THROWS on failure — an unhandled rejection that ⚠️ no React
- * error boundary catches — and `recordOdometer` returns quietly, so on a weak signal at the return
- * lane the card closed clean and the numbers he had just typed were gone.
+ * error boundary catches — and `recordOdometer` returned quietly (it answers `false` since 2026-11-02), so on a weak signal
+ * at the return lane the card closed clean and the numbers he had just typed were gone.
  *
  * ⚠️ BOTH failure shapes, because FG has both: a throw, and an explicit `false`. Anything else
  * (including `undefined`, which is what most of FG's `Promise<void>` writers resolve) counts as

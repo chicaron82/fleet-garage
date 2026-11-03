@@ -180,7 +180,7 @@ export function AirportFlipSection() {
     // ⭐⭐ THE CARD STILL CLOSES IMMEDIATELY — the counter list is the job and must never wait on a
     // database (2026-09-19, docs/September/ticket-writes-that-vanish-into-void.md). What changed is
     // that these three writes are no longer thrown into a `void`: `recordKeyCount` THROWS on
-    // failure (an unhandled rejection no error boundary catches) and `recordOdometer` returns
+    // failure (an unhandled rejection no error boundary catches) and `recordOdometer` used to return
     // quietly, so on a weak signal at the lot the card closed clean and the numbers he typed were
     // simply gone. They are followed now, and anything that didn't land is SAID.
     const { vehicleId, isTesla } = capture;
@@ -201,9 +201,8 @@ export function AirportFlipSection() {
     // The odo he already typed for the counter — kept rather than discarded (migration 123). Free
     // data: it costs him nothing extra, and it is what the airport is actually asking about when
     // they want "a high-km out-of-province car for a one-way".
-    // ⚠️ `recordOdometer` also returns silently when a HIGHER reading already stands — that is a
-    // deliberate no-op, not a loss, and it cannot be told apart from here. It resolves either way,
-    // so it is only reported when it actually throws.
+    // ⚠️ A HIGHER reading already standing is a deliberate no-op, not a loss, so `recordOdometer` answers true for it and
+    // false only for a write that failed. (Until 2026-11-02 it resolved either way, so this was never reported at all.)
     if (km !== null) writes.push({ label: 'odometer', run: () => recordOdometer(vehicleId, km) });
     // The flip IS the check-in that closes the contract — so a missing cable/adapter caught HERE is
     // still chargeable, where the same loss found later in the washbay is just gone. Seeded boxes

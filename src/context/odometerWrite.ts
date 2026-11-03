@@ -14,18 +14,12 @@ import type { Vehicle } from '../types';
  *  The guard is restated server-side (`odometer.lt.N`) so two near-simultaneous flips can't have the
  *  older one land last. `or=(odometer.is.null,...)` covers the first reading.
  *
- *  Best-effort by contract: a failed write must never cost the flip that triggered it — the counter
- *  copy-out is the operator's actual job, and this is bookkeeping riding along behind it. A tap whose
- *  next step depends on the reading landing uses `makeLogOdometer` instead. */
-export function makeRecordOdometer(deps: Parameters<typeof makeLogOdometer>[0]) {
-  const log = makeLogOdometer(deps);
-  return async (vehicleId: string, km: number): Promise<void> => { await log(vehicleId, km); };
-}
-
-/** The same write, and it says whether the reading landed. The bay card closes a car on it (Aaron, 2026-11-02: *"entering
- *  the odo when a cleaning has started then logging it stops the clean"*), and a Clean that reads "log 48,213" must not
- *  go through on a reading that never saved (CLAUDE.md, a write that fails must SAY so). */
-export function makeLogOdometer(deps: {
+ *  ⚠️ SAYS WHETHER ANYTHING WAS LOST (2026-11-02). It used to swallow a failed write, "best-effort by contract", so that a
+ *  failure could never cost the flip that triggered it. The flip doesn't wait on it now anyway (lostWrites), so the only
+ *  thing swallowing still bought was a lie: the capture box read "✓ saved" on a weak signal, and the flip's "didn't save"
+ *  note could never name the odometer. `false` = the write failed. `true` = nothing was lost: it landed, or a reading at
+ *  least as high already stands, which is the guard working and not a loss. */
+export function makeRecordOdometer(deps: {
   setAllVehicles: React.Dispatch<React.SetStateAction<Vehicle[]>>;
   currentOdometer: (vehicleId: string) => number | null | undefined;
 }) {
@@ -38,7 +32,7 @@ export function makeLogOdometer(deps: {
     // walked up and read it. (No-op when nothing is held, so a scanned car — whose sighting was
     // already recorded at the read — can never be double-counted.) Aaron, 2026-08-28.
     commitSightingFor(vehicleId);
-    if (!shouldReplaceOdometer(currentOdometer(vehicleId), km)) return false;
+    if (!shouldReplaceOdometer(currentOdometer(vehicleId), km)) return true;
     const at = new Date().toISOString();
     const { data, error } = await writeWithRefresh(() =>
       supabase
@@ -48,7 +42,8 @@ export function makeLogOdometer(deps: {
         .or(`odometer.is.null,odometer.lt.${km}`)
         .select('id')
     );
-    if (error || !data?.length) return false; // 0 rows = a higher reading already landed → don't diverge
+    if (error) return false;
+    if (!data?.length) return true; // 0 rows = a higher reading already landed → don't diverge
     setAllVehicles(prev => prev.map(v => (v.id === vehicleId ? { ...v, odometer: km, odometerAt: at } : v)));
     return true;
   };

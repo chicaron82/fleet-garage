@@ -46,7 +46,7 @@ export interface BayOpenCarProps {
 }
 
 export function BayOpenCar({ open, onStart, busy, onExit, onHold, onCloseHeld, onOpenCar }: BayOpenCarProps) {
-  const { holds, vehicles, archivedVehicles, logOdometer, correctOdometer } = useVehicleHoldContext();
+  const { holds, vehicles, archivedVehicles, recordOdometer, correctOdometer } = useVehicleHoldContext();
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
   const [odoError, setOdoError] = useState<string | null>(null);
@@ -73,7 +73,7 @@ export function BayOpenCar({ open, onStart, busy, onExit, onHold, onCloseHeld, o
   const thenExit = async (go: () => void) => {
     if (entry.kind === 'log') {
       setSaving(true);
-      const ok = await logOdometer(open.vehicle_id, entry.km).catch(() => false);
+      const ok = await recordOdometer(open.vehicle_id, entry.km).catch(() => false);
       setSaving(false);
       if (!ok) { setOdoError('The odo did not save, so the car is still in. Try again, or clear the box to exit without it.'); return; }
     }

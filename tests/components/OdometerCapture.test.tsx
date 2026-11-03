@@ -27,6 +27,22 @@ describe('OdometerCapture', () => {
     expect(await screen.findByText(/110,451 km saved/)).toBeInTheDocument();
   });
 
+  // ⚠️ docs/ticket-odo-capture-claims-saved.md: it read "saved" on a write that never landed.
+  for (const [how, fail] of [['answers false', () => onSave.mockResolvedValueOnce(false as never)], ['throws', () => onSave.mockRejectedValueOnce(new Error('offline'))]] as const) {
+    it(`a write that ${how} says so, keeps the number, and Log can try again`, async () => {
+      fail();
+      setup();
+      fireEvent.change(screen.getByLabelText('Odometer reading'), { target: { value: '110451' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Log' }));
+      expect((await screen.findByRole('alert')).textContent).toMatch(/did not save/);
+      expect(screen.queryByText(/km saved/)).toBeNull();
+      expect(screen.getByLabelText('Odometer reading')).toHaveValue('110451');
+      fireEvent.click(screen.getByRole('button', { name: 'Log' }));
+      expect(await screen.findByText(/110,451 km saved/)).toBeInTheDocument();
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+  }
+
   it('accepts the way a dash is actually transcribed', async () => {
     setup();
     fireEvent.change(screen.getByLabelText('Odometer reading'), { target: { value: '110,451' } });

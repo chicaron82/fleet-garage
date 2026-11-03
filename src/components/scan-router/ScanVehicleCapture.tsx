@@ -20,7 +20,7 @@ export function ScanVehicleCapture({ vehicle, scanNonce, rentalClass, recordOdom
   scanNonce: number;
   /** Rental class off THIS tag read; the flip list tallies classes turned around. */
   rentalClass: string;
-  recordOdometer: (vehicleId: string, km: number) => Promise<void>;
+  recordOdometer: (vehicleId: string, km: number) => Promise<boolean>;
   updateVehicleEVAssets: (
     vehicleId: string, hasMobileCable: boolean, hasJ1772Adapter: boolean, source: EvSource, notes?: string,
   ) => Promise<boolean>;

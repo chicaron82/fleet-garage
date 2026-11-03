@@ -39,7 +39,8 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
    *  record read 23,175 mi while the box under it asked him for kilometres. Fixed the reader I was
    *  looking at and not the one beside it, which is the same defect I spent the week writing up. */
   isUs?: boolean;
-  onSave: (vehicleId: string, km: number) => Promise<void>;
+  /** False (or a throw) = it did not land: the box says so and keeps what he typed. */
+  onSave: (vehicleId: string, km: number) => Promise<boolean | void>;
   /** Clears a mis-typed reading back to "not logged". Omitted → no clear offered (read-only hosts). */
   onClear?: (vehicleId: string) => Promise<boolean>;
   /**
@@ -66,12 +67,13 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
 }) {
   const [draft, setDraft] = useState('');
   const [saved, setSaved] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [clearArmed, setClearArmed] = useState(false);
   const [correcting, setCorrecting] = useState(false);
   const unit = odometerUnitFor(isUs);
 
-  useRoutedProp(resetKey, () => { setDraft(''); setSaved(false); setClearArmed(false); });
+  useRoutedProp(resetKey, () => { setDraft(''); setSaved(false); setFailed(false); setClearArmed(false); });
 
   // An armed Clear that is not confirmed stands down by itself — a stray tap must not leave a
   // loaded button waiting under his thumb for the next one.
@@ -119,7 +121,11 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
   const save = async () => {
     if (km === null || notForward) return;
     hapticLight();
-    await onSave(vehicleId, km);
+    setFailed(false);
+    // ⚠️ It used to set "saved" on the next line regardless, and recordOdometer swallowed its failures, so a weak signal
+    // read "✓ 48,213 km saved" with nothing written (found 2026-11-02, docs/ticket-odo-capture-claims-saved.md).
+    const landed = await onSave(vehicleId, km).catch(() => false);
+    if (landed === false) { setFailed(true); return; }
     setSaved(true);
   };
 
@@ -148,7 +154,7 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
         <div className="flex items-center gap-1.5">
           <input
             value={draft}
-            onChange={e => setDraft(e.target.value)}
+            onChange={e => { setDraft(e.target.value); setFailed(false); }}
             onKeyDown={e => { if (e.key === 'Enter') void save(); }}
             onFocus={e => centreAfterKeypad(e.currentTarget)}
             inputMode="numeric"
@@ -208,6 +214,11 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
             </button>
           )}
         </div>
+      )}
+      {failed && !saved && (
+        <p role="alert" className="w-full text-[11px] font-semibold text-red-600 dark:text-red-400">
+          That reading did not save. Check your signal and tap Log again.
+        </p>
       )}
       {/* ⚠️ Two different refusals, said differently. "Lower" is a possible MISREAD and earns red.
           "Same" is not a mistake at all — the record already says that — so it reads as a neutral
