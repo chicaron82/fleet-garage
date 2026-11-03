@@ -111,6 +111,9 @@ const SHORT: Record<string, string> = {
   make: 'MAKE', model: 'MODEL', year: 'YEAR', note: 'NOTE',
   is_tesla: 'TESLA', is_hybrid: 'HYBRID', has_mobile_cable: 'CABLE', has_j1772_adapter: 'ADAPTER',
   field_sources: 'SOURCES', archived_at: 'ARCHIVED', branch_id: 'BRANCH',
+  // One tap writes both (the yes/no and when): one chip on the trail. Aaron, 2026-11-03, on two chips for one flip: *"Why
+  // two ? What's the difference between "winter tires" and "winter tires at"*. The car's history keeps both lines.
+  winter_tires: 'TIRES', winter_tires_at: 'TIRES',
 };
 
 export function shortFieldLabel(column: string): string {

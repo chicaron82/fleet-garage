@@ -84,6 +84,14 @@ describe('buildTrail', () => {
     expect(stops[0].did).toEqual(['ODO', 'PLATE']);   // deduped, sorted, FG's short labels
   });
 
+  // Aaron, 2026-11-03: *"Why two ? What's the difference between "winter tires" and "winter tires at"* — one flip.
+  it('⭐ a winter-tire flip (yes/no + when, one write) is ONE chip', () => {
+    const stops = buildTrail([
+      row({ vehicleId: 'car-1', changed: { odometer: { from: null, to: 1 }, winter_tires: { from: false, to: true }, winter_tires_at: { from: null, to: '2026-11-03T23:00:00Z' } } }),
+    ], [ME], resolve);
+    expect(stops[0].did).toEqual(['ODO', 'TIRES']);
+  });
+
   it('orders cars newest first', () => {
     const stops = buildTrail([
       row({ vehicleId: 'car-1', changedAt: '2026-09-05T08:00:00Z' }),
