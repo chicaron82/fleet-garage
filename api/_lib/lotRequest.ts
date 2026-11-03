@@ -7,7 +7,7 @@
 // The one other door (2026-10-15): a signed-in FG session, for FG's own My Day card (bearerOf + auth.getUser).
 import { timingSafeEqual } from 'node:crypto';
 import type { BayRequest } from './lotBay.js';
-import { parseBayLog, type BayLogRequest } from './lotBayLog.js';
+import { parseBayLog, BAY_LOG_ACTIONS, type BayLogRequest } from './lotBayLog.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -55,14 +55,13 @@ export function parseLotRequest(body: unknown): LotRequest | { error: string } {
   if (!body || typeof body !== 'object') return { error: 'Nothing was sent.' };
   const b = body as Record<string, unknown>;
   const by = cleanBy(b.by);
+  // The bay log (migration 161, Next up 163). Signed-in FG only; api/lot.ts enforces it. Routed off the one list,
+  // BAY_LOG_ACTIONS: on 2026-11-03 Next up shipped with its two actions in that list and NOT in a hand-copied case list
+  // here, so the server answered his first real Next up with "Unknown action." One list, so it cannot drift again.
+  if ((BAY_LOG_ACTIONS as readonly unknown[]).includes(b.action)) return parseBayLog(b, by);
   switch (b.action) {
     case 'check':
       return { action: 'check', by };
-    // The bay log (migration 161): Start a car, its exit, and an exit's Undo. Signed-in FG only; api/lot.ts enforces it.
-    case 'bayStart':
-    case 'bayExit':
-    case 'bayExitUndo':
-      return parseBayLog(b, by);
     // Erin St's count (migration 153).
     case 'cleans':
       if (b.delta !== 1 && b.delta !== -1) return { error: 'Cleans move one car at a time.' };

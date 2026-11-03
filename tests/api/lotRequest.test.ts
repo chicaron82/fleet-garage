@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { pinMatches, parseLotRequest, cleanBy, DIRTIES_MAX, bearerOf } from '../../api/_lib/lotRequest';
+import { BAY_LOG_ACTIONS } from '../../api/_lib/lotBayLog';
 
 describe('pinMatches', () => {
   it('matches the set PIN, trimmed', () => {
@@ -24,6 +25,19 @@ describe('parseLotRequest', () => {
   it('the bay log (migration 161) goes to its own rules', () => {
     expect(parseLotRequest({ action: 'bayStart', vehicleId: 'v-123', by: 'AS' })).toEqual({ action: 'bayStart', vehicleId: 'v-123', by: 'AS' });
     expect(parseLotRequest({ action: 'bayExit', id: 7, exit: 'skip', by: 'AS' })).toEqual({ action: 'bayExit', id: 7, exit: 'skip', by: 'AS' });
+  });
+  it('⚠️ Next up reaches the bay log: his first real load came back "Unknown action." (2026-11-03)', () => {
+    expect(parseLotRequest({ action: 'bayStandbySet', vehicleId: 'v-123', by: 'AS' })).toEqual({ action: 'bayStandbySet', vehicleId: 'v-123', by: 'AS' });
+    expect(parseLotRequest({ action: 'bayStandbyClear', by: 'AS' })).toEqual({ action: 'bayStandbyClear', by: 'AS' });
+  });
+  it('every bay-log action the server knows gets past the front door (one list, no hand copy)', () => {
+    const sample: Record<string, Record<string, unknown>> = {
+      bayStart: { vehicleId: 'v-1' }, bayExit: { id: 1, exit: 'clean' }, bayExitUndo: { id: 1 }, bayStandbySet: { vehicleId: 'v-1' }, bayStandbyClear: {},
+    };
+    for (const action of BAY_LOG_ACTIONS) {
+      expect(sample[action], `a sample for ${action}`).toBeDefined();
+      expect(parseLotRequest({ action, by: 'AS', ...sample[action] })).not.toHaveProperty('error');
+    }
   });
   it('unknown or empty requests are refused', () => {
     expect(parseLotRequest({ action: 'drop table' })).toHaveProperty('error');
