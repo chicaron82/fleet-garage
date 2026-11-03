@@ -3,13 +3,15 @@
 //
 // • Clean is the page's one primary action, so it wears the action yellow (CLAUDE.md, Design Language), big, alone on
 //   its row. It puts the car on the list and +1 on Erin St's cleans in one save.
-// • M hold / B hold open Flag / hold with this car and the type chosen; the car leaves the bay only once the hold SAVES.
-//   If that close failed (a dropped signal after the save), the hold is already on the car: the button becomes
-//   "Close as held" and closes it without a second hold.
+// • M hold / B hold are ONE TAP since 2026-11-03: *"Choosing M or B from the exit options after cleaning just marks them
+//   as M or B on the list. Going through the form to fill everything out is costing me time."* The car leaves marked; the
+//   list row offers Flag it for the form later, and Find a car says "not flagged yet" until it's done
+//   (docs/ticket-bay-on-deck-trip-clean-quick-holds.md). A hold flagged on this car since it came in (from Flag / hold)
+//   still turns the exits into "Close it as held", so the hold he already made is never asked for twice.
 // • Skip is a bump, not a verdict: *"a vehicle in the queue needed to be done ASAP ... skip to do later"*. The empty
 //   bay that follows leads with Find a car, because the ASAP car is the next thing he does. Since 2026-10-29 that is
 //   the search box itself, in the card (BayFindCar): *"i'm already in the module"*.
-// • Every exit is one tap; Clean and Skip carry a 5-second Undo on the note (a wet thumb lands on the neighbour).
+// • Every exit is one tap with a 5-second Undo on the note (a wet thumb lands on the neighbour).
 // • The car shows as the 🔍 popup shows it, header and damage map (BayCarHeader), looked up live by the row's vehicle_id,
 //   so the zones stay on screen for the whole clean: *"did miss marking damage on a few"* (2026-10-30,
 //   docs/ticket-bay-log-first-shift-friction.md). A car with no live record falls back to the row's own plate and car line.
@@ -44,20 +46,18 @@ export interface BayOpenCarProps {
   /** The empty bay's Start, for BayNextUp. Unused with a car in. */
   onStart: (vehicleId: string) => Promise<string | null>;
   busy: boolean;
-  /** Clean or Skip: settled right here. `odometer`: the reading to keep on the row, when there is one. `pull: false`:
-   *  Clean only, Next up's car waits. */
-  onExit: (kind: Extract<BayExit, 'clean' | 'skip'>, odometer?: number, pull?: false) => void;
+  /** Any exit, settled right here. `odometer`: the reading to keep on the row, when there is one. `pull: false`:
+   *  Clean only, the car on deck waits. */
+  onExit: (kind: BayExit, odometer?: number, pull?: false) => void;
   /** ↩ Back to Next up. `replace`: he said yes to bumping the car on the slot. */
   onBump: (replace: boolean) => void;
-  /** M hold / B hold: open the hold form for this car. */
-  onHold: (kind: 'mhold' | 'bhold') => void;
   /** The hold already saved: close the car as held without a second hold. */
   onCloseHeld: (kind: 'mhold' | 'bhold') => void;
   /** The header's tap: the car's record. Back returns here, and the car is still in (the row is the server's). */
   onOpenCar: (vehicleId: string) => void;
 }
 
-export function BayOpenCar({ open, next, onStart, busy, onExit, onBump, onHold, onCloseHeld, onOpenCar }: BayOpenCarProps) {
+export function BayOpenCar({ open, next, onStart, busy, onExit, onBump, onCloseHeld, onOpenCar }: BayOpenCarProps) {
   const { holds, vehicles, archivedVehicles, recordOdometer, correctOdometer } = useVehicleHoldContext();
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
@@ -94,7 +94,7 @@ export function BayOpenCar({ open, next, onStart, busy, onExit, onBump, onHold, 
     }
     go();
   };
-  const leave = (kind: 'clean' | 'skip', pull?: false) => void thenExit(() => onExit(kind, open.odometer == null ? typed ?? carToday ?? undefined : undefined, pull));
+  const leave = (kind: BayExit, pull?: false) => void thenExit(() => onExit(kind, open.odometer == null ? typed ?? carToday ?? undefined : undefined, pull));
   /** A typed reading is still logged on the car first; the row itself goes, so it keeps none. */
   const bump = (replace: boolean) => void thenExit(() => onBump(replace));
   const correct = async (km: number) => {
@@ -144,11 +144,11 @@ export function BayOpenCar({ open, next, onStart, busy, onExit, onBump, onHold, 
             </button>
           )}
           <div className="grid grid-cols-3 gap-2">
-            <button type="button" disabled={blocked} onClick={tap(() => void thenExit(() => onHold('mhold')))} className={EXIT_BTN}>
+            <button type="button" disabled={blocked} onClick={tap(() => leave('mhold'))} className={EXIT_BTN}>
               <span className="text-sm font-extrabold text-amber-800 dark:text-amber-300">🔧 M hold</span>
               <span className="text-[11px] text-gray-500 dark:text-gray-400">Mechanical</span>
             </button>
-            <button type="button" disabled={blocked} onClick={tap(() => void thenExit(() => onHold('bhold')))} className={EXIT_BTN}>
+            <button type="button" disabled={blocked} onClick={tap(() => leave('bhold'))} className={EXIT_BTN}>
               <span className="text-sm font-extrabold text-red-700 dark:text-red-400">⚠️ B hold</span>
               <span className="text-[11px] text-gray-500 dark:text-gray-400">Damage</span>
             </button>
@@ -157,10 +157,10 @@ export function BayOpenCar({ open, next, onStart, busy, onExit, onBump, onHold, 
               <span className="text-[11px] text-gray-500 dark:text-gray-400">ASAP car first</span>
             </button>
           </div>
-          <p className="text-[11px] text-gray-500 dark:text-gray-400">M hold and B hold open Flag / hold with this car filled in. It leaves the bay when the hold saves.</p>
+          <p className="text-[11px] text-gray-500 dark:text-gray-400">M hold and B hold mark the list. Flag it from the list when you have a minute.</p>
           {confirmBump && waiting ? (
-            <div role="group" aria-label="Replace Next up" className="rounded-xl border-2 border-amber-400 dark:border-amber-500 px-3 py-2 space-y-2">
-              <p className="text-sm text-gray-800 dark:text-gray-100">{waiting.plate} is on Next up. Put {open.plate} there instead? {waiting.plate} comes off.</p>
+            <div role="group" aria-label="Replace on deck" className="rounded-xl border-2 border-amber-400 dark:border-amber-500 px-3 py-2 space-y-2">
+              <p className="text-sm text-gray-800 dark:text-gray-100">{waiting.plate} is on deck. Put {open.plate} there instead? {waiting.plate} comes off.</p>
               <div className="grid grid-cols-2 gap-2">
                 <button type="button" disabled={blocked} onClick={tap(() => { setConfirmBump(false); bump(true); })} className={QUIET_BTN}>Replace {waiting.plate}</button>
                 <button type="button" onClick={() => setConfirmBump(false)} className={QUIET_BTN}>Keep {waiting.plate}</button>
@@ -168,7 +168,7 @@ export function BayOpenCar({ open, next, onStart, busy, onExit, onBump, onHold, 
             </div>
           ) : (
             <button type="button" disabled={blocked} onClick={tap(() => (waiting ? setConfirmBump(true) : bump(false)))} className={QUIET_BTN}>
-              ↩ Back to Next up · not cleaned
+              ↩ Back on deck · not cleaned
             </button>
           )}
         </>

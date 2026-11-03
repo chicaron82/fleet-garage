@@ -8,7 +8,7 @@
 // Erin pill's sheet: *"steppers, use the same style as the header"*), today's list, the crew, the links.
 import { useCallback, useState } from 'react';
 import { initialsOf } from '../../lib/lotLookout';
-import { inTheBay } from '../../lib/lotBayLog';
+import { inTheBay, unflaggedHoldIds, type BayExit, type BayLogRow, type HoldExit } from '../../lib/lotBayLog';
 import { shiftDateStr, shiftDayLabel } from '../../lib/shiftDay';
 import { useBayLog } from '../../hooks/useBayLog';
 import { useBayDay } from '../../hooks/useBayDay';
@@ -17,6 +17,7 @@ import { useBayTapsSignedIn } from '../../hooks/useBayTaps';
 import { useLotCrew } from '../../hooks/useLotCrew';
 import { useUndoNote } from '../../hooks/useUndoNote';
 import { useAuth } from '../../context/AuthContext';
+import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useScanRouter } from '../../context/scanRouter';
 import { ModuleHeader } from '../shared/ModuleHeader';
 import { LotCrewLine } from '../lot/LotCrewLine';
@@ -29,6 +30,13 @@ import { LotLinks } from './LotLinks';
 import type { Screen } from '../../types';
 
 const SECTION_HEAD = 'px-0.5 text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400';
+/** What the note says when a car leaves. A hold is a mark on the list until it's flagged (2026-11-03, one tap). */
+const EXIT_NOTE: Record<BayExit, (plate: string) => string> = {
+  clean: p => `${p} clean`,
+  skip: p => `${p} bumped, still to do`,
+  mhold: p => `${p} M hold · flag it from the list`,
+  bhold: p => `${p} B hold · flag it from the list`,
+};
 
 export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void }) {
   const { user } = useAuth();
@@ -48,6 +56,14 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
   const record = useBayDay(day, user?.id ?? null, isToday);
   const [y, m, d] = day.split('-').map(Number);
   const dayLabel = isToday ? `Today · ${shiftDayLabel()}` : shiftDayLabel(new Date(y!, m! - 1, d!, 12));
+  // M / B rows with no hold flagged yet carry Flag it (2026-11-03): the form when he has a minute, the car and type chosen.
+  const { holds } = useVehicleHoldContext();
+  const listRows: BayLogRow[] | null = isToday ? bay.rows : record.pastRows;
+  const toFlag = listRows ? unflaggedHoldIds(listRows, holds) : new Set<number>();
+  const flag = (id: number) => {
+    const r = listRows?.find(x => x.id === id);
+    if (r) onNavigate({ name: 'new-hold', vehicleId: r.vehicle_id, prefillNonce: Date.now(), fromBay: r.exit as HoldExit });
+  };
 
   /** One exit, said out loud: the note names the car, and Clean / Skip can be taken back for 5 s. */
   const settle = useCallback(async (run: () => Promise<string | null>, done: string, undo?: () => void) => {
@@ -59,20 +75,20 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
     return true;
   }, [show]);
 
-  const exitHere = (kind: 'clean' | 'skip', odometer?: number, pull?: false) => {
+  const exitHere = (kind: BayExit, odometer?: number, pull?: false) => {
     if (!open) return;
     const { id, plate } = open;
     const odoNote = odometer != null ? ` · odo ${odometer.toLocaleString('en-CA')}` : '';
-    const waits = pull === false ? ' · Next up waits' : '';
+    const waits = pull === false ? ' · on deck waits' : '';
     const undo = () => void settle(() => bay.undoExit(id), `${plate} is back in the bay`).then(ok => { if (ok) setBumped(false); });
-    void settle(() => (pull === false ? bay.exit(id, kind, odometer, false) : odometer != null ? bay.exit(id, kind, odometer) : bay.exit(id, kind)),`${kind === 'clean' ? `${plate} clean` : `${plate} bumped, still to do`}${odoNote}${waits}`, undo)
+    void settle(() => (pull === false ? bay.exit(id, kind, odometer, false) : odometer != null ? bay.exit(id, kind, odometer) : bay.exit(id, kind)),`${EXIT_NOTE[kind](plate)}${odoNote}${waits}`, undo)
       .then(ok => { if (ok) setBumped(kind === 'skip'); });
   };
-  // No Undo on the note: the car is on Next up, and its ▶ Start cleaning brings it straight back.
+  // No Undo on the note: the car is on deck, and its ▶ Start cleaning brings it straight back.
   const bumpHere = (replace: boolean) => {
     if (!open) return;
     const { id, plate } = open;
-    void settle(() => bay.bump(id, replace), `${plate} back on Next up, not cleaned`).then(ok => { if (ok) setBumped(false); });
+    void settle(() => bay.bump(id, replace), `${plate} back on deck, not cleaned`).then(ok => { if (ok) setBumped(false); });
   };
 
   return (
@@ -87,7 +103,6 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
       {isToday && bay.loaded && (
         <BayInTheBay open={open} busy={busy} bumped={bumped}
           onExit={exitHere} onBump={bumpHere}
-          onHold={kind => open && onNavigate({ name: 'new-hold', vehicleId: open.vehicle_id, prefillNonce: Date.now(), bayExit: { id: open.id, kind } })}
           onCloseHeld={kind => open && void settle(() => bay.exit(open.id, kind), `${open.plate} closed as held`)}
           onFindCar={search} bay={bay}
           onOpenCar={vehicleId => onNavigate({ name: 'vehicle', vehicleId })} />
@@ -103,8 +118,8 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
         </section>
       )}
 
-      {isToday ? <BayLogList rows={bay.rows} heading="The bay log" />
-        : record.pastRows ? <BayLogList rows={record.pastRows} heading="The bay log" empty="No cars through the bay that day." />
+      {isToday ? <BayLogList rows={bay.rows} heading="The bay log" flagIds={toFlag} onFlag={flag} />
+        : record.pastRows ? <BayLogList rows={record.pastRows} heading="The bay log" empty="No cars through the bay that day." flagIds={toFlag} onFlag={flag} />
         : <p className="text-center text-sm text-gray-500 dark:text-gray-400">Loading that day…</p>}
 
       {isToday && crew && (

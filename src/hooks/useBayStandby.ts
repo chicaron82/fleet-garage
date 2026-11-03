@@ -55,7 +55,7 @@ export function useBayStandby(by = 'FG'): BayStandbyState {
 
   const send = useCallback(async (body: Record<string, unknown>): Promise<string | null> => {
     const r = await postLotSignedIn({ ...body, by });
-    if (!r.ok) return r.error ?? 'Next up did not save. Try again.';
+    if (!r.ok) return r.error ?? 'On deck did not save. Try again.';
     setStandby(live((r.json.standby ?? null) as BayStandbyRow | null));
     return null;
   }, [by]);

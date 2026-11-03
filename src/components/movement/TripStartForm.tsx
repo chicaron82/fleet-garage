@@ -175,6 +175,8 @@ export function TripStartForm({
           what used to render "✨ Registered …" on alert red. */}
       {registerToast && <Toast message={registerToast.message} variant={registerToast.tone}
         sparkle={registerToast.sparkle} />}
+      {/* The trip's clean off Erin St (useTripTakesClean): said once, and only when the scan's own toast isn't up. */}
+      {!registerToast && t.countNote && <Toast message={t.countNote.text} variant={t.countNote.tone} />}
     </div>
   );
 }

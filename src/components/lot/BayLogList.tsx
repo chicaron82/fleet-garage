@@ -15,7 +15,14 @@ const TONE: Record<BayLineKind, string> = {
 
 const CHIP = 'rounded-full px-2.5 py-1 text-xs font-bold';
 
-export function BayLogList({ rows, readOnly = false, heading, empty = 'No cars through the bay yet today.' }: { rows: BayLogRow[]; readOnly?: boolean; heading: string; empty?: string }) {
+// ⭐ Flag it (2026-11-03): an M / B row with no hold flagged yet. The one-tap exit marks the list; the form waits for
+// when he has a minute. Only where FG passes `onFlag`: the read-only /lot/view never shows it.
+export function BayLogList({ rows, readOnly = false, heading, empty = 'No cars through the bay yet today.', flagIds, onFlag }: {
+  rows: BayLogRow[]; readOnly?: boolean; heading: string; empty?: string;
+  /** The rows still to flag (unflaggedHoldIds). */
+  flagIds?: ReadonlySet<number>;
+  onFlag?: (id: number) => void;
+}) {
   const lines = bayLines(rows, { readOnly });
   const s = baySummary(rows);
   return (
@@ -45,6 +52,12 @@ export function BayLogList({ rows, readOnly = false, heading, empty = 'No cars t
                 <span className="shrink-0 text-right">
                   <span className={`block text-sm font-extrabold ${TONE[l.kind]}`}>{l.label}</span>
                   {l.note && l.kind !== 'bay' && <span className="block text-[11px] text-gray-500 dark:text-gray-400">{l.note}</span>}
+                  {onFlag && !readOnly && flagIds?.has(l.id) && (
+                    <button type="button" onClick={() => onFlag(l.id)}
+                      className="mt-0.5 min-h-8 rounded-lg border border-gray-300 dark:border-gray-600 px-2 text-xs font-bold text-gray-800 dark:text-gray-100 cursor-pointer">
+                      Flag it →
+                    </button>
+                  )}
                 </span>
               </li>
             ))}

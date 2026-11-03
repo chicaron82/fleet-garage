@@ -9,6 +9,7 @@
 // ⭐ The SAME components as the popup (ScanIdentityHeader, ScanDamageZones), not copies of their lines, so the bay and
 // the popup cannot drift apart again. The live-hold count is the popup's own (scanHoldLines → consolidateDamage).
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
+import { useBayMark } from '../../hooks/useBayMark';
 import { scanHoldLines } from '../../lib/scanHoldSummary';
 import { consolidateDamage } from '../../lib/consolidateDamage';
 import { formatUnitNumber } from '../../lib/formatUnitNumber';
@@ -20,11 +21,12 @@ import type { Vehicle } from '../../types';
 export function BayCarHeader({ vehicle, onOpen }: { vehicle: Vehicle; onOpen?: () => void }) {
   const { holds } = useVehicleHoldContext();
   const liveHolds = consolidateDamage(scanHoldLines(holds, vehicle.id)).length;
+  const bayMark = useBayMark(vehicle.id);
   return (
     <div className="min-w-0">
       <ScanIdentityHeader
         plateLine={`${vehicle.licensePlate}${vehicle.unitNumber ? ` · Unit ${formatUnitNumber(vehicle.unitNumber)}` : ''}`}
-        vehicle={vehicle} liveHolds={liveHolds} onOpen={onOpen} />
+        vehicle={vehicle} liveHolds={liveHolds} onOpen={onOpen} bayMark={bayMark} />
       {/* Silent on a clear car; tap a panel for its photo. */}
       <ScanDamageZones holds={holds} vehicleId={vehicle.id} />
     </div>

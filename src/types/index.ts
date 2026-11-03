@@ -544,9 +544,9 @@ export type Screen =
    *  so popping would take him THERE instead of to the car he just flagged, and the entry is replaced
    *  instead. Same shape as `register-vehicle`'s `fromHold`. */
   | { name: 'new-hold'; vehicleId?: string; fromRegister?: boolean; fromVehicle?: boolean; prefillNonce?: number;
-      /** From the bay log's M hold / B hold exit: the hold type is chosen for him, and saving it closes that car's bay
-       *  row (ticket-lot-lookout-bay-log). Nothing else changes about the form. */
-      bayExit?: { id: number; kind: 'mhold' | 'bhold' } }
+      /** From the bay log's Flag it on an M / B row (2026-11-03): the hold type is chosen for him, and saving returns to
+       *  the bay log. The car already left the bay on the one-tap exit; the form no longer closes a row. */
+      fromBay?: 'mhold' | 'bhold' }
   | { name: 'register-vehicle'; fromHold?: boolean; prefill?: string; scanned?: ScannedIdentity; scannedPhoto?: string }
   // `prefillNonce` makes each scan a DISTINCT routing event: the plate is a bare string that
   // compares equal across two scans of the same tag, so a value-keyed re-seed would fire only

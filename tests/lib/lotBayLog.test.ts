@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { bayLines, bayOdoEntry, bayOdoLetsExit, bayReportLine, baySummary, inTheBay, startBlock, vehicleForPick, type BayLogRow } from '../../src/lib/lotBayLog';
+import { bayLines, bayMarkLine, bayMarkOf, bayOdoEntry, bayOdoLetsExit, bayReportLine, baySummary, inTheBay, isUnflaggedHold, startBlock, unflaggedHoldIds, vehicleForPick, type BayLogRow } from '../../src/lib/lotBayLog';
 
 // Times are UTC; clockOf prints Winnipeg (CDT, UTC−5 on 2026-10-29).
 const row = (id: number, plate: string, start: string, exit: BayLogRow['exit'], exitAt: string | null, extra: Partial<BayLogRow> = {}): BayLogRow => ({
@@ -114,5 +114,34 @@ describe('bayOdoEntry (the bay card\'s odo box)', () => {
     expect(bayOdoEntry('19000', 20000)).toEqual({ kind: 'lower', km: 19000 });
     for (const d of ['12a', '0', '12345678']) expect(bayOdoEntry(d, 20000)).toEqual({ kind: 'unreadable' });
     for (const d of ['19000', '12a']) expect(bayOdoLetsExit(bayOdoEntry(d, 20000))).toBe(false);
+  });
+});
+
+// M / B as one tap (Aaron, 2026-11-03: *"just marks them as M or B on the list"*). The list carries the mark; FG's hold is
+// still the only word that the car is held, so the mark says "not flagged yet" until one is.
+describe('a hold mark not yet flagged', () => {
+  const held = (vehicleId: string, at: string) => ({ vehicleId, flaggedAt: at });
+  it('⭐ a hold exit with no hold on the car since it went in is unflagged; one flagged after the start clears it', () => {
+    expect(isUnflaggedHold(DAY[1], [])).toBe(true);
+    expect(isUnflaggedHold(DAY[1], [held('v-0DM137', '2026-10-29T14:00:00.000Z')])).toBe(false);
+    // Postgres spells the same instant differently: still compared as an instant.
+    expect(isUnflaggedHold(DAY[1], [held('v-0DM137', '2026-10-29T13:10:00+00:00')])).toBe(false);
+  });
+  it('⚠️ an OLD hold (before this car went in) or another car\'s hold does not count', () => {
+    expect(isUnflaggedHold(DAY[1], [held('v-0DM137', '2026-10-20T14:00:00.000Z'), held('v-LUR352', '2026-10-29T14:00:00.000Z')])).toBe(true);
+  });
+  it('a Clean, Skip, or the car still in the bay is never a mark', () => {
+    expect([DAY[0], DAY[2], DAY[5]].map(r => isUnflaggedHold(r, []))).toEqual([false, false, false]);
+  });
+  it('the day\'s Flag it rows', () => {
+    expect([...unflaggedHoldIds(DAY, [held('v-LUR352', '2026-10-29T16:10:00.000Z')])]).toEqual([2]);
+  });
+  it('⭐ Find a car reads the LATEST finished row: the mark, until a hold or a newer exit clears it', () => {
+    expect(bayMarkOf(DAY[1], [])).toEqual({ kind: 'bhold', at: '2026-10-29T13:40:00.000Z' });
+    expect(bayMarkLine(bayMarkOf(DAY[1], [])!)).toBe('⚠️ B hold in the bay 08:40 · not flagged yet');
+    expect(bayMarkLine(bayMarkOf(DAY[3], [])!)).toBe('🔧 M hold in the bay 11:05 · not flagged yet');
+    expect(bayMarkOf(DAY[1], [held('v-0DM137', '2026-10-29T13:45:00.000Z')])).toBeNull();
+    expect(bayMarkOf(DAY[4], [])).toBeNull();
+    expect(bayMarkOf(null, [])).toBeNull();
   });
 });

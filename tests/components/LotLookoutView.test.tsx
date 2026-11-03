@@ -107,7 +107,7 @@ describe('LotLookoutView — the bay log', () => {
     expect(card).toHaveTextContent('0GK487');
     expect(screen.getByRole('textbox', { name: 'Odometer reading' })).toBeTruthy();
     expect(recordLookup).toHaveBeenCalledWith('v-487');
-    fireEvent.click(screen.getByRole('button', { name: /Start cleaning/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^▶ Start clean$/ }));
     await waitFor(() => expect(start).toHaveBeenCalledWith('v-487'));
     expect(search).not.toHaveBeenCalled();
   });
@@ -134,15 +134,32 @@ describe('LotLookoutView — the bay log', () => {
     await waitFor(() => expect(undoExit).toHaveBeenCalledWith(6));
   });
 
-  it('⭐ B hold and M hold open Flag / hold for this car, with the exit riding along', () => {
-    rows = [row({})];
+  // ⭐ Aaron, 2026-11-03: *"Choosing M or B from the exit options after cleaning just marks them as M or B on the list.
+  // Going through the form to fill everything out is costing me time."* (docs/ticket-bay-on-deck-trip-clean-quick-holds.md)
+  for (const [name, kind] of [[/B hold/, 'bhold'], [/M hold/, 'mhold']] as const) {
+    it(`⭐ ${kind}: one tap marks the list, no form, with an Undo`, async () => {
+      rows = [row({})];
+      const onNavigate = vi.fn();
+      render(<LotLookoutView onNavigate={onNavigate} />);
+      fireEvent.click(screen.getByRole('button', { name }));
+      await waitFor(() => expect(exit).toHaveBeenCalledWith(6, kind));
+      expect(onNavigate).not.toHaveBeenCalled();
+      expect(await screen.findByText(`LZM536 ${kind === 'bhold' ? 'B' : 'M'} hold · flag it from the list`)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+      await waitFor(() => expect(undoExit).toHaveBeenCalledWith(6));
+    });
+  }
+
+  it('⭐ an M / B row with no hold flagged carries Flag it, which opens the form with the car and type chosen', () => {
+    rows = [row({ id: 5, exit: 'bhold', exited_at: '2026-10-29T16:40:00.000Z' }), row({ id: 7, vehicle_id: 'v-9', plate: 'LUR560', exit: 'mhold', exited_at: '2026-10-29T16:50:00.000Z' })];
+    // LUR560's hold was flagged after it went in: no Flag it on its row.
+    holds = [{ vehicleId: 'v-9', flaggedAt: '2026-10-29T17:00:00.000Z', holdTypes: ['mechanical'] }];
     const onNavigate = vi.fn();
     render(<LotLookoutView onNavigate={onNavigate} />);
-    fireEvent.click(screen.getByRole('button', { name: /B hold/ }));
-    expect(onNavigate).toHaveBeenCalledWith(expect.objectContaining({ name: 'new-hold', vehicleId: 'v-536', bayExit: { id: 6, kind: 'bhold' } }));
-    fireEvent.click(screen.getByRole('button', { name: /M hold/ }));
-    expect(onNavigate).toHaveBeenLastCalledWith(expect.objectContaining({ bayExit: { id: 6, kind: 'mhold' } }));
-    expect(exit).not.toHaveBeenCalled();
+    const flags = screen.getAllByRole('button', { name: 'Flag it →' });
+    expect(flags).toHaveLength(1);
+    fireEvent.click(flags[0]);
+    expect(onNavigate).toHaveBeenCalledWith(expect.objectContaining({ name: 'new-hold', vehicleId: 'v-536', fromBay: 'bhold' }));
   });
 
   it('⚠️ a hold already saved on the car (its close did not land): close it as held, never a second hold', async () => {
@@ -192,7 +209,7 @@ describe('LotLookoutView — the bay log', () => {
     fireEvent.change(screen.getByRole('textbox', { name: /Look up a vehicle/ }), { target: { value: '0GK487' } });
     fireEvent.click(await screen.findByRole('button', { name: /0GK487/ }));
     expect(screen.getByText('No odo today. The gas sheet can fill it in.')).toBeTruthy();
-    const startBtn = screen.getByRole('button', { name: /Start cleaning/ });
+    const startBtn = screen.getByRole('button', { name: /^▶ Start clean$/ });
     expect(startBtn).not.toBeDisabled();
     fireEvent.click(startBtn);
     await waitFor(() => expect(start).toHaveBeenCalledWith('v-487'));
@@ -310,7 +327,7 @@ describe('LotLookoutView — the bay log', () => {
     expect(screen.getByText(/isn't a reading/)).toBeTruthy();
   });
 
-  it('⭐ a number typed before Skip is logged, and one typed before a hold is logged before the form opens', async () => {
+  it('⭐ a number typed before Skip is logged, and one typed before a hold rides with it', async () => {
     inNoOdo();
     const onNavigate = vi.fn();
     const { unmount } = render(<LotLookoutView onNavigate={onNavigate} />);
@@ -322,8 +339,9 @@ describe('LotLookoutView — the bay log', () => {
     render(<LotLookoutView onNavigate={onNavigate} />);
     type('21500');
     fireEvent.click(screen.getByRole('button', { name: /B hold/ }));
-    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith(expect.objectContaining({ name: 'new-hold', bayExit: { id: 6, kind: 'bhold' } })));
+    await waitFor(() => expect(exit).toHaveBeenCalledWith(6, 'bhold', 21500));
     expect(recordOdometer).toHaveBeenCalledWith('v-536', 21500);
+    expect(onNavigate).not.toHaveBeenCalled();
   });
 
   it('no box once today has a reading: from the Start, or logged on the car since', () => {
@@ -345,7 +363,7 @@ describe('LotLookoutView — the bay log', () => {
     vehicles = [seltos, corolla];
     rows = [row({})];
     render(<LotLookoutView onNavigate={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: '+ Next up' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ On deck' }));
     fireEvent.change(screen.getByRole('textbox', { name: /Look up a vehicle/ }), { target: { value: '0GK487' } });
     fireEvent.click(await screen.findByRole('button', { name: /0GK487/ }));
     await waitFor(() => expect(loadNext).toHaveBeenCalledWith('v-487'));
@@ -358,10 +376,10 @@ describe('LotLookoutView — the bay log', () => {
     standbyState.standby = { vehicle_id: 'v-487', plate: '0GK487', unit_number: '5429550', car: '2026 Kia Seltos · Gray', shift_day: '2026-11-02' };
     render(<LotLookoutView onNavigate={vi.fn()} />);
     const card = screen.getByRole('region', { name: 'In the bay' });
-    expect(card).toHaveTextContent('Next up');
+    expect(card).toHaveTextContent('On deck');
     expect(card).toHaveTextContent('0GK487');
     expect(card).toHaveTextContent('Comes in when LZM536 leaves.');
-    fireEvent.click(screen.getByRole('button', { name: 'Clear 0GK487 from Next up' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear 0GK487 from on deck' }));
     await waitFor(() => expect(clearNext).toHaveBeenCalled());
   });
 
@@ -374,7 +392,35 @@ describe('LotLookoutView — the bay log', () => {
 
   it('an empty bay with nothing loaded has no Next up to offer', () => {
     render(<LotLookoutView onNavigate={vi.fn()} />);
-    expect(screen.queryByText(/Next up/)).toBeNull();
+    expect(screen.queryByText(/On deck/)).toBeNull();
+  });
+
+  // ⭐ Aaron, 2026-11-03: *"Split the large "start cleaning" into two options [Start Clean][On Deck]. On deck loads it as
+  // the next vehicle"* (docs/ticket-bay-on-deck-trip-clean-quick-holds.md).
+  it('⭐ the empty bay\'s Find a car: [▶ Start clean] [⏭ On deck]; On deck loads the car and starts nothing', async () => {
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    fireEvent.change(screen.getByRole('textbox', { name: /Look up a vehicle/ }), { target: { value: '0GK487' } });
+    fireEvent.click(await screen.findByRole('button', { name: /0GK487/ }));
+    expect(screen.getByRole('button', { name: /^▶ Start clean$/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '⏭ On deck' }));
+    await waitFor(() => expect(loadNext).toHaveBeenCalledWith('v-487'));
+    expect(start).not.toHaveBeenCalled();
+  });
+
+  it('a different car on deck: the line says On deck replaces it; this car on deck: ✓, nothing to tap', async () => {
+    standbyState.standby = { vehicle_id: 'v-x', plate: 'LUR560', unit_number: null, car: null, shift_day: '2026-11-03' };
+    const { unmount } = render(<LotLookoutView onNavigate={vi.fn()} />);
+    fireEvent.change(screen.getByRole('textbox', { name: /Look up a vehicle/ }), { target: { value: '0GK487' } });
+    fireEvent.click(await screen.findByRole('button', { name: /0GK487/ }));
+    expect(screen.getByText('On deck replaces LUR560.')).toBeTruthy();
+    unmount();
+    standbyState.standby = { vehicle_id: 'v-487', plate: '0GK487', unit_number: null, car: null, shift_day: '2026-11-03' };
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    fireEvent.change(screen.getByRole('textbox', { name: /Look up a vehicle/ }), { target: { value: '0GK487' } });
+    // The on-deck card above the search names 0GK487 too (its Start and its ✕): pick the search's own result.
+    fireEvent.click(await screen.findByRole('button', { name: /^(?!.*(Clear|Start)).*0GK487/ }));
+    expect(screen.getByText('⏭ On deck ✓')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '⏭ On deck' })).toBeNull();
   });
 
   // ── Clean only, and Back to Next up (2026-11-03, docs/ticket-bay-clean-only-and-back-to-next-up.md) ──
@@ -389,7 +435,7 @@ describe('LotLookoutView — the bay log', () => {
     expect(screen.getByRole('button', { name: /^✓ Clean.*0GK487 comes in/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '✓ Clean only · 0GK487 waits' }));
     await waitFor(() => expect(exit).toHaveBeenCalledWith(6, 'clean', undefined, false));
-    expect(await screen.findByText(/LZM536 clean · Next up waits/)).toBeInTheDocument();
+    expect(await screen.findByText(/LZM536 clean · on deck waits/)).toBeInTheDocument();
   });
 
   it('control: nothing on Next up, no "Clean only" and Clean promises nothing', () => {
@@ -404,10 +450,10 @@ describe('LotLookoutView — the bay log', () => {
     vehicles = [seltos, corolla];
     rows = [row({})];
     render(<LotLookoutView onNavigate={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: '↩ Back to Next up · not cleaned' }));
+    fireEvent.click(screen.getByRole('button', { name: '↩ Back on deck · not cleaned' }));
     await waitFor(() => expect(bump).toHaveBeenCalledWith(6, false));
     expect(exit).not.toHaveBeenCalled();
-    expect(await screen.findByText('LZM536 back on Next up, not cleaned')).toBeInTheDocument();
+    expect(await screen.findByText('LZM536 back on deck, not cleaned')).toBeInTheDocument();
   });
 
   it('⚠️ Back to Next up over a different car asks first: Keep sends nothing, Replace sends the yes', async () => {
@@ -415,12 +461,12 @@ describe('LotLookoutView — the bay log', () => {
     rows = [row({})];
     loadSeltos();
     render(<LotLookoutView onNavigate={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: '↩ Back to Next up · not cleaned' }));
-    expect(screen.getByRole('group', { name: 'Replace Next up' })).toHaveTextContent('0GK487 is on Next up. Put LZM536 there instead?');
+    fireEvent.click(screen.getByRole('button', { name: '↩ Back on deck · not cleaned' }));
+    expect(screen.getByRole('group', { name: 'Replace on deck' })).toHaveTextContent('0GK487 is on deck. Put LZM536 there instead?');
     expect(bump).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Keep 0GK487' }));
     expect(bump).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: '↩ Back to Next up · not cleaned' }));
+    fireEvent.click(screen.getByRole('button', { name: '↩ Back on deck · not cleaned' }));
     fireEvent.click(screen.getByRole('button', { name: 'Replace 0GK487' }));
     await waitFor(() => expect(bump).toHaveBeenCalledWith(6, true));
   });
@@ -430,7 +476,7 @@ describe('LotLookoutView — the bay log', () => {
     rows = [row({ odometer: null })];
     render(<LotLookoutView onNavigate={vi.fn()} />);
     fireEvent.change(screen.getByRole('textbox', { name: 'Odometer reading' }), { target: { value: '21500' } });
-    fireEvent.click(screen.getByRole('button', { name: '↩ Back to Next up · not cleaned' }));
+    fireEvent.click(screen.getByRole('button', { name: '↩ Back on deck · not cleaned' }));
     await waitFor(() => expect(bump).toHaveBeenCalledWith(6, false));
     expect(recordOdometer).toHaveBeenCalledWith('v-536', 21500);
   });

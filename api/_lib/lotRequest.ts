@@ -70,6 +70,9 @@ export function parseLotRequest(body: unknown): LotRequest | { error: string } {
         // Only a slip fix can give a dirty back (ticket-erin-clean-plus-takes-a-dirty).
         giveDirty: b.delta === -1 && b.fix === true && b.giveDirty === true, by,
       };
+    case 'tripClean':
+      if (b.delta !== 1 && b.delta !== -1) return { error: 'A trip takes one clean, or gives it back.' };
+      return { action: 'tripClean', delta: b.delta, by };
     case 'dirties': {
       const n = countOf(b.count);
       if (n == null) return { error: `Type the dirty count as a number from 0 to ${DIRTIES_MAX}.` };

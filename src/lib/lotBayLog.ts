@@ -139,3 +139,40 @@ export function bayOdoEntry(draft: string, currentKm: number | null | undefined)
 export function bayOdoLetsExit(e: BayOdoEntry): boolean {
   return e.kind === 'empty' || e.kind === 'log' || e.kind === 'same';
 }
+
+// ── M / B as one tap (Aaron, 2026-11-03: *"Choosing M or B from the exit options after cleaning just marks them as M or B
+// on the list. Going through the form to fill everything out is costing me time."*; ticket-bay-on-deck-trip-clean-quick-holds).
+// The mark is on the list; the HOLD is still FG's only word that the car is held. So until one is flagged, the row
+// offers Flag it and Find a car says "not flagged yet", never ✅ Clear.
+
+/** Just what a hold needs to have for the check: whose car, and when it was flagged. */
+export interface HoldStamp { vehicleId: string; flaggedAt: string }
+export type HoldExit = Extract<BayExit, 'mhold' | 'bhold'>;
+export interface BayMark { kind: HoldExit; at: string }
+
+const isHoldExit = (e: BayExit | null): e is HoldExit => e === 'mhold' || e === 'bhold';
+
+/** A hold exit with no hold flagged on that car since it went in. Compared as instants: a hold's ISO and Postgres'
+ *  timestamptz text are spelled differently ("Z" vs "+00:00"). */
+export function isUnflaggedHold(row: Pick<BayLogRow, 'vehicle_id' | 'exit' | 'started_at'>, holds: readonly HoldStamp[]): boolean {
+  if (!isHoldExit(row.exit)) return false;
+  const since = Date.parse(row.started_at);
+  return !holds.some(h => h.vehicleId === row.vehicle_id && Date.parse(h.flaggedAt) >= since);
+}
+
+/** The rows on a day's list that still carry Flag it. */
+export function unflaggedHoldIds(rows: readonly BayLogRow[], holds: readonly HoldStamp[]): Set<number> {
+  return new Set(rows.filter(r => isUnflaggedHold(r, holds)).map(r => r.id));
+}
+
+/** What Find a car says about a car, from its LATEST finished bay row: a hold mark not yet flagged, or null. A later
+ *  Clean or Skip of the same car is the newer row, so it clears the mark by itself. */
+export function bayMarkOf(last: Pick<BayLogRow, 'vehicle_id' | 'exit' | 'started_at' | 'exited_at'> | null, holds: readonly HoldStamp[]): BayMark | null {
+  if (!last || !last.exited_at || !isHoldExit(last.exit) || !isUnflaggedHold(last, holds)) return null;
+  return { kind: last.exit, at: last.exited_at };
+}
+
+/** The status line it takes the place of: "⚠️ B hold in the bay 10:42 · not flagged yet". */
+export function bayMarkLine(m: BayMark): string {
+  return `${m.kind === 'bhold' ? '⚠️ B hold' : '🔧 M hold'} in the bay ${clockOf(m.at)} · not flagged yet`;
+}

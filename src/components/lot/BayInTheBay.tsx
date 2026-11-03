@@ -26,7 +26,7 @@ export function BayInTheBay({ open, onFindCar, bay, bumped, ...car }: BayInTheBa
   return (
     <section aria-label="In the bay" className="rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 px-4 py-4 space-y-3 text-center">
       <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{bumped ? 'Bumped. Bring the ASAP car in.' : "The bay's empty."}</p>
-      <p className="text-xs text-gray-500 dark:text-gray-400">Look the car up and tap Start cleaning. The odo is optional.</p>
+      <p className="text-xs text-gray-500 dark:text-gray-400">Look the car up: Start clean, or put it on deck. The odo is optional.</p>
       <BayNextUp next={next} inBay={null} onStart={bay.start} />
       <BayFindCar bay={bay} onMore={onFindCar} onOpenCar={car.onOpenCar} />
     </section>

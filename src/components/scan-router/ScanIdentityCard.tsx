@@ -17,6 +17,7 @@ import { ScanDamageZones } from './ScanDamageZones';
 import { ScanNotices } from './ScanNotices';
 import { ScanVehicleCapture } from './ScanVehicleCapture';
 import { VehicleName } from '../shared/VehicleName';
+import { useBayMark } from '../../hooks/useBayMark';
 import { ScanIdentityHeader } from './ScanIdentityHeader';
 import { ScanFactChips } from './ScanFactChips';
 import { Sparkles } from '../shared/Sparkles';
@@ -66,6 +67,8 @@ export function ScanIdentityCard({
   // NOT "active" — holdLines is ACTIVE **or RELEASED** since 2026-08-17. The old name is what let
   // a released hold speak as though it were holding the car. Count only; never the label.
   const liveHolds = holdLines.length;
+  // M / B marked in the bay with no hold flagged yet: the status line says so instead of "Clear" (useBayMark).
+  const bayMark = useBayMark(vehicle?.id);
   // EV-kit status surfaced at scan (tag in hand) for Teslas with asset records — the charge cable +
   // adapter walk off easily, so "last seen missing the cable" the moment you scan = check it NOW.
   const evScan = vehicle ? evAssetScanStatus(vehicle) : null;
@@ -96,6 +99,7 @@ export function ScanIdentityCard({
         vehicle={vehicle}
         liveHolds={liveHolds}
         onOpen={onOpenVehicle}
+        bayMark={bayMark}
       />
       {vehicle ? (
         <>

@@ -71,7 +71,7 @@ async function pullNext(db: SupabaseClient, exitedId: number, by: string, nowIso
     const { row } = await startCar(db, sb.vehicle_id, by, nowIso, today, exitedId);
     return { next: row };
   } catch (e) {
-    return { nextError: e instanceof BayLogRefusal ? `${plate} did not come in: ${e.message}` : `${plate} did not come in. It is still on Next up.` };
+    return { nextError: e instanceof BayLogRefusal ? `${plate} did not come in: ${e.message}` : `${plate} did not come in. It is still on deck.` };
   }
 }
 
@@ -79,8 +79,10 @@ async function pullNext(db: SupabaseClient, exitedId: number, by: string, nowIso
 export async function setStandby(db: SupabaseClient, vehicleId: string, by: string, nowIso: string, today: string) {
   const { data: open, error: openErr } = await db.from('lot_bay_log').select('vehicle_id').is('exit', null).maybeSingle();
   if (openErr) throw openErr;
-  if (!open) throw new BayLogRefusal("The bay's empty. Start this car instead.");
-  if (open.vehicle_id === vehicleId) throw new BayLogRefusal('That car is in the bay now.');
+  // An EMPTY bay may hold a car on deck (2026-11-03): *"[Start Clean][On Deck] ... On deck loads it as the next vehicle"*.
+  // This used to refuse ("The bay's empty. Start this car instead."), which was the airport-run morning exactly: the next
+  // car's key in hand, nobody free to clean it. The empty bay card offers its Start.
+  if (open?.vehicle_id === vehicleId) throw new BayLogRefusal('That car is in the bay now.');
   const { data: v, error: vErr } = await db.from('vehicles')
     .select('id, license_plate, unit_number, year, make, model, color').eq('id', vehicleId).maybeSingle();
   if (vErr) throw vErr;
@@ -145,7 +147,7 @@ export async function bumpToNextUp(db: SupabaseClient, id: number, by: string, n
   if (!row) throw new BayLogRefusal('That car already left the bay.');
   const { data: sb, error: sbErr } = await db.from('lot_bay_standby').select('vehicle_id, plate, shift_day').eq('id', 1).maybeSingle();
   if (sbErr) throw sbErr;
-  if (sb && sb.shift_day === today && sb.vehicle_id !== row.vehicle_id && !replace) throw new BayLogRefusal(`${sb.plate} is on Next up. Replace it?`);
+  if (sb && sb.shift_day === today && sb.vehicle_id !== row.vehicle_id && !replace) throw new BayLogRefusal(`${sb.plate} is on deck. Replace it?`);
   // Guarded on `exit is null`: an exit from another phone in between wins, and its row is never deleted.
   const { data: gone, error: delErr } = await db.from('lot_bay_log').delete().eq('id', id).is('exit', null).select('id');
   if (delErr) throw delErr;
@@ -154,7 +156,7 @@ export async function bumpToNextUp(db: SupabaseClient, id: number, by: string, n
     id: 1, vehicle_id: row.vehicle_id, plate: row.plate, unit_number: row.unit_number, car: row.car, loaded_at: nowIso, loaded_by: by, shift_day: today,
   }).select(STANDBY_COLS).single();
   // The row is already gone: say plainly where the car is, so it is never lost between the two.
-  if (upErr) throw new BayLogRefusal(`${row.plate} left the bay but did not go onto Next up. Start it again from Find a car.`);
+  if (upErr) throw new BayLogRefusal(`${row.plate} left the bay but did not go on deck. Start it again from Find a car.`);
   return { removedId: id, standby };
 }
 

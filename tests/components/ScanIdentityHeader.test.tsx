@@ -32,6 +32,13 @@ describe('ScanIdentityHeader', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
+  // ⭐ 2026-11-03: M / B is one tap in the bay and the form waits. Until a hold is flagged, Find a car must not say Clear.
+  it('⭐ a bay mark not yet flagged takes the status line\'s place, never ✅ Clear', () => {
+    render(<ScanIdentityHeader plateLine="LZM532" vehicle={elantra} liveHolds={0} bayMark={{ kind: 'bhold', at: '2026-11-03T15:42:00.000Z' }} />);
+    expect(screen.getByText('⚠️ B hold in the bay 09:42 · not flagged yet')).toHaveClass('text-red-600');
+    expect(screen.queryByText(/Clear/)).toBeNull();
+  });
+
   it('a host that gives no opener gets plain text', () => {
     render(<ScanIdentityHeader plateLine="LZM532 · Unit 5423132" vehicle={elantra} liveHolds={0} />);
     expect(screen.getByText('LZM532 · Unit 5423132')).toBeInTheDocument();

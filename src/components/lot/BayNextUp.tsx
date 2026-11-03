@@ -1,10 +1,10 @@
-// Next up: the one car lined up behind the car in the bay. Aaron, 2026-11-02: *"since we generally work with another
+// On deck (named "Next up" until 2026-11-03, when he called it *"On Deck"*): the one car lined up behind the car in the bay. Aaron, 2026-11-02: *"since we generally work with another
 // vehicle lined up. what if we entered standby plate for what is going to cleaned next. tapping cleaned, starts the next
 // one if one is loaded?"* Every exit pulls it in, on the server, so a hold that closes from the Flag / hold screen does
 // too. Ticket: docs/ticket-bay-odo-in-card-and-next-up.md.
 //
 // • With a car in the bay: a quiet "+ Next up" that opens the search. No keyboard until he asks, it would cover the exits.
-// • With the bay empty and a car still loaded (a pull that failed): it says so and offers the Start, never a dead end.
+// • With the bay empty and a car loaded (On deck from Find a car, or a pull that failed): it offers the Start.
 import { useState } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import type { BayStandbyState } from '../../hooks/useBayStandby';
@@ -47,11 +47,11 @@ export function BayNextUp({ next, inBay, onStart }: {
       <div className="rounded-xl border border-gray-200 dark:border-gray-700 px-3 py-2 space-y-2 text-left">
         <div className="flex items-center gap-2">
           <div className="min-w-0 flex-1">
-            <p className={HEAD}>Next up</p>
+            <p className={HEAD}>On deck</p>
             <p className="font-mono text-sm font-bold text-gray-900 dark:text-gray-100">{standby.plate}</p>
             {standby.car && <p className="truncate text-xs text-gray-500 dark:text-gray-400">{standby.car}</p>}
           </div>
-          <button type="button" disabled={busy} aria-label={`Clear ${standby.plate} from Next up`} onClick={() => void run(clear)}
+          <button type="button" disabled={busy} aria-label={`Clear ${standby.plate} from on deck`} onClick={() => void run(clear)}
             className="h-11 w-11 shrink-0 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 cursor-pointer disabled:opacity-40">✕</button>
         </div>
         {inBay ? <p className="text-[11px] text-gray-500 dark:text-gray-400">Comes in when {inBay} leaves.</p> : (
@@ -69,7 +69,7 @@ export function BayNextUp({ next, inBay, onStart }: {
     return (
       <button type="button" onClick={() => { setPicking(true); setErr(''); }}
         className="w-full h-11 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-200 cursor-pointer">
-        + Next up
+        + On deck
       </button>
     );
   }
@@ -77,7 +77,7 @@ export function BayNextUp({ next, inBay, onStart }: {
   return (
     <div className="space-y-2 text-left">
       <div className="flex items-baseline justify-between gap-2">
-        <p className={HEAD}>Next up</p>
+        <p className={HEAD}>On deck</p>
         <button type="button" onClick={() => setPicking(false)} className="text-xs font-semibold text-gray-600 dark:text-gray-300 cursor-pointer">Never mind</button>
       </div>
       {/* He tapped to get here, so the keypad finishes the gesture he started (OdometerCapture's autoFocus note). */}

@@ -191,7 +191,7 @@ describe('Next up: every exit pulls the lined-up car in', () => {
     expect(l.tables.lot_bay_standby).toEqual([]);
   });
 
-  it('lining up: replaces what was there, refuses the car in the bay and an empty bay; clear empties it', async () => {
+  it('lining up: replaces what was there, refuses the car in the bay; clear empties it', async () => {
     const l = lot(3, { vehicle_id: 'v-in' });
     l.tables.vehicles = [seltos];
     const { standby } = await setStandby(l.db, 'v-487', 'AS', NOW, TODAY);
@@ -199,8 +199,16 @@ describe('Next up: every exit pulls the lined-up car in', () => {
     await expect(setStandby(l.db, 'v-in', 'AS', NOW, TODAY)).rejects.toThrow(/in the bay now/);
     await clearStandby(l.db);
     expect(l.tables.lot_bay_standby).toEqual([]);
-    l.tables.lot_bay_log[0].exit = 'clean';
-    await expect(setStandby(l.db, 'v-487', 'AS', NOW, TODAY)).rejects.toThrow(/empty/);
+  });
+
+  // Aaron, 2026-11-03: *"[Start Clean][On Deck] ... On deck loads it as the next vehicle"*, with the bay empty for the
+  // airport runs. This was refused ("The bay's empty. Start this car instead.") until today.
+  it('⭐ On deck with the bay EMPTY: the car is loaded, nothing goes in', async () => {
+    const l = lot(3, { vehicle_id: 'v-in', exit: 'clean', exited_at: NOW });
+    l.tables.vehicles = [seltos];
+    const { standby } = await setStandby(l.db, 'v-487', 'AS', NOW, TODAY);
+    expect(standby).toMatchObject({ plate: 'NXT487', vehicle_id: 'v-487' });
+    expect(l.tables.lot_bay_log.filter(r => r.exit == null)).toEqual([]);
   });
 });
 
@@ -247,7 +255,7 @@ describe('Clean only, and Back to Next up', () => {
 
   it('⚠️ a different car on Next up is never bumped without his yes, and is with it', async () => {
     const l = loaded();
-    await expect(bumpToNextUp(l.db, 7, 'AS', NOW, TODAY, false)).rejects.toThrow(/NXT487 is on Next up/);
+    await expect(bumpToNextUp(l.db, 7, 'AS', NOW, TODAY, false)).rejects.toThrow(/NXT487 is on deck/);
     expect(inBay(l)).toHaveLength(1);
     expect(l.tables.lot_bay_standby[0]).toMatchObject({ plate: 'NXT487' });
     await bumpToNextUp(l.db, 7, 'AS', NOW, TODAY, true);

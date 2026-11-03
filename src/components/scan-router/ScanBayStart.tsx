@@ -5,6 +5,11 @@
 // One car at a time (*"i can't start a new one when i'm still working on the previous one"*): while a car is in, this
 // is "Finish <plate> first", and that gate is also the forgotten-close fix.
 //
+// ⏭ On deck (Aaron, 2026-11-03: *"Split the large "start cleaning" into two options [Start Clean][On Deck]. On deck loads
+// it as the next vehicle"*). Beside Start with the bay empty, under "Finish X first" with a car in: the same one slot. An
+// empty bay with a car on deck offers that car's Start on the bay card, so loading it never starts a clock.
+// Docs: docs/ticket-bay-on-deck-trip-clean-quick-holds.md.
+//
 // ⚠️ The odo is NOT a gate (since 2026-10-31, docs/ticket-bay-log-first-shift-friction.md). It was, and on a
 // passenger-side day it fought him: *"When I work passenger side I don't see the odo until I take it out to park"*, so
 // he started each car one early to get past it. His call: *"How bout leaving the odo optional. You and I do gas sheets
@@ -26,7 +31,7 @@ import type { Vehicle } from '../../types';
 export function ScanBayStart({ vehicle, onOpenBay, bayLog }: { vehicle: Vehicle; onOpenBay: (started: boolean) => void; bayLog?: BayLogState }) {
   const { user } = useAuth();
   const own = useBayLog(initialsOf(user?.name ?? null) || 'FG');
-  // Find a car with a car already in: he has the NEXT car's key in his hand (Aaron, 2026-11-02, migration 163).
+  // On deck: he has the NEXT car's key in his hand (Aaron, 2026-11-02, migration 163), with or without a car in.
   const next = useBayStandby(initialsOf(user?.name ?? null) || 'FG');
   const bay = bayLog ?? own;
   const [busy, setBusy] = useState(false);
@@ -35,16 +40,17 @@ export function ScanBayStart({ vehicle, onOpenBay, bayLog }: { vehicle: Vehicle;
   const block = startBlock(inTheBay(bay.rows), vehicle.id);
   const odoToday = !!vehicle.odometerAt && businessDateOf(vehicle.odometerAt) === businessDateOf(new Date());
 
+  const onDeck = next.standby?.vehicle_id === vehicle.id;
+  const lineUp = async () => {
+    hapticMedium();
+    setBusy(true);
+    setErr('');
+    const e = await next.load(vehicle.id);
+    setBusy(false);
+    if (e) setErr(e);
+  };
+
   if (block) {
-    const isNext = next.standby?.vehicle_id === vehicle.id;
-    const lineUp = async () => {
-      hapticMedium();
-      setBusy(true);
-      setErr('');
-      const e = await next.load(vehicle.id);
-      setBusy(false);
-      if (e) setErr(e);
-    };
     return (
       <div className="space-y-2">
       <button type="button" onClick={() => onOpenBay(false)}
@@ -59,12 +65,12 @@ export function ScanBayStart({ vehicle, onOpenBay, bayLog }: { vehicle: Vehicle;
           </>
         )}
       </button>
-      {!block.same && next.loaded && (isNext ? (
-        <p className="text-center text-sm font-bold text-gray-700 dark:text-gray-200">⏭ Next up. It comes in when {block.plate} leaves.</p>
+      {!block.same && next.loaded && (onDeck ? (
+        <p className="text-center text-sm font-bold text-gray-700 dark:text-gray-200">⏭ On deck. It comes in when {block.plate} leaves.</p>
       ) : (
         <button type="button" disabled={busy} onClick={() => void lineUp()}
           className="w-full rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi py-3 text-sm font-extrabold text-black cursor-pointer disabled:opacity-40">
-          ⏭ Put it next up{next.standby ? ` (replaces ${next.standby.plate})` : ''}
+          ⏭ On deck{next.standby ? ` (replaces ${next.standby.plate})` : ''}
         </button>
       ))}
       {err && <p role="alert" className="text-center text-xs font-semibold text-red-700 dark:text-red-400">{err}</p>}
@@ -82,15 +88,27 @@ export function ScanBayStart({ vehicle, onOpenBay, bayLog }: { vehicle: Vehicle;
     else onOpenBay(true);
   };
 
+  const other = next.standby && !onDeck ? next.standby.plate : null;
+  const line = err || (onDeck ? 'On deck. Start clean when you\'re ready.'
+    : other ? `On deck replaces ${other}.`
+    : odoToday ? 'Puts it in the bay and opens the bay log.' : 'No odo today. The gas sheet can fill it in.');
   return (
     <div className="space-y-1">
-      <button type="button" disabled={busy} onClick={() => void start()}
-        className="w-full rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi py-3.5 text-base font-extrabold text-black cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
-        {busy ? 'Starting…' : '▶ Start cleaning'}
-      </button>
-      <p className={`text-center text-xs ${err ? 'font-semibold text-red-700 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
-        {err || (odoToday ? 'Puts it in the bay and opens the bay log.' : 'No odo today. The gas sheet can fill it in.')}
-      </p>
+      <div className="grid grid-cols-[3fr_2fr] gap-2">
+        <button type="button" disabled={busy} onClick={() => void start()}
+          className="rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi py-3.5 text-base font-extrabold text-black cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
+          {busy ? 'Working…' : '▶ Start clean'}
+        </button>
+        {onDeck ? (
+          <p className="grid place-items-center rounded-xl border-2 border-gray-300 dark:border-gray-600 text-sm font-extrabold text-gray-700 dark:text-gray-200">⏭ On deck ✓</p>
+        ) : (
+          <button type="button" disabled={busy || !next.loaded} onClick={() => void lineUp()}
+            className="rounded-xl border-2 border-gray-900 dark:border-gray-200 bg-white dark:bg-gray-900 py-3.5 text-base font-extrabold text-gray-900 dark:text-gray-100 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
+            ⏭ On deck
+          </button>
+        )}
+      </div>
+      <p className={`text-center text-xs ${err ? 'font-semibold text-red-700 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>{line}</p>
     </div>
   );
 }

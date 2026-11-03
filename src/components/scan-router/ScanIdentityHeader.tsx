@@ -1,6 +1,7 @@
 import { VehicleName } from '../shared/VehicleName';
 import { vehicleCodesLine } from '../../lib/vehicleName';
 import { scanStatusLine, TONE_TEXT } from '../../lib/scanStatusLine';
+import { bayMarkLine, type BayMark } from '../../lib/lotBayLog';
 import type { Vehicle } from '../../types';
 
 // WHAT THE CAR IS — plate, unit, name, codes, status. The top of the scan card.
@@ -14,11 +15,14 @@ import type { Vehicle } from '../../types';
 // Lifted out of ScanIdentityCard with that change (docs/October/ticket-scan-card-header-chips.md):
 // the plate line sat outside the card's found/not-found branch and the rest inside it, so one tap
 // target needed them in one place. `span`s rather than `p`s because a button holds phrasing content.
-export function ScanIdentityHeader({ plateLine, vehicle, liveHolds, onOpen }: {
+export function ScanIdentityHeader({ plateLine, vehicle, liveHolds, onOpen, bayMark }: {
   /** The record's plate once a car resolved, else what was read — decided by the card. */
   plateLine: string;
   vehicle: Vehicle | null;
   liveHolds: number;
+  /** The bay marked this car M or B and no hold is flagged yet (useBayMark, 2026-11-03). It takes the status line's place,
+   *  so a car the bay held never reads "✅ Clear" just because the form was left for later. */
+  bayMark?: BayMark | null;
   /** Opens the record. Omitted, or no car resolved → plain text, nothing to open. */
   onOpen?: () => void;
 }) {
@@ -46,7 +50,8 @@ export function ScanIdentityHeader({ plateLine, vehicle, liveHolds, onOpen }: {
           {/* Derived from the vehicle's STATUS, never from the hold count — see
               scanStatusLine.ts. The count only adds a suffix. */}
           {(() => {
-            const line = scanStatusLine(vehicle.status, liveHolds);
+            const line = bayMark ? { text: bayMarkLine(bayMark), tone: bayMark.kind === 'bhold' ? 'red' as const : 'amber' as const }
+              : scanStatusLine(vehicle.status, liveHolds);
             return <span className={`block text-xs font-semibold mt-0.5 ${TONE_TEXT[line.tone]}`}>{line.text}</span>;
           })()}
         </>

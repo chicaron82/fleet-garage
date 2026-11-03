@@ -39,9 +39,10 @@ export type BayRequest =
   | { action: 'drain'; n: number; by: string }
   | { action: 'dirtiesStep'; delta: 1 | -1; by: string }
   | { action: 'fill'; n: number; by: string }
-  | { action: 'bayUndo'; field: 'cleans' | 'dirties'; to: BaySnapshot; by: string };
+  | { action: 'bayUndo'; field: 'cleans' | 'dirties'; to: BaySnapshot; by: string }
+  | { action: 'tripClean'; delta: 1 | -1; by: string };
 
-export const BAY_ACTIONS: readonly BayRequest['action'][] = ['cleans', 'dirties', 'cleansSet', 'drain', 'dirtiesStep', 'fill', 'bayUndo'];
+export const BAY_ACTIONS: readonly BayRequest['action'][] = ['cleans', 'dirties', 'cleansSet', 'drain', 'dirtiesStep', 'fill', 'bayUndo', 'tripClean'];
 
 /** A typed count at Erin St, either one. A cap, so a fat-fingered 2300 is refused rather than shown. */
 export const COUNT_MAX = 300;
@@ -91,6 +92,21 @@ export function bayChange(row: BayRow, req: BayRequest, nowIso: string, today: s
           ...(req.field === 'cleans' ? cleansStamp : dirtiesStamp),
         },
         tap: tap('undo', (req.field === 'cleans' ? t.cleans : t.dirties) ?? 0, req.field === 'cleans' ? row.cleans : row.dirties),
+      };
+    }
+    // ⭐ A trip to the airport takes a clean (Aaron, 2026-11-03: *"Making a trip to the airport automatically removes 1 clean
+    // from the count"*). −1 is a clean USED, like a −1 tap. +1 is that trip's Reset giving it back: never a dirty taken
+    // (a +1 tap's rule is for a car he just cleaned, and this one never left), and the used it added comes back off.
+    case 'tripClean': {
+      if (req.delta === -1) {
+        if (row.cleans === 0) return { error: 'Erin St was already at 0 cleans.' };
+        const cleans = row.cleans - 1;
+        return { patch: { cleans, ...cleansStamp, used: usedSoFar(row, today) + 1, used_on: today }, tap: tap('used', cleans, row.cleans) };
+      }
+      const cleans = Math.min(COUNT_MAX, row.cleans + 1);
+      return {
+        patch: { cleans, ...cleansStamp, used: Math.max(0, usedSoFar(row, today) - 1), used_on: today },
+        tap: tap('undo', cleans, row.cleans),
       };
     }
     case 'cleans': {

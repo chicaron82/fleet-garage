@@ -13,6 +13,8 @@ import { writeOrEnqueue } from '../lib/vsaTripWrite';
 import { withSubmitLock } from '../lib/submitLock';
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { useInProgressRecovery } from './useInProgressRecovery';
+import { useTripTakesClean } from './useTripTakesClean';
+import { initialsOf } from '../lib/lotLookout';
 import { elapsedSince, TRIP_DURATION_THRESHOLDS, buildArrivalUpdate, buildTripStartInsert, parseRecoveredQueue } from '../lib/vsa-trip';
 import type { Reason, Authorization, QueueSnapshot, TripState } from '../lib/vsa-trip';
 import { pushNotification } from '../lib/garage-uploads';
@@ -46,6 +48,8 @@ export function useTripLifecycle({
   const { user } = useAuth();
   const { shuttlePlate } = useVehicleHoldContext();
   const { refresh: refreshActiveSessions } = useActiveSessions();
+  // A trip that is not a shuttle run takes a clean off Erin St (2026-11-03); its Reset gives it back.
+  const erinClean = useTripTakesClean(initialsOf(user?.name ?? null) || 'FG');
 
   const [tripState, setTripState]           = useState<TripState>('form');
   const [reason, setReason]                 = useState<Reason | null>(null);
@@ -163,6 +167,7 @@ export function useTripLifecycle({
     }
     setStartError(false);
     setStarting(false);
+    if (!isShuttle) void erinClean.take(tripId);
 
     setPendingTripId(tripId);
 
@@ -259,6 +264,7 @@ export function useTripLifecycle({
       // Drop the pill once the delete COMMITS — firing refresh synchronously races
       // the not-yet-committed delete and re-reads the still-present in_progress row.
       void writeOrEnqueue('delete', {}, 'id', pendingTripId).then(refreshActiveSessions);
+      void erinClean.giveBack(pendingTripId);
     }
     setTripState('form');
     setPendingTripId(null);
@@ -293,6 +299,7 @@ export function useTripLifecycle({
     evCableStatus, setEvCableStatus,
     evAdapterStatus, setEvAdapterStatus,
     startError,
+    countNote: erinClean.note,
     handleShuttleToggle,
     handlePlateBlur,
     startTrip,
