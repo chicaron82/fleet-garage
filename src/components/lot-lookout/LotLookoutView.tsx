@@ -85,6 +85,7 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
           onFindCar={search} bay={bay}
           onOpenCar={vehicleId => onNavigate({ name: 'vehicle', vehicleId })} />
       )}
+      {isToday && bay.nextIssue && <p role="alert" className="text-sm font-semibold text-red-700 dark:text-red-400">{bay.nextIssue}</p>}
       {/* Only while it has something to say: an empty bar left a hole under the card (render check, 2026-10-29). */}
       {note && <UndoNoteBar note={note} clear={clearNote} />}
 

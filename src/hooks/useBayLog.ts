@@ -19,6 +19,8 @@ export interface BayLogState {
   /** `odometer`: the reading logged from the bay card as the car left. */
   exit: (id: number, exit: BayExit, odometer?: number) => Promise<string | null>;
   undoExit: (id: number) => Promise<string | null>;
+  /** The exit landed but Next up's car could not come in. Said until the next write. */
+  nextIssue: string | null;
 }
 
 let channelSeq = 0;
@@ -43,6 +45,7 @@ export function useBayLog(by = 'FG'): BayLogState {
   const [rows, setRows] = useState<BayLogRow[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nextIssue, setNextIssue] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,8 +80,11 @@ export function useBayLog(by = 'FG'): BayLogState {
   const send = useCallback(async (body: Record<string, unknown>): Promise<string | null> => {
     const r = await postLotSignedIn({ ...body, by });
     if (!r.ok) return r.error ?? 'The bay log did not save. Try again.';
-    const saved = r.json.row as BayLogRow | undefined;
-    if (saved) setRows(prev => [...prev.filter(x => x.id !== saved.id), saved].sort((a, b) => a.started_at.localeCompare(b.started_at)));
+    // An exit may bring the next car in; its Undo takes that car back out (migration 163).
+    const landed = [r.json.row, r.json.next].filter(Boolean) as BayLogRow[];
+    const gone = new Set<number>([...landed.map(x => x.id), ...(typeof r.json.removedId === 'number' ? [r.json.removedId] : [])]);
+    if (gone.size) setRows(prev => [...prev.filter(x => !gone.has(x.id)), ...landed].sort((a, b) => a.started_at.localeCompare(b.started_at)));
+    setNextIssue(typeof r.json.nextError === 'string' ? r.json.nextError : null);
     return null;
   }, [by]);
 
@@ -90,5 +96,5 @@ export function useBayLog(by = 'FG'): BayLogState {
     (await withSubmitLock(`bay:exit:${id}`, () => send({ action: 'bayExit', id, exit: kind, ...(odometer ? { odometer } : {}) }))) ?? null, [send]);
   const undoExit = useCallback((id: number) => send({ action: 'bayExitUndo', id }), [send]);
 
-  return { rows, loaded, error, start, exit, undoExit };
+  return { rows, loaded, error, start, exit, undoExit, nextIssue };
 }

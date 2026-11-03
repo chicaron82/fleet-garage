@@ -25,12 +25,15 @@ import { bayOdoEntry, bayOdoLetsExit, type BayExit, type BayLogRow } from '../..
 import { odometerUnitFor } from '../../lib/odometer';
 import { businessDateOf } from '../../lib/shiftDay';
 import { BayCarHeader } from './BayCarHeader';
+import { BayNextUp } from './BayNextUp';
 import { BayOdoBox } from './BayOdoBox';
 
 const EXIT_BTN = 'min-h-16 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-2 grid justify-items-center content-center gap-0.5 cursor-pointer touch-manipulation active:scale-95 transition disabled:opacity-40';
 
 export interface BayOpenCarProps {
   open: BayLogRow;
+  /** The empty bay's Start, for BayNextUp. Unused with a car in. */
+  onStart: (vehicleId: string) => Promise<string | null>;
   busy: boolean;
   /** Clean or Skip: settled right here. `odometer`: the reading to keep on the row, when there is one. */
   onExit: (kind: Extract<BayExit, 'clean' | 'skip'>, odometer?: number) => void;
@@ -42,7 +45,7 @@ export interface BayOpenCarProps {
   onOpenCar: (vehicleId: string) => void;
 }
 
-export function BayOpenCar({ open, busy, onExit, onHold, onCloseHeld, onOpenCar }: BayOpenCarProps) {
+export function BayOpenCar({ open, onStart, busy, onExit, onHold, onCloseHeld, onOpenCar }: BayOpenCarProps) {
   const { holds, vehicles, archivedVehicles, logOdometer, correctOdometer } = useVehicleHoldContext();
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
@@ -135,6 +138,7 @@ export function BayOpenCar({ open, busy, onExit, onHold, onCloseHeld, onOpenCar 
           <p className="text-[11px] text-gray-500 dark:text-gray-400">M hold and B hold open Flag / hold with this car filled in. It leaves the bay when the hold saves.</p>
         </>
       )}
+      <BayNextUp inBay={open.plate} onStart={onStart} />
     </section>
   );
 }

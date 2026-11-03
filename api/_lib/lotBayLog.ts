@@ -12,9 +12,11 @@ export const BAY_EXITS: readonly BayExit[] = ['clean', 'mhold', 'bhold', 'skip']
 export type BayLogRequest =
   | { action: 'bayStart'; vehicleId: string; by: string }
   | { action: 'bayExit'; id: number; exit: BayExit; by: string; odometer?: number }
-  | { action: 'bayExitUndo'; id: number; by: string };
+  | { action: 'bayExitUndo'; id: number; by: string }
+  | { action: 'bayStandbySet'; vehicleId: string; by: string }
+  | { action: 'bayStandbyClear'; by: string };
 
-export const BAY_LOG_ACTIONS: readonly BayLogRequest['action'][] = ['bayStart', 'bayExit', 'bayExitUndo'];
+export const BAY_LOG_ACTIONS: readonly BayLogRequest['action'][] = ['bayStart', 'bayExit', 'bayExitUndo', 'bayStandbySet', 'bayStandbyClear'];
 
 /** The phone offers Undo for 5 s; the server allows a little more, so a slow signal never turns a real Undo away. */
 export const EXIT_UNDO_MS = 20_000;
@@ -44,6 +46,11 @@ export function parseBayLog(b: Record<string, unknown>, by: string): BayLogReque
       if (id == null) return { error: 'Nothing to undo.' };
       return { action: 'bayExitUndo', id, by };
     }
+    case 'bayStandbySet':
+      if (typeof b.vehicleId !== 'string' || !ID_TEXT.test(b.vehicleId)) return { error: 'Pick the car first.' };
+      return { action: 'bayStandbySet', vehicleId: b.vehicleId, by };
+    case 'bayStandbyClear':
+      return { action: 'bayStandbyClear', by };
     default:
       return { error: 'Unknown action.' };
   }

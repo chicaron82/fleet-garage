@@ -57,6 +57,10 @@ vi.mock('../../src/hooks/useLotCrew', () => ({
 let holds: { vehicleId: string; flaggedAt: string; holdTypes: string[]; id?: string; status?: string; damageZones?: string[] }[] = [];
 const logOdometer = vi.fn(async (..._args: unknown[]) => true);
 const correctOdometer = vi.fn(async (..._args: unknown[]) => true);
+let standbyState: { standby: Record<string, unknown> | null; loaded: boolean; load: ReturnType<typeof vi.fn>; clear: ReturnType<typeof vi.fn> };
+const loadNext = vi.fn(async (..._args: unknown[]) => null as string | null);
+const clearNext = vi.fn(async () => null as string | null);
+vi.mock('../../src/hooks/useBayStandby', () => ({ useBayStandby: () => standbyState }));
 vi.mock('../../src/context/VehicleHoldContext', () => ({ useVehicleHoldContext: () => ({
   holds, vehicles, archivedVehicles: [], recordOdometer: vi.fn(async () => {}), logOdometer, clearOdometer: vi.fn(), correctOdometer,
 }) }));
@@ -68,6 +72,7 @@ const { LotLookoutView } = await import('../../src/components/lot-lookout/LotLoo
 
 beforeEach(() => {
   rows = []; holds = []; vehicles = [seltos]; vi.clearAllMocks();
+  standbyState = { standby: null, loaded: true, load: loadNext, clear: clearNext };
   // ⚠️ clearAllMocks keeps a queued mockResolvedValueOnce. The "cannot place" test queues one its Enter path never
   // spends, and it answered the NEXT search anywhere in the file with no matches (found 2026-10-31). Reset it here.
   searchVehicles.mockReset();
@@ -331,5 +336,43 @@ describe('LotLookoutView — the bay log', () => {
     render(<LotLookoutView onNavigate={vi.fn()} />);
     expect(screen.queryByRole('textbox', { name: 'Odometer reading' })).toBeNull();
     expect(screen.getByText('Since 11:20 · odo 21,500')).toBeTruthy();
+  });
+
+  // ── Next up (2026-11-02, migration 163, docs/ticket-bay-odo-in-card-and-next-up.md) ──
+  // ⭐ Aaron: *"what if we entered standby plate for what is going to cleaned next"*.
+  it('⭐ a car in the bay offers + Next up, whose search lines the picked car up', async () => {
+    vehicles = [seltos, corolla];
+    rows = [row({})];
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: '+ Next up' }));
+    fireEvent.change(screen.getByRole('textbox', { name: /Look up a vehicle/ }), { target: { value: '0GK487' } });
+    fireEvent.click(await screen.findByRole('button', { name: /0GK487/ }));
+    await waitFor(() => expect(loadNext).toHaveBeenCalledWith('v-487'));
+    expect(start).not.toHaveBeenCalled();
+  });
+
+  it('a loaded car shows on the card, says when it comes in, and ✕ clears it', async () => {
+    vehicles = [seltos, corolla];
+    rows = [row({})];
+    standbyState.standby = { vehicle_id: 'v-487', plate: '0GK487', unit_number: '5429550', car: '2026 Kia Seltos · Gray', shift_day: '2026-11-02' };
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    const card = screen.getByRole('region', { name: 'In the bay' });
+    expect(card).toHaveTextContent('Next up');
+    expect(card).toHaveTextContent('0GK487');
+    expect(card).toHaveTextContent('Comes in when LZM536 leaves.');
+    fireEvent.click(screen.getByRole('button', { name: 'Clear 0GK487 from Next up' }));
+    await waitFor(() => expect(clearNext).toHaveBeenCalled());
+  });
+
+  it('⚠️ the bay empty with a car still loaded (a pull that failed) offers its Start, never a dead end', async () => {
+    standbyState.standby = { vehicle_id: 'v-487', plate: '0GK487', unit_number: '5429550', car: null, shift_day: '2026-11-02' };
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /Start cleaning 0GK487/ }));
+    await waitFor(() => expect(start).toHaveBeenCalledWith('v-487'));
+  });
+
+  it('an empty bay with nothing loaded has no Next up to offer', () => {
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    expect(screen.queryByText(/Next up/)).toBeNull();
   });
 });

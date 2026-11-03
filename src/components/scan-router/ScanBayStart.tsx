@@ -13,6 +13,7 @@
 // the row's odo only from a reading taken today (startOdometer), so a stale one never reads as today's.
 import { useState } from 'react';
 import { useBayLog, type BayLogState } from '../../hooks/useBayLog';
+import { useBayStandby } from '../../hooks/useBayStandby';
 import { useAuth } from '../../context/AuthContext';
 import { initialsOf } from '../../lib/lotLookout';
 import { hapticMedium } from '../../lib/haptics';
@@ -25,6 +26,8 @@ import type { Vehicle } from '../../types';
 export function ScanBayStart({ vehicle, onOpenBay, bayLog }: { vehicle: Vehicle; onOpenBay: (started: boolean) => void; bayLog?: BayLogState }) {
   const { user } = useAuth();
   const own = useBayLog(initialsOf(user?.name ?? null) || 'FG');
+  // Find a car with a car already in: he has the NEXT car's key in his hand (Aaron, 2026-11-02, migration 163).
+  const next = useBayStandby(initialsOf(user?.name ?? null) || 'FG');
   const bay = bayLog ?? own;
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -33,7 +36,17 @@ export function ScanBayStart({ vehicle, onOpenBay, bayLog }: { vehicle: Vehicle;
   const odoToday = !!vehicle.odometerAt && businessDateOf(vehicle.odometerAt) === businessDateOf(new Date());
 
   if (block) {
+    const isNext = next.standby?.vehicle_id === vehicle.id;
+    const lineUp = async () => {
+      hapticMedium();
+      setBusy(true);
+      setErr('');
+      const e = await next.load(vehicle.id);
+      setBusy(false);
+      if (e) setErr(e);
+    };
     return (
+      <div className="space-y-2">
       <button type="button" onClick={() => onOpenBay(false)}
         className="w-full rounded-xl border-2 border-amber-500 bg-amber-50 dark:bg-amber-900/20 px-3 py-2.5 text-left cursor-pointer">
         {block.same ? (
@@ -46,6 +59,16 @@ export function ScanBayStart({ vehicle, onOpenBay, bayLog }: { vehicle: Vehicle;
           </>
         )}
       </button>
+      {!block.same && next.loaded && (isNext ? (
+        <p className="text-center text-sm font-bold text-gray-700 dark:text-gray-200">⏭ Next up. It comes in when {block.plate} leaves.</p>
+      ) : (
+        <button type="button" disabled={busy} onClick={() => void lineUp()}
+          className="w-full rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi py-3 text-sm font-extrabold text-black cursor-pointer disabled:opacity-40">
+          ⏭ Put it next up{next.standby ? ` (replaces ${next.standby.plate})` : ''}
+        </button>
+      ))}
+      {err && <p role="alert" className="text-center text-xs font-semibold text-red-700 dark:text-red-400">{err}</p>}
+      </div>
     );
   }
 

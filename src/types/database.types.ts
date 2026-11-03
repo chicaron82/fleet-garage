@@ -1136,6 +1136,7 @@ export type Database = {
           id: number
           odometer: number | null
           plate: string
+          pulled_by: number | null
           redo_of: number | null
           shift_day: string
           started_at: string
@@ -1151,6 +1152,7 @@ export type Database = {
           id?: never
           odometer?: number | null
           plate: string
+          pulled_by?: number | null
           redo_of?: number | null
           shift_day: string
           started_at?: string
@@ -1166,6 +1168,7 @@ export type Database = {
           id?: never
           odometer?: number | null
           plate?: string
+          pulled_by?: number | null
           redo_of?: number | null
           shift_day?: string
           started_at?: string
@@ -1176,6 +1179,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "lot_bay_log_pulled_by_fkey"
+            columns: ["pulled_by"]
+            isOneToOne: false
+            referencedRelation: "lot_bay_log"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "lot_bay_log_redo_of_fkey"
             columns: ["redo_of"]
             isOneToOne: false
@@ -1183,6 +1193,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      lot_bay_standby: {
+        Row: {
+          car: string | null
+          id: number
+          loaded_at: string
+          loaded_by: string | null
+          plate: string
+          shift_day: string
+          unit_number: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          car?: string | null
+          id?: number
+          loaded_at?: string
+          loaded_by?: string | null
+          plate: string
+          shift_day: string
+          unit_number?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          car?: string | null
+          id?: number
+          loaded_at?: string
+          loaded_by?: string | null
+          plate?: string
+          shift_day?: string
+          unit_number?: string | null
+          vehicle_id?: string
+        }
+        Relationships: []
       }
       lot_bay_taps: {
         Row: {

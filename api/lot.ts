@@ -10,7 +10,7 @@ import { createClient } from '@supabase/supabase-js';
 import { bearerOf, parseLotRequest, pinMatches } from './_lib/lotRequest.js';
 import { BAY_ACTIONS, bayChange, type BayRequest } from './_lib/lotBay.js';
 import { BAY_LOG_ACTIONS, type BayLogRequest } from './_lib/lotBayLog.js';
-import { BayLogRefusal, exitCar, startCar, undoExit } from './_lib/lotBayLogDb.js';
+import { BayLogRefusal, clearStandby, exitCar, setStandby, startCar, undoExit } from './_lib/lotBayLogDb.js';
 import type { LotRequest } from './_lib/lotRequest.js';
 import { shiftBusinessDate } from './_lib/shiftDay.js';
 import { leaveOff, loadCrew } from './_lib/lotCrewDb.js';
@@ -82,7 +82,9 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
       try {
         const out = parsed.action === 'bayStart' ? await startCar(db, parsed.vehicleId, parsed.by, now, today)
           : parsed.action === 'bayExit' ? await exitCar(db, parsed.id, parsed.exit, parsed.by, now, today, parsed.odometer)
-          : await undoExit(db, parsed.id, parsed.by, now, today);
+          : parsed.action === 'bayExitUndo' ? await undoExit(db, parsed.id, parsed.by, now, today)
+          : parsed.action === 'bayStandbySet' ? await setStandby(db, parsed.vehicleId, parsed.by, now, today)
+          : await clearStandby(db);
         res.status(200).json({ ok: true, ...out });
       } catch (e) {
         if (!(e instanceof BayLogRefusal)) throw e;

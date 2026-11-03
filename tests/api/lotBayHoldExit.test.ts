@@ -3,27 +3,32 @@
 // "yes". Skip moves nothing (the car goes back in the queue). Ticket: docs/ticket-bay-hold-exit-takes-a-dirty.md.
 import { describe, it, expect } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { BayLogRefusal, exitCar, undoExit } from '../../api/_lib/lotBayLogDb';
+import { BayLogRefusal, clearStandby, exitCar, setStandby, startCar, undoExit } from '../../api/_lib/lotBayLogDb';
 
 type Row = Record<string, unknown>;
 
 /** Just the chains exitCar / undoExit / moveCount issue: select|update → eq|is → single|maybeSingle, and insert. */
 function fakeDb(tables: Record<string, Row[]>): SupabaseClient {
+  let nextId = 100;
   const from = (t: string) => {
     let patch: Row | null = null;
+    let inserted: Row | null = null;
     const filters: [string, unknown][] = [];
     const run = () => {
-      const hit = tables[t].filter(r => filters.every(([k, v]) => r[k] === v));
+      const hit = (tables[t] ?? []).filter(r => filters.every(([k, v]) => r[k] === v));
       if (patch) hit.forEach(r => Object.assign(r, patch));
       return hit.map(r => ({ ...r }));
     };
     const q = {
       select: () => q,
       update: (p: Row) => { patch = p; return q; },
-      insert: (r: Row) => { tables[t].push({ ...r }); return Promise.resolve({ data: null, error: null }); },
+      insert: (r: Row) => { const row = t === 'lot_bay_log' ? { id: nextId++, exit: null, ...r } : { ...r }; tables[t].push(row); inserted = row; return q; },
+      upsert: (r: Row) => { tables[t] = [{ ...r }]; inserted = tables[t][0]; return q; },
+      delete: () => ({ eq: async (k: string, v: unknown) => { tables[t] = tables[t].filter(r => r[k] !== v); return { error: null }; } }),
       eq: (k: string, v: unknown) => { filters.push([k, v]); return q; },
       is: (k: string, v: unknown) => { filters.push([k, v]); return q; },
-      single: async () => { const r = run(); return r.length === 1 ? { data: r[0], error: null } : { data: null, error: new Error(`${r.length} rows`) }; },
+      then: (ok: (v: unknown) => void) => ok({ data: null, error: null }),
+      single: async () => { if (inserted) return { data: { ...inserted }, error: null }; const r = run(); return r.length === 1 ? { data: r[0], error: null } : { data: null, error: new Error(`${r.length} rows`) }; },
       maybeSingle: async () => ({ data: run()[0] ?? null, error: null }),
     };
     return q;
@@ -39,6 +44,7 @@ function lot(dirties: number | null, logOver: Row = {}) {
   const tables: Record<string, Row[]> = {
     lot_bay: [{ id: 1, cleans: 6, cleans_by: 'AS', cleans_at: 'x', dirties, dirties_by: 'AS', dirties_at: 'x', used: 4, used_on: TODAY }],
     lot_bay_taps: [],
+    lot_bay_standby: [],
     lot_bay_log: [{ id: 7, plate: '0GK487', exit: null, exited_at: null, took_dirty: false, ...logOver }],
   };
   return { tables, db: fakeDb(tables), bay: () => tables.lot_bay[0], log: () => tables.lot_bay_log[0] };
@@ -110,5 +116,84 @@ describe('an exit keeps the reading logged from the bay card', () => {
     const m = lot(3, { odometer: 20000 });
     await exitCar(m.db, 7, 'skip', 'AS', NOW, TODAY);
     expect(m.log().odometer).toBe(20000);
+  });
+});
+
+// ⭐ Aaron, 2026-11-02: *"tapping cleaned, starts the next one if one is loaded?"*, and every exit does (migration 163).
+describe('Next up: every exit pulls the lined-up car in', () => {
+  const seltos = { id: 'v-487', license_plate: 'NXT487', unit_number: '5429550', year: 2026, make: 'Kia', model: 'Seltos', color: 'Gray', odometer: 100, odometer_at: null };
+  function loaded(over: Row = {}) {
+    const l = lot(3);
+    l.tables.vehicles = [seltos];
+    l.tables.lot_bay_standby = [{ id: 1, vehicle_id: 'v-487', plate: 'NXT487', shift_day: TODAY, ...over }];
+    return l;
+  }
+  const inBay = (l: ReturnType<typeof lot>) => l.tables.lot_bay_log.filter(r => r.exit == null);
+
+  for (const kind of ['clean', 'skip', 'mhold', 'bhold'] as const) {
+    it(`${kind} pulls it in, names the exit that did, and empties the slot`, async () => {
+      const l = loaded();
+      const out = await exitCar(l.db, 7, kind, 'AS', NOW, TODAY);
+      expect(inBay(l).map(r => r.plate)).toEqual(['NXT487']);
+      expect(inBay(l)[0].pulled_by).toBe(7);
+      expect(l.tables.lot_bay_standby).toEqual([]);
+      expect(out).toHaveProperty('next');
+      expect(out).not.toHaveProperty('nextError');
+    });
+  }
+
+  it('control: nothing loaded, nothing comes in', async () => {
+    const l = lot(3);
+    l.tables.vehicles = [seltos];
+    await exitCar(l.db, 7, 'clean', 'AS', NOW, TODAY);
+    expect(inBay(l)).toEqual([]);
+  });
+
+  it('⚠️ a plate loaded before the cutover never starts, and the slot empties', async () => {
+    const l = loaded({ shift_day: '2026-10-28' });
+    const out = await exitCar(l.db, 7, 'clean', 'AS', NOW, TODAY);
+    expect(inBay(l)).toEqual([]);
+    expect(l.tables.lot_bay_standby).toEqual([]);
+    expect(out).not.toHaveProperty('nextError');
+  });
+
+  it('⚠️ a pull that cannot happen leaves the exit standing and the car loaded, and says so', async () => {
+    const l = loaded();
+    l.tables.vehicles = [];      // the car is gone from FG
+    const out = await exitCar(l.db, 7, 'clean', 'AS', NOW, TODAY);
+    expect(l.log().exit).toBe('clean');
+    expect(l.tables.lot_bay_standby).toHaveLength(1);
+    expect((out as { nextError?: string }).nextError).toMatch(/NXT487 did not come in/);
+  });
+
+  it('⭐ Clean\'s Undo rewinds both: the next car back on Next up, the first back in, the count back', async () => {
+    const l = loaded();
+    await exitCar(l.db, 7, 'clean', 'AS', NOW, TODAY);
+    expect(l.bay().cleans).toBe(7);
+    const out = await undoExit(l.db, 7, 'AS', AFTER, TODAY) as { removedId?: unknown };
+    expect(inBay(l).map(r => r.plate)).toEqual(['0GK487']);
+    expect(l.log().exit).toBeNull();
+    expect(l.bay().cleans).toBe(6);
+    expect(l.tables.lot_bay_standby[0]).toMatchObject({ vehicle_id: 'v-487', plate: 'NXT487', shift_day: TODAY });
+    expect(out).toHaveProperty('removedId');
+  });
+
+  it('a Start by any door clears the slot when it is that car', async () => {
+    const l = loaded();
+    l.tables.lot_bay_log[0].exit = 'clean';
+    await startCar(l.db, 'v-487', 'AS', NOW, TODAY);
+    expect(l.tables.lot_bay_standby).toEqual([]);
+  });
+
+  it('lining up: replaces what was there, refuses the car in the bay and an empty bay; clear empties it', async () => {
+    const l = lot(3, { vehicle_id: 'v-in' });
+    l.tables.vehicles = [seltos];
+    const { standby } = await setStandby(l.db, 'v-487', 'AS', NOW, TODAY);
+    expect(standby).toMatchObject({ plate: 'NXT487' });
+    await expect(setStandby(l.db, 'v-in', 'AS', NOW, TODAY)).rejects.toThrow(/in the bay now/);
+    await clearStandby(l.db);
+    expect(l.tables.lot_bay_standby).toEqual([]);
+    l.tables.lot_bay_log[0].exit = 'clean';
+    await expect(setStandby(l.db, 'v-487', 'AS', NOW, TODAY)).rejects.toThrow(/empty/);
   });
 });

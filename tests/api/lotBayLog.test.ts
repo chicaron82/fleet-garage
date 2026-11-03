@@ -14,6 +14,11 @@ describe('parseBayLog', () => {
     expect(parseBayLog({ action: 'bayExit', id: 0, exit: 'clean' }, 'AS')).toHaveProperty('error');
     expect(parseBayLog({ action: 'bayExit', id: '4', exit: 'clean' }, 'AS')).toHaveProperty('error');
   });
+  it('Next up: lining a car up names it, and clearing needs nothing', () => {
+    expect(parseBayLog({ action: 'bayStandbySet', vehicleId: 'v-1' }, 'AS')).toEqual({ action: 'bayStandbySet', vehicleId: 'v-1', by: 'AS' });
+    expect(parseBayLog({ action: 'bayStandbySet' }, 'AS')).toHaveProperty('error');
+    expect(parseBayLog({ action: 'bayStandbyClear' }, 'AS')).toEqual({ action: 'bayStandbyClear', by: 'AS' });
+  });
   it('an exit may carry the reading logged from the bay card, and only a real one', () => {
     expect(parseBayLog({ action: 'bayExit', id: 4, exit: 'clean', odometer: 21500 }, 'AS')).toEqual({ action: 'bayExit', id: 4, exit: 'clean', by: 'AS', odometer: 21500 });
     for (const odometer of [0, -5, 1.5, '21500', null, 10_000_000]) expect(parseBayLog({ action: 'bayExit', id: 4, exit: 'clean', odometer }, 'AS')).toHaveProperty('error');
