@@ -66,6 +66,8 @@ export interface VehicleHoldContextValue {
   adoptPlate: (vehicleId: string, tagPlate: string) => Promise<boolean>;
   /** Record the odometer read off a flip. Latest reading wins. See odometerWrite. */
   recordOdometer: (vehicleId: string, km: number) => Promise<void>;
+  /** The same write, and whether it landed: for a tap whose next step depends on the reading. See odometerWrite. */
+  logOdometer: (vehicleId: string, km: number) => Promise<boolean>;
   /** Back to "not logged" — the escape the forward-only guard was missing. See odometerWrite. */
   clearOdometer: (vehicleId: string) => Promise<boolean>;
   /** The one write allowed to move an odometer DOWN — a correction, never an ordinary log.

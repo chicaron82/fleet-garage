@@ -59,11 +59,12 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
     return true;
   }, [show]);
 
-  const exitHere = (kind: 'clean' | 'skip') => {
+  const exitHere = (kind: 'clean' | 'skip', odometer?: number) => {
     if (!open) return;
     const { id, plate } = open;
+    const odoNote = odometer != null ? ` · odo ${odometer.toLocaleString('en-CA')}` : '';
     const undo = () => void settle(() => bay.undoExit(id), `${plate} is back in the bay`).then(ok => { if (ok) setBumped(false); });
-    void settle(() => bay.exit(id, kind), kind === 'clean' ? `${plate} clean` : `${plate} bumped, still to do`, undo)
+    void settle(() => (odometer != null ? bay.exit(id, kind, odometer) : bay.exit(id, kind)), `${kind === 'clean' ? `${plate} clean` : `${plate} bumped, still to do`}${odoNote}`, undo)
       .then(ok => { if (ok) setBumped(kind === 'skip'); });
   };
 

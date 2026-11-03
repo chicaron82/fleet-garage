@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { hapticLight } from '../../lib/haptics';
 import { parseOdometer, describeOdometer, odometerUnitFor, checkOdometerJump, classifyOdometerEntry } from '../../lib/odometer';
 import { useRoutedProp } from '../../hooks/useRoutedProp';
+import { centreAfterKeypad } from '../../lib/centreAfterKeypad';
 
 // The odometer, captured where he's already standing (2026-08-25).
 //
@@ -114,18 +115,6 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
   // repair. This one appears the moment he types a number that needs it.
   const isLower = classifyOdometerEntry(currentKm, km) === 'lower';
   const offerCorrection = isLower && !!onCorrect && km !== null;
-
-  // ⭐ CLEAR OF THE BAR UNDER IT. Aaron, 2026-10-14, on his Pixel 10: the keypad shrinks the sheet,
-  // the browser scrolls the box only JUST into view, and it lands flush against the sticky
-  // "Scan a tag" bar (8412c45 is the mis-tap that cost). So once the keypad has opened, the box
-  // moves to the middle of what is left. Two passes: the resize (`interactive-widget=resizes-content`)
-  // lands after the focus, and centring before it would centre in the old, taller sheet.
-  const centreAfterKeypad = (el: HTMLElement) => {
-    const centre = () => el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    centre();
-    window.visualViewport?.addEventListener('resize', centre, { once: true });
-    setTimeout(() => { window.visualViewport?.removeEventListener('resize', centre); centre(); }, 450);
-  };
 
   const save = async () => {
     if (km === null || notForward) return;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { bayLines, bayReportLine, baySummary, inTheBay, startBlock, vehicleForPick, type BayLogRow } from '../../src/lib/lotBayLog';
+import { bayLines, bayOdoEntry, bayOdoLetsExit, bayReportLine, baySummary, inTheBay, startBlock, vehicleForPick, type BayLogRow } from '../../src/lib/lotBayLog';
 
 // Times are UTC; clockOf prints Winnipeg (CDT, UTC−5 on 2026-10-29).
 const row = (id: number, plate: string, start: string, exit: BayLogRow['exit'], exitAt: string | null, extra: Partial<BayLogRow> = {}): BayLogRow => ({
@@ -100,4 +100,19 @@ describe('bayReportLine (the shift report)', () => {
     expect(bayReportLine([row(1, 'A', '12:00', 'clean', '12:30'), row(2, 'B', '13:00', 'skip', '13:10')])).toBe('1 clean · 1 bumped, still to do');
   });
   it('a day with no cars has no line', () => { expect(bayReportLine([])).toBeNull(); });
+});
+
+describe('bayOdoEntry (the bay card\'s odo box)', () => {
+  it('empty lets the car go; a forward or first reading logs; the same reading is nothing to log', () => {
+    expect(bayOdoEntry('  ', 20000)).toEqual({ kind: 'empty' });
+    expect(bayOdoEntry('21,500', 20000)).toEqual({ kind: 'log', km: 21500 });
+    expect(bayOdoEntry('21500', null)).toEqual({ kind: 'log', km: 21500 });
+    expect(bayOdoEntry('20000', 20000)).toEqual({ kind: 'same', km: 20000 });
+    for (const d of ['', '21500', '20000']) expect(bayOdoLetsExit(bayOdoEntry(d, 20000))).toBe(true);
+  });
+  it('⚠️ a lower or unreadable number holds the exits, never dropped silently', () => {
+    expect(bayOdoEntry('19000', 20000)).toEqual({ kind: 'lower', km: 19000 });
+    for (const d of ['12a', '0', '12345678']) expect(bayOdoEntry(d, 20000)).toEqual({ kind: 'unreadable' });
+    for (const d of ['19000', '12a']) expect(bayOdoLetsExit(bayOdoEntry(d, 20000))).toBe(false);
+  });
 });

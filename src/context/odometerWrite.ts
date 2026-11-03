@@ -15,21 +15,30 @@ import type { Vehicle } from '../types';
  *  older one land last. `or=(odometer.is.null,...)` covers the first reading.
  *
  *  Best-effort by contract: a failed write must never cost the flip that triggered it — the counter
- *  copy-out is the operator's actual job, and this is bookkeeping riding along behind it. */
-export function makeRecordOdometer(deps: {
+ *  copy-out is the operator's actual job, and this is bookkeeping riding along behind it. A tap whose
+ *  next step depends on the reading landing uses `makeLogOdometer` instead. */
+export function makeRecordOdometer(deps: Parameters<typeof makeLogOdometer>[0]) {
+  const log = makeLogOdometer(deps);
+  return async (vehicleId: string, km: number): Promise<void> => { await log(vehicleId, km); };
+}
+
+/** The same write, and it says whether the reading landed. The bay card closes a car on it (Aaron, 2026-11-02: *"entering
+ *  the odo when a cleaning has started then logging it stops the clean"*), and a Clean that reads "log 48,213" must not
+ *  go through on a reading that never saved (CLAUDE.md, a write that fails must SAY so). */
+export function makeLogOdometer(deps: {
   setAllVehicles: React.Dispatch<React.SetStateAction<Vehicle[]>>;
   currentOdometer: (vehicleId: string) => number | null | undefined;
 }) {
   const { setAllVehicles, currentOdometer } = deps;
 
-  return async (vehicleId: string, km: number): Promise<void> => {
+  return async (vehicleId: string, km: number): Promise<boolean> => {
     // ⭐ HE WAS AT THE CAR. Reading a dash is not a proxy for presence, it IS presence — you
     // cannot read an odometer from a desk. So a typed-plate lookup's held sighting is redeemed
     // here, BEFORE the value guard: whether the reading is new or matches what's on file, he still
     // walked up and read it. (No-op when nothing is held, so a scanned car — whose sighting was
     // already recorded at the read — can never be double-counted.) Aaron, 2026-08-28.
     commitSightingFor(vehicleId);
-    if (!shouldReplaceOdometer(currentOdometer(vehicleId), km)) return;
+    if (!shouldReplaceOdometer(currentOdometer(vehicleId), km)) return false;
     const at = new Date().toISOString();
     const { data, error } = await writeWithRefresh(() =>
       supabase
@@ -39,8 +48,9 @@ export function makeRecordOdometer(deps: {
         .or(`odometer.is.null,odometer.lt.${km}`)
         .select('id')
     );
-    if (error || !data?.length) return; // 0 rows = a higher reading already landed → don't diverge
+    if (error || !data?.length) return false; // 0 rows = a higher reading already landed → don't diverge
     setAllVehicles(prev => prev.map(v => (v.id === vehicleId ? { ...v, odometer: km, odometerAt: at } : v)));
+    return true;
   };
 }
 

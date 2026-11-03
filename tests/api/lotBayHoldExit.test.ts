@@ -101,3 +101,14 @@ describe('the dirty comes back exactly when it was taken', () => {
     expect(l.bay()).toMatchObject({ cleans: 6, dirties: 23 });
   });
 });
+
+describe('an exit keeps the reading logged from the bay card', () => {
+  it('on the row when one came with it, and the row is untouched when none did', async () => {
+    const l = lot(3, { odometer: null });
+    await exitCar(l.db, 7, 'clean', 'AS', NOW, TODAY, 21500);
+    expect(l.log().odometer).toBe(21500);
+    const m = lot(3, { odometer: 20000 });
+    await exitCar(m.db, 7, 'skip', 'AS', NOW, TODAY);
+    expect(m.log().odometer).toBe(20000);
+  });
+});

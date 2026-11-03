@@ -11,7 +11,7 @@ export const BAY_EXITS: readonly BayExit[] = ['clean', 'mhold', 'bhold', 'skip']
 
 export type BayLogRequest =
   | { action: 'bayStart'; vehicleId: string; by: string }
-  | { action: 'bayExit'; id: number; exit: BayExit; by: string }
+  | { action: 'bayExit'; id: number; exit: BayExit; by: string; odometer?: number }
   | { action: 'bayExitUndo'; id: number; by: string };
 
 export const BAY_LOG_ACTIONS: readonly BayLogRequest['action'][] = ['bayStart', 'bayExit', 'bayExitUndo'];
@@ -34,7 +34,10 @@ export function parseBayLog(b: Record<string, unknown>, by: string): BayLogReque
       const id = rowId(b.id);
       if (id == null) return { error: 'Which car?' };
       if (!(BAY_EXITS as readonly unknown[]).includes(b.exit)) return { error: 'Clean, M hold, B hold or Skip?' };
-      return { action: 'bayExit', id, exit: b.exit as BayExit, by };
+      // The reading he logged from the bay card as this car left (docs/ticket-bay-odo-in-card-and-next-up.md). Optional.
+      if (b.odometer === undefined) return { action: 'bayExit', id, exit: b.exit as BayExit, by };
+      if (typeof b.odometer !== 'number' || !Number.isInteger(b.odometer) || b.odometer <= 0 || b.odometer > 9_999_999) return { error: 'That odo is not a reading.' };
+      return { action: 'bayExit', id, exit: b.exit as BayExit, by, odometer: b.odometer };
     }
     case 'bayExitUndo': {
       const id = rowId(b.id);

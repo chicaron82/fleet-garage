@@ -48,14 +48,14 @@ export async function startCar(db: SupabaseClient, vehicleId: string, by: string
   return { row, bay: null };
 }
 
-export async function exitCar(db: SupabaseClient, id: number, exit: BayExit, by: string, nowIso: string, today: string) {
+export async function exitCar(db: SupabaseClient, id: number, exit: BayExit, by: string, nowIso: string, today: string, odometer?: number) {
   let bay: unknown = null;
   let tookDirty = false;
   // The count first: a Clean that cannot move the count must not land on the list as if it had.
   if (exit === 'clean') ({ saved: bay, tookDirty } = await moveCount(db, { action: 'cleans', delta: 1, fix: false, by }, nowIso, today));
   else if (isHold(exit)) ({ saved: bay, tookDirty } = await moveCount(db, r => heldExitChange(r, 'take', by, nowIso), nowIso, today));
   const { data: row, error } = await db.from('lot_bay_log')
-    .update({ exit, exited_at: nowIso, took_dirty: tookDirty }).eq('id', id).is('exit', null)
+    .update({ exit, exited_at: nowIso, took_dirty: tookDirty, ...(odometer ? { odometer } : {}) }).eq('id', id).is('exit', null)
     .select(BAY_LOG_COLS).maybeSingle();
   if (error) throw error;
   if (!row) {

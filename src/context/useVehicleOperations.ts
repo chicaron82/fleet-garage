@@ -25,7 +25,7 @@ import { makeSaveKeytagAudit, makeFlagKeytag, makeReopenKeytagAudit } from './ke
 import { makeAdoptPlate } from './plateWrite';
 import { makeRecordWinterTires } from './winterTiresWrite';
 import { makeRecordOnLot } from './onLotWrite';
-import { makeRecordOdometer, makeClearOdometer, makeCorrectOdometer } from './odometerWrite';
+import { makeRecordOdometer, makeLogOdometer, makeClearOdometer, makeCorrectOdometer } from './odometerWrite';
 import { makeReleaseUnitNumber } from './identityReconcile';
 import { withSubmitLock } from '../lib/submitLock';
 import { normalizeVinLast9 } from '../../api/_lib/vinLast9';
@@ -197,6 +197,10 @@ export function useVehicleOperations({
     setAllVehicles,
     currentOdometer: id => allVehicles.find(v => v.id === id)?.odometer,
   });
+  const logOdometer = makeLogOdometer({
+    setAllVehicles,
+    currentOdometer: id => allVehicles.find(v => v.id === id)?.odometer,
+  });
   const clearOdometer = makeClearOdometer({ setAllVehicles });
   const correctOdometer = makeCorrectOdometer({ setAllVehicles });
   const attachKeytagPhotoIfMissing = makeAttachKeytagPhotoIfMissing({
@@ -320,6 +324,7 @@ export function useVehicleOperations({
     reopenKeytagAudit,
     adoptPlate,
     recordOdometer,
+    logOdometer,
     clearOdometer,
     correctOdometer,
     releaseUnitNumber,

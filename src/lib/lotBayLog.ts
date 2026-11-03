@@ -8,6 +8,7 @@
 //     so no screen can be used to work out minutes per car, not even from two stamps side by side.
 //   • A skip is a bump, not a verdict: *"skip to do later"*. It reads "still to do" until the car comes back in.
 import { clockOf } from './lotBay';
+import { classifyOdometerEntry, parseOdometer } from './odometer';
 import { foldOZero } from './plateFold';
 
 export type BayExit = 'clean' | 'mhold' | 'bhold' | 'skip';
@@ -119,4 +120,22 @@ export function bayReportLine(rows: readonly BayLogRow[]): string | null {
   if (s.mhold) parts.push(`${s.mhold} M hold`);
   if (s.stillToDo) parts.push(`${s.stillToDo} bumped, still to do`);
   return parts.join(' · ');
+}
+
+/** What the bay card's odo box holds right now. 'log' and 'same' carry a reading; 'lower' and 'unreadable' hold every exit
+ *  until he corrects it or clears the box, because a number he typed is never silently dropped (Aaron, 2026-11-02,
+ *  docs/ticket-bay-odo-in-card-and-next-up.md). */
+export type BayOdoEntry = { kind: 'empty' } | { kind: 'unreadable' } | { kind: 'log' | 'same' | 'lower'; km: number };
+
+export function bayOdoEntry(draft: string, currentKm: number | null | undefined): BayOdoEntry {
+  if (!draft.trim()) return { kind: 'empty' };
+  const km = parseOdometer(draft);
+  const entry = classifyOdometerEntry(currentKm, km);
+  if (km === null || entry === 'invalid') return { kind: 'unreadable' };
+  return entry === 'same' ? { kind: 'same', km } : entry === 'lower' ? { kind: 'lower', km } : { kind: 'log', km };
+}
+
+/** May the car leave with this in the box? */
+export function bayOdoLetsExit(e: BayOdoEntry): boolean {
+  return e.kind === 'empty' || e.kind === 'log' || e.kind === 'same';
 }

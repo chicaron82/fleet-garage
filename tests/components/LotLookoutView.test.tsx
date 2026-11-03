@@ -14,7 +14,7 @@ const row = (over: Partial<BayLogRow>): BayLogRow => ({
 });
 
 let rows: BayLogRow[] = [];
-const exit = vi.fn(async () => null as string | null);
+const exit = vi.fn(async (..._args: unknown[]) => null as string | null);
 const undoExit = vi.fn(async () => null as string | null);
 const start = vi.fn(async () => null as string | null);
 vi.mock('../../src/hooks/useBayLog', () => ({
@@ -55,8 +55,10 @@ vi.mock('../../src/hooks/useLotCrew', () => ({
   }),
 }));
 let holds: { vehicleId: string; flaggedAt: string; holdTypes: string[]; id?: string; status?: string; damageZones?: string[] }[] = [];
+const logOdometer = vi.fn(async (..._args: unknown[]) => true);
+const correctOdometer = vi.fn(async (..._args: unknown[]) => true);
 vi.mock('../../src/context/VehicleHoldContext', () => ({ useVehicleHoldContext: () => ({
-  holds, vehicles, archivedVehicles: [], recordOdometer: vi.fn(async () => {}), clearOdometer: vi.fn(), correctOdometer: vi.fn(),
+  holds, vehicles, archivedVehicles: [], recordOdometer: vi.fn(async () => {}), logOdometer, clearOdometer: vi.fn(), correctOdometer,
 }) }));
 vi.mock('../../src/context/AuthContext', () => ({ useAuth: () => ({ user: { name: 'Aaron Sauddin' } }) }));
 const search = vi.fn();
@@ -214,7 +216,7 @@ describe('LotLookoutView — the bay log', () => {
     expect(card).toHaveTextContent('LZM536 · Unit 542 3173');
     expect(card).toHaveTextContent('TCCR · class F');
     expect(card).toHaveTextContent('Since 11:20');
-    expect(card).not.toHaveTextContent('odo');
+    expect(screen.getByText('Since 11:20')).toBeTruthy();   // no "· odo" on a row without today's reading
     fireEvent.click(screen.getByTitle('Open the record'));
     expect(onNavigate).toHaveBeenCalledWith({ name: 'vehicle', vehicleId: 'v-536' });
   });
@@ -244,5 +246,90 @@ describe('LotLookoutView — the bay log', () => {
     fireEvent.change(screen.getByRole('textbox', { name: /Look up a vehicle/ }), { target: { value: '0GK487' } });
     fireEvent.click(await screen.findByRole('button', { name: /0GK487/ }));
     expect(screen.queryByTestId('scan-damage-zones')).toBeNull();      // the clear Seltos: nothing
+  });
+
+  // ── the odo from the car in the bay (2026-11-02, docs/ticket-bay-odo-in-card-and-next-up.md) ──
+  // ⭐ Aaron: *"entering the odo when a cleaning has started then logging it stops the clean"*.
+  const inNoOdo = () => { vehicles = [seltos, corolla]; rows = [row({ odometer: null })]; };
+  const odoBox = () => screen.getByRole('textbox', { name: 'Odometer reading' });
+  const type = (v: string) => fireEvent.change(odoBox(), { target: { value: v } });
+
+  it('⭐ a typed reading turns Clean into "log": one tap saves the reading, THEN closes the car, with an Undo', async () => {
+    inNoOdo();
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    type('21,500');
+    fireEvent.click(screen.getByRole('button', { name: /Clean · log 21,500 km/ }));
+    await waitFor(() => expect(exit).toHaveBeenCalledWith(6, 'clean', 21500));
+    expect(logOdometer).toHaveBeenCalledWith('v-536', 21500);
+    expect(logOdometer.mock.invocationCallOrder[0]!).toBeLessThan(exit.mock.invocationCallOrder[0]!);
+    expect(await screen.findByRole('button', { name: 'Undo' })).toBeTruthy();
+    expect(screen.getByText(/LZM536 clean · odo 21,500/)).toBeTruthy();
+  });
+
+  it('⭐ the box is optional: plain Clean closes the car and writes no reading', async () => {
+    inNoOdo();
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /^✓ Clean/ }));
+    await waitFor(() => expect(exit).toHaveBeenCalledWith(6, 'clean'));
+    expect(logOdometer).not.toHaveBeenCalled();
+  });
+
+  it('⚠️ a reading that did not save leaves the car in and says so', async () => {
+    inNoOdo();
+    logOdometer.mockResolvedValueOnce(false);
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    type('21500');
+    fireEvent.click(screen.getByRole('button', { name: /Clean · log/ }));
+    expect((await screen.findByRole('alert')).textContent).toMatch(/did not save/);
+    expect(exit).not.toHaveBeenCalled();
+    expect(odoBox()).toHaveValue('21500');   // what he typed is still there
+  });
+
+  it('⚠️ a lower reading holds every exit until he corrects the record or clears the box', async () => {
+    inNoOdo();
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    type('19000');
+    for (const name of [/^✓ Clean/, /M hold/, /B hold/, /Skip/]) expect(screen.getByRole('button', { name })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: /Correct it to 19,000 km/ }));
+    await waitFor(() => expect(correctOdometer).toHaveBeenCalledWith('v-536', 19000));
+    type('');
+    expect(screen.getByRole('button', { name: /^✓ Clean/ })).not.toBeDisabled();
+  });
+
+  it('an unreadable number holds the exits too', () => {
+    inNoOdo();
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    type('12a');
+    expect(screen.getByRole('button', { name: /^✓ Clean/ })).toBeDisabled();
+    expect(screen.getByText(/isn't a reading/)).toBeTruthy();
+  });
+
+  it('⭐ a number typed before Skip is logged, and one typed before a hold is logged before the form opens', async () => {
+    inNoOdo();
+    const onNavigate = vi.fn();
+    const { unmount } = render(<LotLookoutView onNavigate={onNavigate} />);
+    type('21500');
+    fireEvent.click(screen.getByRole('button', { name: /Skip/ }));
+    await waitFor(() => expect(exit).toHaveBeenCalledWith(6, 'skip', 21500));
+    unmount();
+    vi.clearAllMocks();
+    render(<LotLookoutView onNavigate={onNavigate} />);
+    type('21500');
+    fireEvent.click(screen.getByRole('button', { name: /B hold/ }));
+    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith(expect.objectContaining({ name: 'new-hold', bayExit: { id: 6, kind: 'bhold' } })));
+    expect(logOdometer).toHaveBeenCalledWith('v-536', 21500);
+  });
+
+  it('no box once today has a reading: from the Start, or logged on the car since', () => {
+    vehicles = [seltos, corolla];
+    rows = [row({ odometer: 20275 })];
+    const { unmount } = render(<LotLookoutView onNavigate={vi.fn()} />);
+    expect(screen.queryByRole('textbox', { name: 'Odometer reading' })).toBeNull();
+    unmount();
+    vehicles = [seltos, { ...corolla, odometer: 21500, odometerAt: new Date().toISOString() }];
+    rows = [row({ odometer: null })];
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    expect(screen.queryByRole('textbox', { name: 'Odometer reading' })).toBeNull();
+    expect(screen.getByText('Since 11:20 · odo 21,500')).toBeTruthy();
   });
 });

@@ -1,0 +1,140 @@
+// The car in the bay, and its four ways out. Aaron, 2026-10-29: *"different exit points perhaps: [clean] <- default,
+// [M hold] maintenance issue like PM, [B hold] damage found, [skip]"*. Ticket: docs/ticket-lot-lookout-bay-log.md.
+//
+// • Clean is the page's one primary action, so it wears the action yellow (CLAUDE.md, Design Language), big, alone on
+//   its row. It puts the car on the list and +1 on Erin St's cleans in one save.
+// • M hold / B hold open Flag / hold with this car and the type chosen; the car leaves the bay only once the hold SAVES.
+//   If that close failed (a dropped signal after the save), the hold is already on the car: the button becomes
+//   "Close as held" and closes it without a second hold.
+// • Skip is a bump, not a verdict: *"a vehicle in the queue needed to be done ASAP ... skip to do later"*. The empty
+//   bay that follows leads with Find a car, because the ASAP car is the next thing he does. Since 2026-10-29 that is
+//   the search box itself, in the card (BayFindCar): *"i'm already in the module"*.
+// • Every exit is one tap; Clean and Skip carry a 5-second Undo on the note (a wet thumb lands on the neighbour).
+// • The car shows as the 🔍 popup shows it, header and damage map (BayCarHeader), looked up live by the row's vehicle_id,
+//   so the zones stay on screen for the whole clean: *"did miss marking damage on a few"* (2026-10-30,
+//   docs/ticket-bay-log-first-shift-friction.md). A car with no live record falls back to the row's own plate and car line.
+// • The odo box (BayOdoBox, since 2026-11-02) shows while the car has no reading from today. Whatever it holds goes out
+//   with ANY exit, the reading first: a Clean that says "log 48,213" never closes on a reading that did not save.
+//
+// Mounted with `key={open.id}`, so a box he typed in never carries onto the next car.
+import { useState } from 'react';
+import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
+import { hapticMedium } from '../../lib/haptics';
+import { clockOf } from '../../lib/lotBay';
+import { bayOdoEntry, bayOdoLetsExit, type BayExit, type BayLogRow } from '../../lib/lotBayLog';
+import { odometerUnitFor } from '../../lib/odometer';
+import { businessDateOf } from '../../lib/shiftDay';
+import { BayCarHeader } from './BayCarHeader';
+import { BayOdoBox } from './BayOdoBox';
+
+const EXIT_BTN = 'min-h-16 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-2 grid justify-items-center content-center gap-0.5 cursor-pointer touch-manipulation active:scale-95 transition disabled:opacity-40';
+
+export interface BayOpenCarProps {
+  open: BayLogRow;
+  busy: boolean;
+  /** Clean or Skip: settled right here. `odometer`: the reading to keep on the row, when there is one. */
+  onExit: (kind: Extract<BayExit, 'clean' | 'skip'>, odometer?: number) => void;
+  /** M hold / B hold: open the hold form for this car. */
+  onHold: (kind: 'mhold' | 'bhold') => void;
+  /** The hold already saved: close the car as held without a second hold. */
+  onCloseHeld: (kind: 'mhold' | 'bhold') => void;
+  /** The header's tap: the car's record. Back returns here, and the car is still in (the row is the server's). */
+  onOpenCar: (vehicleId: string) => void;
+}
+
+export function BayOpenCar({ open, busy, onExit, onHold, onCloseHeld, onOpenCar }: BayOpenCarProps) {
+  const { holds, vehicles, archivedVehicles, logOdometer, correctOdometer } = useVehicleHoldContext();
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [odoError, setOdoError] = useState<string | null>(null);
+  // A hold flagged on this car since it came in: the form saved it, the close did not land.
+  // Compared as instants: the hold's ISO and Postgres' timestamptz text are spelled differently ("Z" vs "+00:00").
+  const startedMs = Date.parse(open.started_at);
+  const heldSince = holds.find(h => h.vehicleId === open.vehicle_id && Date.parse(h.flaggedAt) >= startedMs);
+  const heldKind: 'mhold' | 'bhold' | null = heldSince ? (heldSince.holdTypes.includes('mechanical') ? 'mhold' : 'bhold') : null;
+  const tap = (f: () => void) => () => { hapticMedium(); f(); };
+  const car = vehicles.find(v => v.id === open.vehicle_id) ?? archivedVehicles.find(v => v.id === open.vehicle_id) ?? null;
+
+  // A reading from today, on the row or on the car (the popup or a correction may have logged it since Start).
+  const carToday = car?.odometer != null && !!car.odometerAt && businessDateOf(car.odometerAt) === businessDateOf(new Date()) ? car.odometer : null;
+  const readToday = open.odometer ?? carToday;
+  const since = `Since ${clockOf(open.started_at)}${readToday != null ? ` · odo ${readToday.toLocaleString('en-CA')}` : ''}`;
+  const entry = bayOdoEntry(draft, car?.odometer);
+  const showBox = !!car && !heldKind && (readToday == null || draft !== '');
+  const held = busy || saving;
+  const blocked = held || !bayOdoLetsExit(entry);
+  const typed = 'km' in entry ? entry.km : undefined;
+
+  const type = (value: string) => { setDraft(value); setOdoError(null); };
+  /** The reading first, when there is a new one; the exit only if it landed. */
+  const thenExit = async (go: () => void) => {
+    if (entry.kind === 'log') {
+      setSaving(true);
+      const ok = await logOdometer(open.vehicle_id, entry.km).catch(() => false);
+      setSaving(false);
+      if (!ok) { setOdoError('The odo did not save, so the car is still in. Try again, or clear the box to exit without it.'); return; }
+    }
+    go();
+  };
+  const leave = (kind: 'clean' | 'skip') => void thenExit(() => onExit(kind, open.odometer == null ? typed ?? carToday ?? undefined : undefined));
+  const correct = async (km: number) => {
+    setSaving(true);
+    const ok = await correctOdometer(open.vehicle_id, km).catch(() => false);
+    setSaving(false);
+    setOdoError(ok ? null : 'The correction did not save. Try again.');
+  };
+
+  return (
+    <section aria-label="In the bay" className="rounded-2xl border-2 border-amber-500 bg-white dark:bg-gray-900 px-4 py-3.5 space-y-3">
+      <div>
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="text-[11px] font-extrabold uppercase tracking-wider text-amber-800 dark:text-amber-300">In the bay</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{since}</p>
+        </div>
+        {car ? (
+          <div className="mt-1"><BayCarHeader vehicle={car} onOpen={() => onOpenCar(car.id)} /></div>
+        ) : (
+          <>
+            <p className="mt-1 font-mono text-lg font-bold text-gray-900 dark:text-gray-100">{open.plate}</p>
+            {open.car && <p className="text-sm text-gray-600 dark:text-gray-300">{open.car}</p>}
+          </>
+        )}
+      </div>
+
+      {showBox && car && (
+        <BayOdoBox draft={draft} onDraft={type} entry={entry} currentKm={car.odometer} currentAt={car.odometerAt} isUs={car.isUs}
+          busy={held} error={odoError} onCorrect={km => void correct(km)} />
+      )}
+
+      {heldKind ? (
+        <button type="button" disabled={busy} onClick={tap(() => onCloseHeld(heldKind))}
+          className="w-full rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi py-3.5 text-base font-bold text-black cursor-pointer disabled:opacity-50">
+          Held at {clockOf(heldSince!.flaggedAt)}. Close it as held
+        </button>
+      ) : (
+        <>
+          <button type="button" disabled={blocked} onClick={tap(() => leave('clean'))}
+            className="w-full min-h-16 rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi grid justify-items-center content-center gap-0.5 text-black cursor-pointer touch-manipulation active:scale-[0.98] transition disabled:opacity-50">
+            <span className="text-lg font-extrabold">✓ Clean{entry.kind === 'log' ? ` · log ${entry.km.toLocaleString('en-CA')} ${odometerUnitFor(car?.isUs)}` : ''}</span>
+            <span className="text-xs font-semibold text-gray-800">Onto the list · +1 Erin St cleans</span>
+          </button>
+          <div className="grid grid-cols-3 gap-2">
+            <button type="button" disabled={blocked} onClick={tap(() => void thenExit(() => onHold('mhold')))} className={EXIT_BTN}>
+              <span className="text-sm font-extrabold text-amber-800 dark:text-amber-300">🔧 M hold</span>
+              <span className="text-[11px] text-gray-500 dark:text-gray-400">Mechanical</span>
+            </button>
+            <button type="button" disabled={blocked} onClick={tap(() => void thenExit(() => onHold('bhold')))} className={EXIT_BTN}>
+              <span className="text-sm font-extrabold text-red-700 dark:text-red-400">⚠️ B hold</span>
+              <span className="text-[11px] text-gray-500 dark:text-gray-400">Damage</span>
+            </button>
+            <button type="button" disabled={blocked} onClick={tap(() => leave('skip'))} className={EXIT_BTN}>
+              <span className="text-sm font-extrabold text-blue-700 dark:text-blue-400">↷ Skip</span>
+              <span className="text-[11px] text-gray-500 dark:text-gray-400">ASAP car first</span>
+            </button>
+          </div>
+          <p className="text-[11px] text-gray-500 dark:text-gray-400">M hold and B hold open Flag / hold with this car filled in. It leaves the bay when the hold saves.</p>
+        </>
+      )}
+    </section>
+  );
+}

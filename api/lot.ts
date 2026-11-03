@@ -81,7 +81,7 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
       const today = shiftBusinessDate(new Date(now));
       try {
         const out = parsed.action === 'bayStart' ? await startCar(db, parsed.vehicleId, parsed.by, now, today)
-          : parsed.action === 'bayExit' ? await exitCar(db, parsed.id, parsed.exit, parsed.by, now, today)
+          : parsed.action === 'bayExit' ? await exitCar(db, parsed.id, parsed.exit, parsed.by, now, today, parsed.odometer)
           : await undoExit(db, parsed.id, parsed.by, now, today);
         res.status(200).json({ ok: true, ...out });
       } catch (e) {
