@@ -7,24 +7,23 @@
 // • With the bay empty and a car still loaded (a pull that failed): it says so and offers the Start, never a dead end.
 import { useState } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
-import { useBayStandby } from '../../hooks/useBayStandby';
-import { useAuth } from '../../context/AuthContext';
+import type { BayStandbyState } from '../../hooks/useBayStandby';
 import { useLookupRecents } from '../../hooks/useLookupRecents';
 import { hapticMedium } from '../../lib/haptics';
-import { initialsOf } from '../../lib/lotLookout';
 import { vehicleForPick } from '../../lib/lotBayLog';
 import { VehicleLookup } from '../shared/VehicleLookup';
 
 const HEAD = 'text-[11px] font-extrabold uppercase tracking-wider text-gray-500 dark:text-gray-400';
 
-export function BayNextUp({ inBay, onStart }: {
+export function BayNextUp({ next, inBay, onStart }: {
+  /** The slot, owned by BayInTheBay so the open card's "Clean only" and "Back to Next up" read the same one. */
+  next: BayStandbyState;
   /** The car in the bay's plate, or null when the bay is empty. */
   inBay: string | null;
   /** The empty bay's Start for a car still loaded. Resolves to an error, or null. */
   onStart: (vehicleId: string) => Promise<string | null>;
 }) {
-  const { user } = useAuth();
-  const { standby, loaded, load, clear } = useBayStandby(initialsOf(user?.name ?? null) || 'FG');
+  const { standby, loaded, load, clear } = next;
   const { vehicles, archivedVehicles } = useVehicleHoldContext();
   const { recents, record } = useLookupRecents(true);
   const [picking, setPicking] = useState(false);

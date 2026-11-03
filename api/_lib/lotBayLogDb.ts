@@ -115,7 +115,8 @@ async function unpull(db: SupabaseClient, exitedId: number, by: string, nowIso: 
   return { removedId: pulled.id as number, standby };
 }
 
-export async function exitCar(db: SupabaseClient, id: number, exit: BayExit, by: string, nowIso: string, today: string, odometer?: number) {
+/** `pull`: false for "Clean only, X waits" — the exit lands and Next up's car stays loaded for later. */
+export async function exitCar(db: SupabaseClient, id: number, exit: BayExit, by: string, nowIso: string, today: string, odometer?: number, pull = true) {
   let bay: unknown = null;
   let tookDirty = false;
   // The count first: a Clean that cannot move the count must not land on the list as if it had.
@@ -131,7 +132,30 @@ export async function exitCar(db: SupabaseClient, id: number, exit: BayExit, by:
     else if (tookDirty) await moveCount(db, r => heldExitChange(r, 'give', by, nowIso), nowIso, today);
     throw new BayLogRefusal('That car already left the bay.');
   }
-  return { row, bay, ...(await pullNext(db, id, by, nowIso, today)) };
+  return { row, bay, ...(pull ? await pullNext(db, id, by, nowIso, today) : {}) };
+}
+
+/** "↩ Back to Next up" (2026-11-03): the car in the bay goes back in line with NO exit — it was not cleaned, held or
+ *  skipped, so nothing goes on the list and no count moves (a Start moved none). The row goes, the way unpull's does,
+ *  and ▶ Start cleaning on Next up brings the car back. A different car already on Next up is only replaced on his yes. */
+export async function bumpToNextUp(db: SupabaseClient, id: number, by: string, nowIso: string, today: string, replace: boolean) {
+  const { data: row, error } = await db.from('lot_bay_log').select('id, vehicle_id, plate, unit_number, car')
+    .eq('id', id).is('exit', null).maybeSingle();
+  if (error) throw error;
+  if (!row) throw new BayLogRefusal('That car already left the bay.');
+  const { data: sb, error: sbErr } = await db.from('lot_bay_standby').select('vehicle_id, plate, shift_day').eq('id', 1).maybeSingle();
+  if (sbErr) throw sbErr;
+  if (sb && sb.shift_day === today && sb.vehicle_id !== row.vehicle_id && !replace) throw new BayLogRefusal(`${sb.plate} is on Next up. Replace it?`);
+  // Guarded on `exit is null`: an exit from another phone in between wins, and its row is never deleted.
+  const { data: gone, error: delErr } = await db.from('lot_bay_log').delete().eq('id', id).is('exit', null).select('id');
+  if (delErr) throw delErr;
+  if (!gone?.length) throw new BayLogRefusal('That car already left the bay.');
+  const { data: standby, error: upErr } = await db.from('lot_bay_standby').upsert({
+    id: 1, vehicle_id: row.vehicle_id, plate: row.plate, unit_number: row.unit_number, car: row.car, loaded_at: nowIso, loaded_by: by, shift_day: today,
+  }).select(STANDBY_COLS).single();
+  // The row is already gone: say plainly where the car is, so it is never lost between the two.
+  if (upErr) throw new BayLogRefusal(`${row.plate} left the bay but did not go onto Next up. Start it again from Find a car.`);
+  return { removedId: id, standby };
 }
 
 export async function undoExit(db: SupabaseClient, id: number, by: string, nowIso: string, today: string) {

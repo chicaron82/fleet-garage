@@ -3,7 +3,7 @@
 // "yes". Skip moves nothing (the car goes back in the queue). Ticket: docs/ticket-bay-hold-exit-takes-a-dirty.md.
 import { describe, it, expect } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { BayLogRefusal, clearStandby, exitCar, setStandby, startCar, undoExit } from '../../api/_lib/lotBayLogDb';
+import { BayLogRefusal, bumpToNextUp, clearStandby, exitCar, setStandby, startCar, undoExit } from '../../api/_lib/lotBayLogDb';
 
 type Row = Record<string, unknown>;
 
@@ -14,6 +14,7 @@ function fakeDb(tables: Record<string, Row[]>): SupabaseClient {
     let patch: Row | null = null;
     let inserted: Row | null = null;
     const filters: [string, unknown][] = [];
+    let deleting = false;
     const run = () => {
       const hit = (tables[t] ?? []).filter(r => filters.every(([k, v]) => r[k] === v));
       if (patch) hit.forEach(r => Object.assign(r, patch));
@@ -24,10 +25,15 @@ function fakeDb(tables: Record<string, Row[]>): SupabaseClient {
       update: (p: Row) => { patch = p; return q; },
       insert: (r: Row) => { const row = t === 'lot_bay_log' ? { id: nextId++, exit: null, ...r } : { ...r }; tables[t].push(row); inserted = row; return q; },
       upsert: (r: Row) => { tables[t] = [{ ...r }]; inserted = tables[t][0]; return q; },
-      delete: () => ({ eq: async (k: string, v: unknown) => { tables[t] = tables[t].filter(r => r[k] !== v); return { error: null }; } }),
+      delete: () => { deleting = true; return q; },
       eq: (k: string, v: unknown) => { filters.push([k, v]); return q; },
       is: (k: string, v: unknown) => { filters.push([k, v]); return q; },
-      then: (ok: (v: unknown) => void) => ok({ data: null, error: null }),
+      then: (ok: (v: unknown) => void) => {
+        if (!deleting) return ok({ data: null, error: null });
+        const gone = (tables[t] ?? []).filter(r => filters.every(([k, v]) => r[k] === v));
+        tables[t] = (tables[t] ?? []).filter(r => !gone.includes(r));
+        return ok({ data: gone.map(r => ({ ...r })), error: null });
+      },
       single: async () => { if (inserted) return { data: { ...inserted }, error: null }; const r = run(); return r.length === 1 ? { data: r[0], error: null } : { data: null, error: new Error(`${r.length} rows`) }; },
       maybeSingle: async () => ({ data: run()[0] ?? null, error: null }),
     };
@@ -195,5 +201,71 @@ describe('Next up: every exit pulls the lined-up car in', () => {
     expect(l.tables.lot_bay_standby).toEqual([]);
     l.tables.lot_bay_log[0].exit = 'clean';
     await expect(setStandby(l.db, 'v-487', 'AS', NOW, TODAY)).rejects.toThrow(/empty/);
+  });
+});
+
+// Aaron, 2026-11-03, first real morning on Next up: *"When I tapped clean on the first it started the next. Problem, we
+// had to do trips to the airport. So I skipped it to stop the clean."* Then *"Both"*. docs/ticket-bay-clean-only-and-back-to-next-up.md
+describe('Clean only, and Back to Next up', () => {
+  const seltos = { id: 'v-487', license_plate: 'NXT487', unit_number: '5429550', year: 2026, make: 'Kia', model: 'Seltos', color: 'Gray', odometer: 100, odometer_at: null };
+  function loaded() {
+    const l = lot(3, { vehicle_id: 'v-in', unit_number: '5400001', car: '2026 Chevrolet Trax · Black' });
+    l.tables.vehicles = [seltos];
+    l.tables.lot_bay_standby = [{ id: 1, vehicle_id: 'v-487', plate: 'NXT487', shift_day: TODAY }];
+    return l;
+  }
+  const inBay = (l: ReturnType<typeof lot>) => l.tables.lot_bay_log.filter(r => r.exit == null);
+
+  it('⭐ Clean only: the car closes and counts, and Next up\'s car stays loaded', async () => {
+    const l = loaded();
+    const out = await exitCar(l.db, 7, 'clean', 'AS', NOW, TODAY, undefined, false);
+    expect(l.log()).toMatchObject({ exit: 'clean' });
+    expect(l.bay().cleans).toBe(7);
+    expect(inBay(l)).toEqual([]);
+    expect(l.tables.lot_bay_standby).toEqual([expect.objectContaining({ plate: 'NXT487' })]);
+    expect(out).not.toHaveProperty('next');
+  });
+
+  it('…and its Undo reopens the car with the slot untouched', async () => {
+    const l = loaded();
+    await exitCar(l.db, 7, 'clean', 'AS', NOW, TODAY, undefined, false);
+    await undoExit(l.db, 7, 'AS', AFTER, TODAY);
+    expect(inBay(l).map(r => r.plate)).toEqual(['0GK487']);
+    expect(l.bay().cleans).toBe(6);
+    expect(l.tables.lot_bay_standby).toEqual([expect.objectContaining({ plate: 'NXT487' })]);
+  });
+
+  it('⭐ Back to Next up: the row goes, nothing counts, and the car is lined up', async () => {
+    const l = lot(3, { vehicle_id: 'v-in', unit_number: '5400001', car: '2026 Chevrolet Trax · Black' });
+    const out = await bumpToNextUp(l.db, 7, 'AS', NOW, TODAY, false);
+    expect(l.tables.lot_bay_log).toEqual([]);
+    expect(l.bay()).toMatchObject({ cleans: 6, dirties: 3 });
+    expect(l.tables.lot_bay_taps).toEqual([]);
+    expect(l.tables.lot_bay_standby).toEqual([expect.objectContaining({ vehicle_id: 'v-in', plate: '0GK487', car: '2026 Chevrolet Trax · Black', shift_day: TODAY, loaded_by: 'AS' })]);
+    expect(out).toMatchObject({ removedId: 7 });
+  });
+
+  it('⚠️ a different car on Next up is never bumped without his yes, and is with it', async () => {
+    const l = loaded();
+    await expect(bumpToNextUp(l.db, 7, 'AS', NOW, TODAY, false)).rejects.toThrow(/NXT487 is on Next up/);
+    expect(inBay(l)).toHaveLength(1);
+    expect(l.tables.lot_bay_standby[0]).toMatchObject({ plate: 'NXT487' });
+    await bumpToNextUp(l.db, 7, 'AS', NOW, TODAY, true);
+    expect(inBay(l)).toEqual([]);
+    expect(l.tables.lot_bay_standby).toEqual([expect.objectContaining({ vehicle_id: 'v-in' })]);
+  });
+
+  it('yesterday\'s plate on the slot is no car to protect', async () => {
+    const l = loaded();
+    l.tables.lot_bay_standby[0].shift_day = '2026-10-28';
+    await bumpToNextUp(l.db, 7, 'AS', NOW, TODAY, false);
+    expect(l.tables.lot_bay_standby).toEqual([expect.objectContaining({ vehicle_id: 'v-in' })]);
+  });
+
+  it('⚠️ a car that already left (another phone) is refused, and its row is never deleted', async () => {
+    const l = lot(3, { exit: 'clean', exited_at: NOW });
+    await expect(bumpToNextUp(l.db, 7, 'AS', NOW, TODAY, false)).rejects.toThrow(BayLogRefusal);
+    expect(l.tables.lot_bay_log).toHaveLength(1);
+    expect(l.tables.lot_bay_standby).toEqual([]);
   });
 });

@@ -17,8 +17,9 @@ let rows: BayLogRow[] = [];
 const exit = vi.fn(async (..._args: unknown[]) => null as string | null);
 const undoExit = vi.fn(async () => null as string | null);
 const start = vi.fn(async () => null as string | null);
+const bump = vi.fn(async (..._args: unknown[]) => null as string | null);
 vi.mock('../../src/hooks/useBayLog', () => ({
-  useBayLog: () => ({ rows, loaded: true, error: null, start, exit, undoExit }),
+  useBayLog: () => ({ rows, loaded: true, error: null, start, exit, undoExit, bump }),
 }));
 // The empty bay's own Find a car (ticket-bay-find-a-car-inline-search): the lookup's network search and its recents.
 const hit = { license_plate: '0GK487', unit_number: '5429550', make: 'Kia', model: 'Seltos', year: 2026, color: 'Gray', is_hybrid: false, is_tesla: false, archived_at: null };
@@ -374,5 +375,63 @@ describe('LotLookoutView — the bay log', () => {
   it('an empty bay with nothing loaded has no Next up to offer', () => {
     render(<LotLookoutView onNavigate={vi.fn()} />);
     expect(screen.queryByText(/Next up/)).toBeNull();
+  });
+
+  // ── Clean only, and Back to Next up (2026-11-03, docs/ticket-bay-clean-only-and-back-to-next-up.md) ──
+  // ⭐ Aaron: *"When I tapped clean on the first it started the next. Problem, we had to do trips to the airport."*
+  const loadSeltos = () => { standbyState.standby = { vehicle_id: 'v-487', plate: '0GK487', unit_number: '5429550', car: '2026 Kia Seltos · Gray', shift_day: '2026-11-03' }; };
+
+  it('⭐ with a car on Next up, Clean says it comes in, and "Clean only" closes this one while it waits', async () => {
+    vehicles = [seltos, corolla];
+    rows = [row({})];
+    loadSeltos();
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    expect(screen.getByRole('button', { name: /^✓ Clean.*0GK487 comes in/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '✓ Clean only · 0GK487 waits' }));
+    await waitFor(() => expect(exit).toHaveBeenCalledWith(6, 'clean', undefined, false));
+    expect(await screen.findByText(/LZM536 clean · Next up waits/)).toBeInTheDocument();
+  });
+
+  it('control: nothing on Next up, no "Clean only" and Clean promises nothing', () => {
+    vehicles = [seltos, corolla];
+    rows = [row({})];
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: /Clean only/ })).toBeNull();
+    expect(screen.queryByText(/comes in/)).toBeNull();
+  });
+
+  it('⭐ Back to Next up with the slot free: one tap, no exit, and the note says where the car went', async () => {
+    vehicles = [seltos, corolla];
+    rows = [row({})];
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: '↩ Back to Next up · not cleaned' }));
+    await waitFor(() => expect(bump).toHaveBeenCalledWith(6, false));
+    expect(exit).not.toHaveBeenCalled();
+    expect(await screen.findByText('LZM536 back on Next up, not cleaned')).toBeInTheDocument();
+  });
+
+  it('⚠️ Back to Next up over a different car asks first: Keep sends nothing, Replace sends the yes', async () => {
+    vehicles = [seltos, corolla];
+    rows = [row({})];
+    loadSeltos();
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: '↩ Back to Next up · not cleaned' }));
+    expect(screen.getByRole('group', { name: 'Replace Next up' })).toHaveTextContent('0GK487 is on Next up. Put LZM536 there instead?');
+    expect(bump).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Keep 0GK487' }));
+    expect(bump).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: '↩ Back to Next up · not cleaned' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Replace 0GK487' }));
+    await waitFor(() => expect(bump).toHaveBeenCalledWith(6, true));
+  });
+
+  it('a number typed before Back to Next up is logged on the car first', async () => {
+    vehicles = [seltos, { ...corolla, odometerAt: '2026-10-28T15:00:00.000Z' }];
+    rows = [row({ odometer: null })];
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Odometer reading' }), { target: { value: '21500' } });
+    fireEvent.click(screen.getByRole('button', { name: '↩ Back to Next up · not cleaned' }));
+    await waitFor(() => expect(bump).toHaveBeenCalledWith(6, false));
+    expect(recordOdometer).toHaveBeenCalledWith('v-536', 21500);
   });
 });

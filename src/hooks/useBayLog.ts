@@ -16,9 +16,12 @@ export interface BayLogState {
   loaded: boolean;
   error: string | null;
   start: (vehicleId: string) => Promise<string | null>;
-  /** `odometer`: the reading logged from the bay card as the car left. */
-  exit: (id: number, exit: BayExit, odometer?: number) => Promise<string | null>;
+  /** `odometer`: the reading logged from the bay card as the car left. `pull: false`: Clean only, Next up's car waits. */
+  exit: (id: number, exit: BayExit, odometer?: number, pull?: false) => Promise<string | null>;
   undoExit: (id: number) => Promise<string | null>;
+  /** ↩ Back to Next up: the car in the bay goes back in line, no exit logged. `replace`: he said yes to bumping the car
+   *  that was there. (docs/ticket-bay-clean-only-and-back-to-next-up.md) */
+  bump: (id: number, replace: boolean) => Promise<string | null>;
   /** The exit landed but Next up's car could not come in. Said until the next write. */
   nextIssue: string | null;
 }
@@ -92,9 +95,12 @@ export function useBayLog(by = 'FG'): BayLogState {
   // A locked-out second tap resolves undefined: nothing to say, the first tap is already on its way.
   const start = useCallback(async (vehicleId: string) =>
     (await withSubmitLock('bay:start', () => send({ action: 'bayStart', vehicleId }))) ?? null, [send]);
-  const exit = useCallback(async (id: number, kind: BayExit, odometer?: number) =>
-    (await withSubmitLock(`bay:exit:${id}`, () => send({ action: 'bayExit', id, exit: kind, ...(odometer ? { odometer } : {}) }))) ?? null, [send]);
+  const exit = useCallback(async (id: number, kind: BayExit, odometer?: number, pull?: false) =>
+    (await withSubmitLock(`bay:exit:${id}`, () => send({ action: 'bayExit', id, exit: kind, ...(odometer ? { odometer } : {}), ...(pull === false ? { pull } : {}) }))) ?? null, [send]);
   const undoExit = useCallback((id: number) => send({ action: 'bayExitUndo', id }), [send]);
+  // Same lock as the exits: it settles the same row, so an exit and a bump in one frame must not both go.
+  const bump = useCallback(async (id: number, replace: boolean) =>
+    (await withSubmitLock(`bay:exit:${id}`, () => send({ action: 'bayBumpToNextUp', id, replace }))) ?? null, [send]);
 
-  return { rows, loaded, error, start, exit, undoExit, nextIssue };
+  return { rows, loaded, error, start, exit, undoExit, bump, nextIssue };
 }

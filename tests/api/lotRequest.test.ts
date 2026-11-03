@@ -30,9 +30,18 @@ describe('parseLotRequest', () => {
     expect(parseLotRequest({ action: 'bayStandbySet', vehicleId: 'v-123', by: 'AS' })).toEqual({ action: 'bayStandbySet', vehicleId: 'v-123', by: 'AS' });
     expect(parseLotRequest({ action: 'bayStandbyClear', by: 'AS' })).toEqual({ action: 'bayStandbyClear', by: 'AS' });
   });
+  it('Clean only and Back to Next up parse (2026-11-03)', () => {
+    expect(parseLotRequest({ action: 'bayExit', id: 7, exit: 'clean', pull: false, by: 'AS' })).toEqual({ action: 'bayExit', id: 7, exit: 'clean', by: 'AS', pull: false });
+    expect(parseLotRequest({ action: 'bayExit', id: 7, exit: 'clean', pull: true, by: 'AS' })).toEqual({ action: 'bayExit', id: 7, exit: 'clean', by: 'AS' });
+    expect(parseLotRequest({ action: 'bayExit', id: 7, exit: 'clean', pull: 'no', by: 'AS' })).toHaveProperty('error');
+    expect(parseLotRequest({ action: 'bayBumpToNextUp', id: 7, replace: true, by: 'AS' })).toEqual({ action: 'bayBumpToNextUp', id: 7, by: 'AS', replace: true });
+    expect(parseLotRequest({ action: 'bayBumpToNextUp', id: 7, by: 'AS' })).toEqual({ action: 'bayBumpToNextUp', id: 7, by: 'AS', replace: false });
+    expect(parseLotRequest({ action: 'bayBumpToNextUp', by: 'AS' })).toHaveProperty('error');
+  });
   it('every bay-log action the server knows gets past the front door (one list, no hand copy)', () => {
     const sample: Record<string, Record<string, unknown>> = {
       bayStart: { vehicleId: 'v-1' }, bayExit: { id: 1, exit: 'clean' }, bayExitUndo: { id: 1 }, bayStandbySet: { vehicleId: 'v-1' }, bayStandbyClear: {},
+      bayBumpToNextUp: { id: 1 },
     };
     for (const action of BAY_LOG_ACTIONS) {
       expect(sample[action], `a sample for ${action}`).toBeDefined();

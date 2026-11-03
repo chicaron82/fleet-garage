@@ -59,13 +59,20 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
     return true;
   }, [show]);
 
-  const exitHere = (kind: 'clean' | 'skip', odometer?: number) => {
+  const exitHere = (kind: 'clean' | 'skip', odometer?: number, pull?: false) => {
     if (!open) return;
     const { id, plate } = open;
     const odoNote = odometer != null ? ` · odo ${odometer.toLocaleString('en-CA')}` : '';
+    const waits = pull === false ? ' · Next up waits' : '';
     const undo = () => void settle(() => bay.undoExit(id), `${plate} is back in the bay`).then(ok => { if (ok) setBumped(false); });
-    void settle(() => (odometer != null ? bay.exit(id, kind, odometer) : bay.exit(id, kind)), `${kind === 'clean' ? `${plate} clean` : `${plate} bumped, still to do`}${odoNote}`, undo)
+    void settle(() => (pull === false ? bay.exit(id, kind, odometer, false) : odometer != null ? bay.exit(id, kind, odometer) : bay.exit(id, kind)),`${kind === 'clean' ? `${plate} clean` : `${plate} bumped, still to do`}${odoNote}${waits}`, undo)
       .then(ok => { if (ok) setBumped(kind === 'skip'); });
+  };
+  // No Undo on the note: the car is on Next up, and its ▶ Start cleaning brings it straight back.
+  const bumpHere = (replace: boolean) => {
+    if (!open) return;
+    const { id, plate } = open;
+    void settle(() => bay.bump(id, replace), `${plate} back on Next up, not cleaned`).then(ok => { if (ok) setBumped(false); });
   };
 
   return (
@@ -79,7 +86,7 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
 
       {isToday && bay.loaded && (
         <BayInTheBay open={open} busy={busy} bumped={bumped}
-          onExit={exitHere}
+          onExit={exitHere} onBump={bumpHere}
           onHold={kind => open && onNavigate({ name: 'new-hold', vehicleId: open.vehicle_id, prefillNonce: Date.now(), bayExit: { id: open.id, kind } })}
           onCloseHeld={kind => open && void settle(() => bay.exit(open.id, kind), `${open.plate} closed as held`)}
           onFindCar={search} bay={bay}

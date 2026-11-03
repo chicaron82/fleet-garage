@@ -11,12 +11,16 @@ export const BAY_EXITS: readonly BayExit[] = ['clean', 'mhold', 'bhold', 'skip']
 
 export type BayLogRequest =
   | { action: 'bayStart'; vehicleId: string; by: string }
-  | { action: 'bayExit'; id: number; exit: BayExit; by: string; odometer?: number }
+  // `pull: false` = "Clean only, X waits": the exit lands and Next up's car stays loaded (2026-11-03, his run to the airport).
+  | { action: 'bayExit'; id: number; exit: BayExit; by: string; odometer?: number; pull?: false }
   | { action: 'bayExitUndo'; id: number; by: string }
   | { action: 'bayStandbySet'; vehicleId: string; by: string }
-  | { action: 'bayStandbyClear'; by: string };
+  | { action: 'bayStandbyClear'; by: string }
+  // "↩ Back to Next up": the car in the bay goes back in line, no exit logged. `replace`: he said yes to bumping the car
+  // that was there. Ticket: docs/ticket-bay-clean-only-and-back-to-next-up.md.
+  | { action: 'bayBumpToNextUp'; id: number; by: string; replace: boolean };
 
-export const BAY_LOG_ACTIONS: readonly BayLogRequest['action'][] = ['bayStart', 'bayExit', 'bayExitUndo', 'bayStandbySet', 'bayStandbyClear'];
+export const BAY_LOG_ACTIONS: readonly BayLogRequest['action'][] = ['bayStart', 'bayExit', 'bayExitUndo', 'bayStandbySet', 'bayStandbyClear', 'bayBumpToNextUp'];
 
 /** The phone offers Undo for 5 s; the server allows a little more, so a slow signal never turns a real Undo away. */
 export const EXIT_UNDO_MS = 20_000;
@@ -36,10 +40,12 @@ export function parseBayLog(b: Record<string, unknown>, by: string): BayLogReque
       const id = rowId(b.id);
       if (id == null) return { error: 'Which car?' };
       if (!(BAY_EXITS as readonly unknown[]).includes(b.exit)) return { error: 'Clean, M hold, B hold or Skip?' };
+      if (b.pull !== undefined && typeof b.pull !== 'boolean') return { error: 'Bring the next car in, or not?' };
+      const pull = b.pull === false ? { pull: false as const } : {};
       // The reading he logged from the bay card as this car left (docs/ticket-bay-odo-in-card-and-next-up.md). Optional.
-      if (b.odometer === undefined) return { action: 'bayExit', id, exit: b.exit as BayExit, by };
+      if (b.odometer === undefined) return { action: 'bayExit', id, exit: b.exit as BayExit, by, ...pull };
       if (typeof b.odometer !== 'number' || !Number.isInteger(b.odometer) || b.odometer <= 0 || b.odometer > 9_999_999) return { error: 'That odo is not a reading.' };
-      return { action: 'bayExit', id, exit: b.exit as BayExit, by, odometer: b.odometer };
+      return { action: 'bayExit', id, exit: b.exit as BayExit, by, odometer: b.odometer, ...pull };
     }
     case 'bayExitUndo': {
       const id = rowId(b.id);
@@ -51,6 +57,11 @@ export function parseBayLog(b: Record<string, unknown>, by: string): BayLogReque
       return { action: 'bayStandbySet', vehicleId: b.vehicleId, by };
     case 'bayStandbyClear':
       return { action: 'bayStandbyClear', by };
+    case 'bayBumpToNextUp': {
+      const id = rowId(b.id);
+      if (id == null) return { error: 'Which car?' };
+      return { action: 'bayBumpToNextUp', id, by, replace: b.replace === true };
+    }
     default:
       return { error: 'Unknown action.' };
   }
