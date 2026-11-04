@@ -162,6 +162,9 @@ export interface ZoneHoldFacts {
   damageZones?: string[];
   /** ISO — the most recent one across the standing holds is his "last seen". */
   flaggedAt: string;
+  /** With `linkedHoldId`, lets a repaired re-hold clear the older hold it stands for (below). */
+  id?: string;
+  linkedHoldId?: string | null;
 }
 
 /** Statuses where the damage is GONE from the car.
@@ -187,7 +190,41 @@ export interface VehicleDamage {
  *  then calls empty — a tap that does nothing, on a car that visibly has damage. Same rule that put
  *  `holdIsMappable` on the module: a copied rule is a rule that can drift. */
 function standingZonedHolds<T extends ZoneHoldFacts>(holds: readonly T[]): T[] {
-  return holds.filter(h => !CLEARED_STATUSES.has(h.status) && (h.damageZones?.length ?? 0) > 0);
+  const fixed = returnedFixedByRepair(holds);
+  return holds.filter(h => !CLEARED_STATUSES.has(h.status) && !(h.id && fixed.has(h.id))
+    && (h.damageZones?.length ?? 0) > 0);
+}
+
+/** The RETURNED holds a later REPAIR of the same damage closed: they are fixed, not "came back with it".
+ *
+ *  ⭐ LZM532, 2026-11-04. Aaron at the car: *"My initial look up on it told me hail damage, however when
+ *  I opened it I marked it as repaired last month."* Its Aug 28 hail hold was released on exception
+ *  and re-held Sep 30 (linked). Repairing the re-hold on Oct 8 closed the August hold as RETURNED,
+ *  which is what `projectRepair` writes for every earlier open exception in the chain. RETURNED
+ *  ordinarily means the damage is still on the panel, so the scan sheet went on painting hood, roof
+ *  and liftgate on a CLEAR car.
+ *
+ *  The link is the identity (his 10-09 ruling, repairChains.ts), so one repair fixes the whole chain.
+ *  Only RETURNED links clear: a RELEASED one is still open, and the car's status does not call it
+ *  fixed either. An unlinked RETURNED hold stays painted, as it always has. Walks the whole chain,
+ *  through any link, and stops on a missing hold or a loop. */
+function returnedFixedByRepair(holds: readonly ZoneHoldFacts[]): Set<string> {
+  const byId = new Map<string, ZoneHoldFacts>();
+  for (const h of holds) if (h.id) byId.set(h.id, h);
+  const fixed = new Set<string>();
+  for (const h of holds) {
+    if (h.status !== 'REPAIRED' || !h.id) continue;
+    const seen = new Set<string>([h.id]);
+    let next = h.linkedHoldId ?? null;
+    while (next && !seen.has(next)) {
+      seen.add(next);
+      const linked = byId.get(next);
+      if (!linked) break;
+      if (linked.status === 'RETURNED') fixed.add(next);
+      next = linked.linkedHoldId ?? null;
+    }
+  }
+  return fixed;
 }
 
 /** Merge a vehicle's holds into "what is wrong with this car, right now, and where".

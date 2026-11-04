@@ -177,6 +177,49 @@ describe('vehicleDamageZones — what is wrong with this car right now', () => {
   });
 });
 
+// LZM532, 2026-11-04: *"My initial look up on it told me hail damage, however when I opened it I marked it as repaired
+// last month."* Repairing a re-hold closes the older exception it stands for as RETURNED (projectRepair), and the map
+// read that RETURNED as "came back with the damage" and went on painting a CLEAR car.
+describe('⭐ a repaired re-hold clears the older hold it stands for', () => {
+  const HAIL = ['hood', 'roof', 'trunk-liftgate'];
+  const h = (id: string, status: string, zones: string[], linkedHoldId: string | null = null, flaggedAt = '2026-08-28T15:16:49Z') =>
+    ({ id, status, damageZones: zones, flaggedAt, linkedHoldId, damageDescription: 'Hail damage', photos: [`${id}.jpg`] });
+
+  it('⭐ LZM532 as it is in FG: Aug 28 RETURNED, Sep 30 re-hold REPAIRED → nothing painted', () => {
+    const holds = [h('aug', 'RETURNED', HAIL), h('sep', 'REPAIRED', HAIL, 'aug', '2026-09-30T14:58:58Z')];
+    expect(vehicleDamageZones(holds)).toEqual({ zones: [], lastFlaggedAt: null });
+    // The inspector reads the same predicate, so a tap can never open a photo on a panel the map left blank.
+    expect(zoneEvidence(holds)).toEqual({});
+  });
+
+  it('walks a long chain: held, released, re-held, released, re-held, repaired', () => {
+    const holds = [h('a', 'RETURNED', ['hood']), h('b', 'RETURNED', ['hood'], 'a'), h('c', 'REPAIRED', ['hood'], 'b')];
+    expect(vehicleDamageZones(holds).zones).toEqual([]);
+  });
+
+  it('an unlinked RETURNED hold still paints, even beside a repair on the same panel', () => {
+    // Two hail holds can be two storms: only the link says "same damage".
+    const holds = [h('aug', 'RETURNED', HAIL), h('sep', 'REPAIRED', HAIL, null, '2026-09-30T00:00:00Z')];
+    expect(vehicleDamageZones(holds).zones).toEqual(['hood', 'roof', 'trunk-liftgate']);
+  });
+
+  it('a RELEASED link stays painted: the repair did not close it and the status does not call it fixed', () => {
+    const holds = [h('aug', 'RELEASED', ['hood']), h('sep', 'REPAIRED', ['hood'], 'aug')];
+    expect(vehicleDamageZones(holds).zones).toEqual(['hood']);
+  });
+
+  it('a RETURNED hold linked from a re-hold that is still ACTIVE stays painted', () => {
+    const holds = [h('aug', 'RETURNED', ['roof']), h('sep', 'ACTIVE', ['hood'], 'aug')];
+    expect(vehicleDamageZones(holds).zones).toEqual(['hood', 'roof']);
+  });
+
+  it('a loop in bad data ends, and a link to a hold that is not there is skipped', () => {
+    const holds = [h('x', 'RETURNED', ['hood'], 'y'), h('y', 'REPAIRED', ['roof'], 'x')];
+    expect(vehicleDamageZones(holds).zones).toEqual([]);
+    expect(vehicleDamageZones([h('z', 'REPAIRED', ['hood'], 'missing')]).zones).toEqual([]);
+  });
+});
+
 describe('zoneBackfillQueue', () => {
   // vehicleId defaults to the hold's own id, so each fixture is its own car unless a test says
   // otherwise — the grouping behaviour then has to be asked for explicitly to show up.
