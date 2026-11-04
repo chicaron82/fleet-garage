@@ -8,7 +8,8 @@
 // Erin pill's sheet: *"steppers, use the same style as the header"*), today's list, the crew, the links.
 import { useCallback, useState } from 'react';
 import { initialsOf } from '../../lib/lotLookout';
-import { inTheBay, unflaggedHoldIds, type BayExit, type BayLogRow, type HoldExit } from '../../lib/lotBayLog';
+import { inTheBay, sameHoldChoices, sameHoldLabel, unflaggedHoldIds, type BayExit, type BayLogRow, type HoldExit } from '../../lib/lotBayLog';
+import type { BayListEdit } from '../lot/BayLogList';
 import { shiftDateStr, shiftDayLabel } from '../../lib/shiftDay';
 import { useBayLog } from '../../hooks/useBayLog';
 import { useBayDay } from '../../hooks/useBayDay';
@@ -33,6 +34,7 @@ const SECTION_HEAD = 'px-0.5 text-xs font-bold uppercase tracking-wide text-gray
 /** What the note says when a car leaves. A hold is a mark on the list until it's flagged (2026-11-03, one tap). */
 const EXIT_NOTE: Record<BayExit, (plate: string) => string> = {
   clean: p => `${p} clean`,
+  erin: p => `${p} clean for Erin St · off the dirties`,
   skip: p => `${p} bumped, still to do`,
   mhold: p => `${p} M hold · flag it from the list`,
   bhold: p => `${p} B hold · flag it from the list`,
@@ -63,6 +65,24 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
   const flag = (id: number) => {
     const r = listRows?.find(x => x.id === id);
     if (r) onNavigate({ name: 'new-hold', vehicleId: r.vehicle_id, prefillNonce: Date.now(), fromBay: r.exit as HoldExit });
+  };
+  // A row saved from the list lands on whichever list it came from (today's live log, or the earlier day shown).
+  const editRow = async (body: Parameters<typeof bay.editRow>[0]) => {
+    const out = await bay.editRow(body);
+    if ('error' in out) return out.error;
+    if (!isToday) record.replaceRow(out.row);
+    return null;
+  };
+  // Flag it, with the hold already on the car (2026-11-04): *"having it available to select"*, from the list.
+  const edit: BayListEdit = {
+    flagIds: toFlag,
+    choicesFor: id => {
+      const r = listRows?.find(x => x.id === id);
+      return r ? sameHoldChoices(r, holds).map(h => ({ id: h.id, label: sameHoldLabel(h.flaggedAt) })) : [];
+    },
+    onNewHold: flag,
+    onSameHold: (id, holdId) => editRow({ action: 'bayLinkHold', id, holdId }),
+    onNote: (id, note) => editRow({ action: 'bayNote', id, note }),
   };
 
   /** One exit, said out loud: the note names the car, and Clean / Skip can be taken back for 5 s. */
@@ -118,8 +138,8 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
         </section>
       )}
 
-      {isToday ? <BayLogList rows={bay.rows} heading="The bay log" flagIds={toFlag} onFlag={flag} />
-        : record.pastRows ? <BayLogList rows={record.pastRows} heading="The bay log" empty="No cars through the bay that day." flagIds={toFlag} onFlag={flag} />
+      {isToday ? <BayLogList rows={bay.rows} heading="The bay log" edit={edit} />
+        : record.pastRows ? <BayLogList rows={record.pastRows} heading="The bay log" empty="No cars through the bay that day." edit={edit} />
         : <p className="text-center text-sm text-gray-500 dark:text-gray-400">Loading that day…</p>}
 
       {isToday && crew && (

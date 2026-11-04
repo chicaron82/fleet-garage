@@ -7,7 +7,7 @@ import { useVehicleHoldContext } from '../context/VehicleHoldContext';
 import { supabase } from '../lib/supabase';
 import { bayMarkOf, type BayLogRow, type BayMark } from '../lib/lotBayLog';
 
-type LastRow = Pick<BayLogRow, 'vehicle_id' | 'exit' | 'started_at' | 'exited_at'>;
+type LastRow = Pick<BayLogRow, 'vehicle_id' | 'exit' | 'started_at' | 'exited_at' | 'hold_id'>;
 
 export function useBayMark(vehicleId: string | null | undefined): BayMark | null {
   const { holds } = useVehicleHoldContext();
@@ -17,7 +17,7 @@ export function useBayMark(vehicleId: string | null | undefined): BayMark | null
     if (!vehicleId) return;
     let cancelled = false;
     void Promise.resolve(
-      supabase.from('lot_bay_log').select('vehicle_id, exit, started_at, exited_at').eq('vehicle_id', vehicleId)
+      supabase.from('lot_bay_log').select('vehicle_id, exit, started_at, exited_at, hold_id').eq('vehicle_id', vehicleId)
         .not('exited_at', 'is', null).order('exited_at', { ascending: false }).limit(1),
     ).then(({ data, error }) => {
       if (!cancelled) setLast({ id: vehicleId, row: error ? null : ((data?.[0] as LastRow | undefined) ?? null) });

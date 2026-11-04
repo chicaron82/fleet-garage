@@ -10,7 +10,7 @@ import { createClient } from '@supabase/supabase-js';
 import { bearerOf, parseLotRequest, pinMatches } from './_lib/lotRequest.js';
 import { BAY_ACTIONS, bayChange, type BayRequest } from './_lib/lotBay.js';
 import { BAY_LOG_ACTIONS, type BayLogRequest } from './_lib/lotBayLog.js';
-import { BayLogRefusal, bumpToNextUp, clearStandby, exitCar, setStandby, startCar, undoExit } from './_lib/lotBayLogDb.js';
+import { BayLogRefusal, bumpToNextUp, clearStandby, exitCar, linkHold, setNote, setStandby, startCar, undoExit } from './_lib/lotBayLogDb.js';
 import type { LotRequest } from './_lib/lotRequest.js';
 import { shiftBusinessDate } from './_lib/shiftDay.js';
 import { leaveOff, loadCrew } from './_lib/lotCrewDb.js';
@@ -86,6 +86,8 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
           : parsed.action === 'bayStandbySet' ? await setStandby(db, parsed.vehicleId, parsed.by, now, today)
           : parsed.action === 'bayStandbyClear' ? await clearStandby(db)
           : parsed.action === 'bayBumpToNextUp' ? await bumpToNextUp(db, parsed.id, parsed.by, now, today, parsed.replace)
+          : parsed.action === 'bayNote' ? await setNote(db, parsed.id, parsed.note)
+          : parsed.action === 'bayLinkHold' ? await linkHold(db, parsed.id, parsed.holdId)
           // Named, not a catch-all: a new bay-log action with no arm here must fail the type check, never quietly
           // clear his Next up car (2026-11-03, pass two after the "Unknown action." fix).
           : unhandledBayLog(parsed);

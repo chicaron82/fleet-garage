@@ -11,7 +11,9 @@ import { clockOf } from './lotBay';
 import { classifyOdometerEntry, parseOdometer } from './odometer';
 import { foldOZero } from './plateFold';
 
-export type BayExit = 'clean' | 'mhold' | 'bhold' | 'skip';
+// 'erin' (2026-11-04, migration 164): *"cleaning them goes to their row to be rented at Erin St and not going up for the
+// airport"*. A clean, off the dirties, never +1 on the cleans. Ticket: docs/ticket-bay-erin-exit-notes-existing-hold.md.
+export type BayExit = 'clean' | 'mhold' | 'bhold' | 'skip' | 'erin';
 
 export interface BayLogRow {
   id: number;
@@ -26,15 +28,23 @@ export interface BayLogRow {
   took_dirty: boolean;
   redo_of: number | null;
   shift_day: string;
+  /** His note on the row (migration 164), shown on the read-only link too. */
+  note: string | null;
+  /** An M / B row tied to the hold already on the car ("Same as the … hold"). Set = flagged. */
+  hold_id: string | null;
 }
 
-export const BAY_LOG_COLUMNS = 'id, vehicle_id, plate, unit_number, car, odometer, started_at, exit, exited_at, took_dirty, redo_of, shift_day';
+/** A note's cap: migration 164's check, and the server's NOTE_MAX. */
+export const NOTE_MAX_CHARS = 140;
+
+export const BAY_LOG_COLUMNS = 'id, vehicle_id, plate, unit_number, car, odometer, started_at, exit, exited_at, took_dirty, redo_of, shift_day, note, hold_id';
 
 /** What one line of the list says. `kind` 'bay' is the car in the bay now. */
 export type BayLineKind = BayExit | 'bay';
-export interface BayLine { id: number; time: string; plate: string; car: string; kind: BayLineKind; label: string; note: string }
+/** `note` is the list's own word (mechanical, still to do); `memo` is what HE wrote, '' for none. */
+export interface BayLine { id: number; time: string; plate: string; car: string; kind: BayLineKind; label: string; note: string; memo: string }
 
-const LABEL: Record<BayLineKind, string> = { clean: 'Clean', mhold: 'M hold', bhold: 'B hold', skip: 'Bumped', bay: 'In the bay' };
+const LABEL: Record<BayLineKind, string> = { clean: 'Clean', mhold: 'M hold', bhold: 'B hold', skip: 'Bumped', erin: 'Erin', bay: 'In the bay' };
 /** On the read-only link a hold is "Held"; which kind is the note, and the hold itself stays in FG. */
 const READ_ONLY_LABEL: Record<BayLineKind, string> = { ...LABEL, mhold: 'Held', bhold: 'Held' };
 
@@ -54,12 +64,13 @@ export function bayLines(rows: readonly BayLogRow[], { readOnly = false }: { rea
     if (kind === 'bay') note = `since ${clockOf(r.started_at)}`;
     else if (kind === 'mhold') note = 'mechanical';
     else if (kind === 'bhold') note = 'damage';
+    else if (kind === 'erin') note = r.redo_of != null ? 'for Erin St · was bumped' : 'for Erin St';
     else if (kind === 'skip') {
       note = skipNote(redoBy.get(r.id));
     } else if (r.redo_of != null) note = 'was bumped';
     // The exit time, never the start, once the car is out: one stamp per finished car (no durations).
     const time = clockOf(r.exited_at ?? r.started_at);
-    return { id: r.id, time, plate: r.plate, car: r.car ?? '', kind, label: labels[kind], note };
+    return { id: r.id, time, plate: r.plate, car: r.car ?? '', kind, label: labels[kind], note, memo: r.note ?? '' };
   });
 }
 
@@ -67,19 +78,19 @@ export function bayLines(rows: readonly BayLogRow[], { readOnly = false }: { rea
 function skipNote(redo: BayLogRow | undefined): string {
   if (!redo) return 'still to do';
   if (!redo.exit || !redo.exited_at) return 'back in the bay';
-  if (redo.exit === 'clean') return `redone ${clockOf(redo.exited_at)}`;
+  if (redo.exit === 'clean' || redo.exit === 'erin') return `redone ${clockOf(redo.exited_at)}`;
   // Bumped again, or held on the second pass: the restart's own line says which.
   return redo.exit === 'skip' ? 'bumped again' : 'held on redo';
 }
 
-export interface BaySummary { clean: number; mhold: number; bhold: number; stillToDo: number }
+export interface BaySummary { clean: number; erin: number; mhold: number; bhold: number; stillToDo: number }
 
 /** The day's chips. A bumped car counts as still to do until its restart has an exit. */
 export function baySummary(rows: readonly BayLogRow[]): BaySummary {
   const redone = new Set(rows.map(r => r.redo_of).filter((x): x is number => x != null));
   const count = (e: BayExit) => rows.filter(r => r.exit === e).length;
   return {
-    clean: count('clean'), mhold: count('mhold'), bhold: count('bhold'),
+    clean: count('clean'), erin: count('erin'), mhold: count('mhold'), bhold: count('bhold'),
     // The last skip in a chain is the one still waiting; an earlier one was picked up again.
     stillToDo: rows.filter(r => r.exit === 'skip' && !redone.has(r.id)).length,
   };
@@ -116,6 +127,7 @@ export function bayReportLine(rows: readonly BayLogRow[]): string | null {
   if (!rows.length) return null;
   const s = baySummary(rows);
   const parts = [`${s.clean} clean`];
+  if (s.erin) parts.push(`${s.erin} for Erin St`);
   if (s.bhold) parts.push(`${s.bhold} B hold`);
   if (s.mhold) parts.push(`${s.mhold} M hold`);
   if (s.stillToDo) parts.push(`${s.stillToDo} bumped, still to do`);
@@ -152,10 +164,10 @@ export interface BayMark { kind: HoldExit; at: string }
 
 const isHoldExit = (e: BayExit | null): e is HoldExit => e === 'mhold' || e === 'bhold';
 
-/** A hold exit with no hold flagged on that car since it went in. Compared as instants: a hold's ISO and Postgres'
- *  timestamptz text are spelled differently ("Z" vs "+00:00"). */
-export function isUnflaggedHold(row: Pick<BayLogRow, 'vehicle_id' | 'exit' | 'started_at'>, holds: readonly HoldStamp[]): boolean {
-  if (!isHoldExit(row.exit)) return false;
+/** A hold exit with no hold flagged on that car since it went in, and not tied to the one already on it (hold_id,
+ *  2026-11-04). Compared as instants: a hold's ISO and Postgres' timestamptz text are spelled differently ("Z" vs "+00:00"). */
+export function isUnflaggedHold(row: Pick<BayLogRow, 'vehicle_id' | 'exit' | 'started_at'> & { hold_id?: string | null }, holds: readonly HoldStamp[]): boolean {
+  if (!isHoldExit(row.exit) || row.hold_id) return false;
   const since = Date.parse(row.started_at);
   return !holds.some(h => h.vehicleId === row.vehicle_id && Date.parse(h.flaggedAt) >= since);
 }
@@ -167,7 +179,7 @@ export function unflaggedHoldIds(rows: readonly BayLogRow[], holds: readonly Hol
 
 /** What Find a car says about a car, from its LATEST finished bay row: a hold mark not yet flagged, or null. A later
  *  Clean or Skip of the same car is the newer row, so it clears the mark by itself. */
-export function bayMarkOf(last: Pick<BayLogRow, 'vehicle_id' | 'exit' | 'started_at' | 'exited_at'> | null, holds: readonly HoldStamp[]): BayMark | null {
+export function bayMarkOf(last: (Pick<BayLogRow, 'vehicle_id' | 'exit' | 'started_at' | 'exited_at'> & { hold_id?: string | null }) | null, holds: readonly HoldStamp[]): BayMark | null {
   if (!last || !last.exited_at || !isHoldExit(last.exit) || !isUnflaggedHold(last, holds)) return null;
   return { kind: last.exit, at: last.exited_at };
 }
@@ -175,4 +187,32 @@ export function bayMarkOf(last: Pick<BayLogRow, 'vehicle_id' | 'exit' | 'started
 /** The status line it takes the place of: "⚠️ B hold in the bay 10:42 · not flagged yet". */
 export function bayMarkLine(m: BayMark): string {
   return `${m.kind === 'bhold' ? '⚠️ B hold' : '🔧 M hold'} in the bay ${clockOf(m.at)} · not flagged yet`;
+}
+
+// ── Flag it offers the hold already on the car (Aaron, 2026-11-04: *"For M and B, if it has an existing flag on it maybe
+// having it available to select?"* → *"Keeping the same flow, going back to it later on the cleaned list"*). The exit
+// stays one tap; on the list, an M / B row whose car already has a fitting ACTIVE hold offers "Same as the … hold".
+
+/** What the list needs of a hold to offer it. */
+export interface OpenHold { id: string; vehicleId: string; status: string; holdTypes: readonly string[]; flaggedAt: string }
+
+/** M is mechanical; B is damage, and hail is damage too. The same rule as the server's holdFitsExit. */
+export function holdFits(exit: BayExit | null, holdTypes: readonly string[]): boolean {
+  if (exit === 'mhold') return holdTypes.includes('mechanical');
+  if (exit === 'bhold') return holdTypes.includes('damage') || holdTypes.includes('hail');
+  return false;
+}
+
+/** The ACTIVE holds an unflagged M / B row could be the same as, newest first. Empty = Flag it goes straight to the form. */
+export function sameHoldChoices<H extends OpenHold>(row: Pick<BayLogRow, 'vehicle_id' | 'exit'>, holds: readonly H[]): H[] {
+  return holds
+    .filter(h => h.vehicleId === row.vehicle_id && h.status === 'ACTIVE' && holdFits(row.exit, h.holdTypes))
+    .sort((a, b) => Date.parse(b.flaggedAt) - Date.parse(a.flaggedAt));
+}
+
+const HOLD_DAY = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Winnipeg', month: 'short', day: 'numeric' });
+
+/** "Same as the Oct 28 hold": the day a hold was flagged, Winnipeg time. */
+export function sameHoldLabel(flaggedAt: string): string {
+  return `Same as the ${HOLD_DAY.format(new Date(flaggedAt))} hold`;
 }

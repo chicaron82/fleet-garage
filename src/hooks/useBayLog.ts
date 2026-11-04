@@ -24,6 +24,10 @@ export interface BayLogState {
   bump: (id: number, replace: boolean) => Promise<string | null>;
   /** The exit landed but Next up's car could not come in. Said until the next write. */
   nextIssue: string | null;
+  /** His note on a finished row (null clears it), and "Same as the … hold" (migration 164). Either answers the saved
+   *  row, so an earlier day's list can take it too; today's list takes it here. */
+  editRow: (body: { action: 'bayNote'; id: number; note: string | null } | { action: 'bayLinkHold'; id: number; holdId: string }) =>
+    Promise<{ error: string } | { row: BayLogRow }>;
 }
 
 let channelSeq = 0;
@@ -95,5 +99,15 @@ export function useBayLog(by = 'FG'): BayLogState {
   const bump = useCallback(async (id: number, replace: boolean) =>
     (await withSubmitLock(`bay:exit:${id}`, () => send({ action: 'bayBumpToNextUp', id, replace }))) ?? null, [send]);
 
-  return { rows, loaded, error, start, exit, undoExit, bump, nextIssue };
+  // Never through `send`: that adds whatever row comes back, and a note on an EARLIER day's row must not land on today's
+  // list. Here a saved row only replaces one today's list already holds.
+  const editRow = useCallback<BayLogState['editRow']>(async body => {
+    const r = await postLotSignedIn({ ...body, by });
+    if (!r.ok) return { error: r.error ?? 'That did not save. Try again.' };
+    const row = r.json.row as BayLogRow;
+    setRows(prev => prev.map(x => (x.id === row.id ? row : x)));
+    return { row };
+  }, [by]);
+
+  return { rows, loaded, error, start, exit, undoExit, bump, nextIssue, editRow };
 }

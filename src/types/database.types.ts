@@ -1133,7 +1133,9 @@ export type Database = {
           car: string | null
           exit: string | null
           exited_at: string | null
+          hold_id: string | null
           id: number
+          note: string | null
           odometer: number | null
           plate: string
           pulled_by: number | null
@@ -1149,7 +1151,9 @@ export type Database = {
           car?: string | null
           exit?: string | null
           exited_at?: string | null
+          hold_id?: string | null
           id?: never
+          note?: string | null
           odometer?: number | null
           plate: string
           pulled_by?: number | null
@@ -1165,7 +1169,9 @@ export type Database = {
           car?: string | null
           exit?: string | null
           exited_at?: string | null
+          hold_id?: string | null
           id?: never
+          note?: string | null
           odometer?: number | null
           plate?: string
           pulled_by?: number | null
@@ -1178,6 +1184,13 @@ export type Database = {
           vehicle_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "lot_bay_log_hold_id_fkey"
+            columns: ["hold_id"]
+            isOneToOne: false
+            referencedRelation: "holds"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lot_bay_log_pulled_by_fkey"
             columns: ["pulled_by"]

@@ -6,8 +6,9 @@
 
 import { shiftBusinessDate } from './shiftDay.js';
 
-export type BayExit = 'clean' | 'mhold' | 'bhold' | 'skip';
-export const BAY_EXITS: readonly BayExit[] = ['clean', 'mhold', 'bhold', 'skip'];
+// 'erin' (2026-11-04, migration 164): cleaned for Erin St's own row, so off the dirties and never onto the cleans.
+export type BayExit = 'clean' | 'mhold' | 'bhold' | 'skip' | 'erin';
+export const BAY_EXITS: readonly BayExit[] = ['clean', 'mhold', 'bhold', 'skip', 'erin'];
 
 export type BayLogRequest =
   | { action: 'bayStart'; vehicleId: string; by: string }
@@ -18,9 +19,47 @@ export type BayLogRequest =
   | { action: 'bayStandbyClear'; by: string }
   // "↩ Back to Next up": the car in the bay goes back in line, no exit logged. `replace`: he said yes to bumping the car
   // that was there. Ticket: docs/ticket-bay-clean-only-and-back-to-next-up.md.
-  | { action: 'bayBumpToNextUp'; id: number; by: string; replace: boolean };
+  | { action: 'bayBumpToNextUp'; id: number; by: string; replace: boolean }
+  // His note on a finished row (null clears it), and an M / B row linked to the hold already on the car (2026-11-04,
+  // docs/ticket-bay-erin-exit-notes-existing-hold.md).
+  | { action: 'bayNote'; id: number; note: string | null; by: string }
+  | { action: 'bayLinkHold'; id: number; holdId: string; by: string };
 
-export const BAY_LOG_ACTIONS: readonly BayLogRequest['action'][] = ['bayStart', 'bayExit', 'bayExitUndo', 'bayStandbySet', 'bayStandbyClear', 'bayBumpToNextUp'];
+export const BAY_LOG_ACTIONS: readonly BayLogRequest['action'][] = ['bayStart', 'bayExit', 'bayExitUndo', 'bayStandbySet', 'bayStandbyClear', 'bayBumpToNextUp', 'bayNote', 'bayLinkHold'];
+
+/** A note's cap, the same as migration 164's check. */
+export const NOTE_MAX = 140;
+
+/** What he typed, as the row keeps it: one line, trimmed. Blank = no note (null). Too long = refused, never cut. */
+export function cleanNote(v: unknown): string | null | { error: string } {
+  if (v === null || v === undefined) return null;
+  if (typeof v !== 'string') return { error: 'That note is not text.' };
+  const s = v.replace(/\s+/g, ' ').trim();
+  if (!s) return null;
+  if (s.length > NOTE_MAX) return { error: `Keep the note to ${NOTE_MAX} characters.` };
+  return s;
+}
+
+/** Which holds an M / B row may be linked to: M is mechanical; B is damage, and hail is damage too. */
+export function holdFitsExit(exit: BayExit | null, holdTypes: readonly string[]): boolean {
+  if (exit === 'mhold') return holdTypes.includes('mechanical');
+  if (exit === 'bhold') return holdTypes.includes('damage') || holdTypes.includes('hail');
+  return false;
+}
+
+/** Why a row may NOT be linked to this hold, or null when it may. The phone only offers fitting holds; this is the
+ *  server's own word, so a stale screen can never tie a row to another car's hold, a closed one, or the wrong kind. */
+export function linkRefusal(
+  row: { vehicle_id: string; exit: BayExit | null } | null,
+  hold: { vehicle_id: string; status: string; hold_types: readonly string[] | null } | null,
+): string | null {
+  if (!row) return 'That row is gone.';
+  if (row.exit !== 'mhold' && row.exit !== 'bhold') return 'Only an M hold or B hold row takes a hold.';
+  if (!hold || hold.vehicle_id !== row.vehicle_id) return 'That hold is not on this car.';
+  if (hold.status !== 'ACTIVE') return 'That hold is closed now. Flag a new one.';
+  if (!holdFitsExit(row.exit, hold.hold_types ?? [])) return row.exit === 'mhold' ? 'That hold is not mechanical.' : 'That hold is not damage.';
+  return null;
+}
 
 /** The phone offers Undo for 5 s; the server allows a little more, so a slow signal never turns a real Undo away. */
 export const EXIT_UNDO_MS = 20_000;
@@ -39,7 +78,7 @@ export function parseBayLog(b: Record<string, unknown>, by: string): BayLogReque
     case 'bayExit': {
       const id = rowId(b.id);
       if (id == null) return { error: 'Which car?' };
-      if (!(BAY_EXITS as readonly unknown[]).includes(b.exit)) return { error: 'Clean, M hold, B hold or Skip?' };
+      if (!(BAY_EXITS as readonly unknown[]).includes(b.exit)) return { error: 'Clean, M hold, B hold, Erin or Skip?' };
       if (b.pull !== undefined && typeof b.pull !== 'boolean') return { error: 'Bring the next car in, or not?' };
       const pull = b.pull === false ? { pull: false as const } : {};
       // The reading he logged from the bay card as this car left (docs/ticket-bay-odo-in-card-and-next-up.md). Optional.
@@ -61,6 +100,19 @@ export function parseBayLog(b: Record<string, unknown>, by: string): BayLogReque
       const id = rowId(b.id);
       if (id == null) return { error: 'Which car?' };
       return { action: 'bayBumpToNextUp', id, by, replace: b.replace === true };
+    }
+    case 'bayNote': {
+      const id = rowId(b.id);
+      if (id == null) return { error: 'Which car?' };
+      const note = cleanNote(b.note);
+      if (note && typeof note === 'object') return note;
+      return { action: 'bayNote', id, note, by };
+    }
+    case 'bayLinkHold': {
+      const id = rowId(b.id);
+      if (id == null) return { error: 'Which car?' };
+      if (typeof b.holdId !== 'string' || !ID_TEXT.test(b.holdId)) return { error: 'Which hold?' };
+      return { action: 'bayLinkHold', id, holdId: b.holdId, by };
     }
     default:
       return { error: 'Unknown action.' };

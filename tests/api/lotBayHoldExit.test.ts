@@ -2,45 +2,9 @@
 // 2026-10-29: *"when i tap M hold/B hold would the clean count remain untouched and the dirty count drop?"*, ruled
 // "yes". Skip moves nothing (the car goes back in the queue). Ticket: docs/ticket-bay-hold-exit-takes-a-dirty.md.
 import { describe, it, expect } from 'vitest';
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { BayLogRefusal, bumpToNextUp, clearStandby, exitCar, setStandby, startCar, undoExit } from '../../api/_lib/lotBayLogDb';
 
-type Row = Record<string, unknown>;
-
-/** Just the chains exitCar / undoExit / moveCount issue: select|update → eq|is → single|maybeSingle, and insert. */
-function fakeDb(tables: Record<string, Row[]>): SupabaseClient {
-  let nextId = 100;
-  const from = (t: string) => {
-    let patch: Row | null = null;
-    let inserted: Row | null = null;
-    const filters: [string, unknown][] = [];
-    let deleting = false;
-    const run = () => {
-      const hit = (tables[t] ?? []).filter(r => filters.every(([k, v]) => r[k] === v));
-      if (patch) hit.forEach(r => Object.assign(r, patch));
-      return hit.map(r => ({ ...r }));
-    };
-    const q = {
-      select: () => q,
-      update: (p: Row) => { patch = p; return q; },
-      insert: (r: Row) => { const row = t === 'lot_bay_log' ? { id: nextId++, exit: null, ...r } : { ...r }; tables[t].push(row); inserted = row; return q; },
-      upsert: (r: Row) => { tables[t] = [{ ...r }]; inserted = tables[t][0]; return q; },
-      delete: () => { deleting = true; return q; },
-      eq: (k: string, v: unknown) => { filters.push([k, v]); return q; },
-      is: (k: string, v: unknown) => { filters.push([k, v]); return q; },
-      then: (ok: (v: unknown) => void) => {
-        if (!deleting) return ok({ data: null, error: null });
-        const gone = (tables[t] ?? []).filter(r => filters.every(([k, v]) => r[k] === v));
-        tables[t] = (tables[t] ?? []).filter(r => !gone.includes(r));
-        return ok({ data: gone.map(r => ({ ...r })), error: null });
-      },
-      single: async () => { if (inserted) return { data: { ...inserted }, error: null }; const r = run(); return r.length === 1 ? { data: r[0], error: null } : { data: null, error: new Error(`${r.length} rows`) }; },
-      maybeSingle: async () => ({ data: run()[0] ?? null, error: null }),
-    };
-    return q;
-  };
-  return { from } as unknown as SupabaseClient;
-}
+import { fakeDb, type Row } from './_fakeLotDb';
 
 const NOW = '2026-10-29T22:06:00.000Z';
 const TODAY = '2026-10-29';

@@ -27,7 +27,7 @@ export interface BayRow {
   used_on: string | null;
 }
 
-export type BayTapKind = 'ready' | 'used' | 'fix' | 'dirties' | 'set' | 'drain' | 'fill' | 'undo' | 'held';
+export type BayTapKind = 'ready' | 'used' | 'fix' | 'dirties' | 'set' | 'drain' | 'fill' | 'undo' | 'held' | 'erin';
 
 /** What a quick tap's Undo puts back: the row as the phone saw it before the tap. */
 export interface BaySnapshot { cleans: number; dirties: number | null; used: number; usedOn: string | null }
@@ -133,13 +133,15 @@ export function bayChange(row: BayRow, req: BayRequest, nowIso: string, today: s
  * *"would the clean count remain untouched and the dirty count drop?"*; docs/ticket-bay-hold-exit-takes-a-dirty.md).
  * Not a BayRequest: it only ever happens as part of a hold exit, never as a tap of its own. `take` at 0 dirties (or
  * never counted) is null, nothing to write. `give` is that exit's Undo, called only when its `take` took one.
+ * `as`: 'erin' for the Erin exit (2026-11-04, migration 164): *"cleaning them goes to their row to be rented at Erin St
+ * and not going up for the airport"*, ruled it *"takes one off the dirties"*. Same move, its own line on Today's list.
  */
-export function heldExitChange(row: BayRow, dir: 'take' | 'give', by: string, nowIso: string): BayChange | null {
+export function heldExitChange(row: BayRow, dir: 'take' | 'give', by: string, nowIso: string, as: 'held' | 'erin' = 'held'): BayChange | null {
   const before = row.dirties ?? 0;
   if (dir === 'take' && before === 0) return null;
   const dirties = dir === 'take' ? before - 1 : Math.min(COUNT_MAX, before + 1);
   return {
     patch: { dirties, dirties_by: by, dirties_at: nowIso },
-    tap: { kind: dir === 'take' ? 'held' : 'undo', value: dirties, prev: row.dirties, tapped_by: by },
+    tap: { kind: dir === 'take' ? as : 'undo', value: dirties, prev: row.dirties, tapped_by: by },
   };
 }

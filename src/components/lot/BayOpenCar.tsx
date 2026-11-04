@@ -8,6 +8,10 @@
 //   list row offers Flag it for the form later, and Find a car says "not flagged yet" until it's done
 //   (docs/ticket-bay-on-deck-trip-clean-quick-holds.md). A hold flagged on this car since it came in (from Flag / hold)
 //   still turns the exits into "Close it as held", so the hold he already made is never asked for twice.
+// • 🏠 Erin (2026-11-04, migration 164): *"cleaning them goes to their row to be rented at Erin St and not going up for the
+//   airport"*. Off the dirties, never +1 on the cleans. The row of four is his: *"M, B, E, Skip"*, under the big Clean.
+//   At 412 the words "M hold" / "B hold" wrapped in a quarter-width button (render, 2026-11-04), so the face says
+//   M / B and the full name rides on aria-label.
 // • Skip is a bump, not a verdict: *"a vehicle in the queue needed to be done ASAP ... skip to do later"*. The empty
 //   bay that follows leads with Find a car, because the ASAP car is the next thing he does. Since 2026-10-29 that is
 //   the search box itself, in the card (BayFindCar): *"i'm already in the module"*.
@@ -143,18 +147,22 @@ export function BayOpenCar({ open, next, onStart, busy, onExit, onBump, onCloseH
               ✓ Clean only · {waiting.plate} waits
             </button>
           )}
-          <div className="grid grid-cols-3 gap-2">
-            <button type="button" disabled={blocked} onClick={tap(() => leave('mhold'))} className={EXIT_BTN}>
-              <span className="text-sm font-extrabold text-amber-800 dark:text-amber-300">🔧 M hold</span>
+          <div className="grid grid-cols-4 gap-1.5">
+            <button type="button" disabled={blocked} onClick={tap(() => leave('mhold'))} className={EXIT_BTN} aria-label="M hold · Mechanical">
+              <span className="text-sm font-extrabold text-amber-800 dark:text-amber-300">🔧 M</span>
               <span className="text-[11px] text-gray-500 dark:text-gray-400">Mechanical</span>
             </button>
-            <button type="button" disabled={blocked} onClick={tap(() => leave('bhold'))} className={EXIT_BTN}>
-              <span className="text-sm font-extrabold text-red-700 dark:text-red-400">⚠️ B hold</span>
+            <button type="button" disabled={blocked} onClick={tap(() => leave('bhold'))} className={EXIT_BTN} aria-label="B hold · Damage">
+              <span className="text-sm font-extrabold text-red-700 dark:text-red-400">⚠️ B</span>
               <span className="text-[11px] text-gray-500 dark:text-gray-400">Damage</span>
             </button>
-            <button type="button" disabled={blocked} onClick={tap(() => leave('skip'))} className={EXIT_BTN}>
+            <button type="button" disabled={blocked} onClick={tap(() => leave('erin'))} className={EXIT_BTN} aria-label="🏠 Erin · Local row">
+              <span className="text-sm font-extrabold text-green-700 dark:text-green-400">🏠 Erin</span>
+              <span className="text-[11px] text-gray-500 dark:text-gray-400">Local row</span>
+            </button>
+            <button type="button" disabled={blocked} onClick={tap(() => leave('skip'))} className={EXIT_BTN} aria-label="Skip · ASAP first">
               <span className="text-sm font-extrabold text-blue-700 dark:text-blue-400">↷ Skip</span>
-              <span className="text-[11px] text-gray-500 dark:text-gray-400">ASAP car first</span>
+              <span className="text-[11px] text-gray-500 dark:text-gray-400">ASAP first</span>
             </button>
           </div>
           <p className="text-[11px] text-gray-500 dark:text-gray-400">M hold and B hold mark the list. Flag it from the list when you have a minute.</p>

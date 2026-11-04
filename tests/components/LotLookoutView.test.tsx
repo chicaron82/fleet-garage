@@ -10,7 +10,7 @@ const member = (userId: string, name: string, role: CrewMember['role']): CrewMem
   ({ userId, name, role, start: '16:00', end: '22:00', more: [], out: false, onNow: true, phase: 'on' });
 const row = (over: Partial<BayLogRow>): BayLogRow => ({
   id: 6, vehicle_id: 'v-536', plate: 'LZM536', unit_number: '5423173', car: '2026 Toyota Corolla Cross · Gray', odometer: 20275,
-  started_at: '2026-10-29T16:20:00.000Z', exit: null, exited_at: null, took_dirty: false, redo_of: null, shift_day: '2026-10-29', ...over,
+  started_at: '2026-10-29T16:20:00.000Z', exit: null, exited_at: null, took_dirty: false, redo_of: null, note: null, hold_id: null, shift_day: '2026-10-29', ...over,
 });
 
 let rows: BayLogRow[] = [];
@@ -18,8 +18,9 @@ const exit = vi.fn(async (..._args: unknown[]) => null as string | null);
 const undoExit = vi.fn(async () => null as string | null);
 const start = vi.fn(async () => null as string | null);
 const bump = vi.fn(async (..._args: unknown[]) => null as string | null);
+const editRow = vi.fn(async (body: { id: number }) => ({ row: { ...rows.find(r => r.id === body.id)! } }) as { error: string } | { row: BayLogRow });
 vi.mock('../../src/hooks/useBayLog', () => ({
-  useBayLog: () => ({ rows, loaded: true, error: null, start, exit, undoExit, bump }),
+  useBayLog: () => ({ rows, loaded: true, error: null, start, exit, undoExit, bump, editRow }),
 }));
 // The empty bay's own Find a car (ticket-bay-find-a-car-inline-search): the lookup's network search and its recents.
 const hit = { license_plate: '0GK487', unit_number: '5429550', make: 'Kia', model: 'Seltos', year: 2026, color: 'Gray', is_hybrid: false, is_tesla: false, archived_at: null };
@@ -481,3 +482,79 @@ describe('LotLookoutView — the bay log', () => {
     expect(recordOdometer).toHaveBeenCalledWith('v-536', 21500);
   });
 });
+
+// ── 2026-11-04 (docs/ticket-bay-erin-exit-notes-existing-hold.md): *"M, B, E, Skip"*, notes on the list, and Flag it
+// offering the hold already on the car (*"going back to it later on the cleaned list"*).
+describe('LotLookoutView — Erin, notes, the hold already on the car', () => {
+  it('⭐ 🏠 Erin is one tap in the row of four, with an Undo', async () => {
+    rows = [row({})];
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    const exits = ['M hold', 'B hold', '🏠 Erin', 'Skip'].map(n => screen.getByRole('button', { name: new RegExp(n) }));
+    expect(exits[0].parentElement).toBe(exits[3].parentElement);
+    fireEvent.click(exits[2]);
+    await waitFor(() => expect(exit).toHaveBeenCalledWith(6, 'erin'));
+    expect(await screen.findByText('LZM536 clean for Erin St · off the dirties')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await waitFor(() => expect(undoExit).toHaveBeenCalledWith(6));
+  });
+
+  it('⭐ + Note on a finished row saves through the one writer, and shows on the line', async () => {
+    rows = [row({ id: 5, exit: 'clean', exited_at: '2026-10-29T16:40:00.000Z' })];
+    const { rerender } = render(<LotLookoutView onNavigate={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: '+ Note' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Note' }), { target: { value: 'keys in the cupholder' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(editRow).toHaveBeenCalledWith({ action: 'bayNote', id: 5, note: 'keys in the cupholder' }));
+    rows = [row({ id: 5, exit: 'clean', exited_at: '2026-10-29T16:40:00.000Z', note: 'keys in the cupholder' })];
+    rerender(<LotLookoutView onNavigate={vi.fn()} />);
+    expect(await screen.findByText('📝 keys in the cupholder')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '+ Note' })).toBeNull();
+  });
+
+  it('a note that did not save stays in the box and says so', async () => {
+    rows = [row({ id: 5, exit: 'clean', exited_at: '2026-10-29T16:40:00.000Z' })];
+    editRow.mockResolvedValueOnce({ error: 'Sign in to FG to use the bay log.' });
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: '+ Note' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Note' }), { target: { value: 'x' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Sign in to FG');
+    expect(screen.getByRole('textbox', { name: 'Note' })).toHaveValue('x');
+  });
+
+  it('⭐ Flag it on a car already held offers "Same as the … hold", one tap, no form', async () => {
+    rows = [row({ id: 5, exit: 'bhold', exited_at: '2026-10-29T16:40:00.000Z' })];
+    holds = [{ id: 'h1', vehicleId: 'v-536', status: 'ACTIVE', flaggedAt: '2026-10-28T18:00:00.000Z', holdTypes: ['damage'] }];
+    const onNavigate = vi.fn();
+    render(<LotLookoutView onNavigate={onNavigate} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Flag it →' }));
+    expect(onNavigate).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Same as the Oct 28 hold' }));
+    await waitFor(() => expect(editRow).toHaveBeenCalledWith({ action: 'bayLinkHold', id: 5, holdId: 'h1' }));
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('…and New hold → is still the form', () => {
+    rows = [row({ id: 5, exit: 'bhold', exited_at: '2026-10-29T16:40:00.000Z' })];
+    holds = [{ id: 'h1', vehicleId: 'v-536', status: 'ACTIVE', flaggedAt: '2026-10-28T18:00:00.000Z', holdTypes: ['damage'] }];
+    const onNavigate = vi.fn();
+    render(<LotLookoutView onNavigate={onNavigate} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Flag it →' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New hold →' }));
+    expect(onNavigate).toHaveBeenCalledWith(expect.objectContaining({ name: 'new-hold', vehicleId: 'v-536', fromBay: 'bhold' }));
+  });
+
+  it('a car whose only hold is the other kind, or closed, goes straight to the form', () => {
+    rows = [row({ id: 5, exit: 'bhold', exited_at: '2026-10-29T16:40:00.000Z' })];
+    holds = [
+      { id: 'm', vehicleId: 'v-536', status: 'ACTIVE', flaggedAt: '2026-10-28T18:00:00.000Z', holdTypes: ['mechanical'] },
+      { id: 'r', vehicleId: 'v-536', status: 'RELEASED', flaggedAt: '2026-10-27T18:00:00.000Z', holdTypes: ['damage'] },
+    ];
+    const onNavigate = vi.fn();
+    render(<LotLookoutView onNavigate={onNavigate} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Flag it →' }));
+    expect(screen.queryByRole('button', { name: /Same as/ })).toBeNull();
+    expect(onNavigate).toHaveBeenCalledWith(expect.objectContaining({ name: 'new-hold', fromBay: 'bhold' }));
+  });
+});
+

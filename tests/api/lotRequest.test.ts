@@ -41,7 +41,7 @@ describe('parseLotRequest', () => {
   it('every bay-log action the server knows gets past the front door (one list, no hand copy)', () => {
     const sample: Record<string, Record<string, unknown>> = {
       bayStart: { vehicleId: 'v-1' }, bayExit: { id: 1, exit: 'clean' }, bayExitUndo: { id: 1 }, bayStandbySet: { vehicleId: 'v-1' }, bayStandbyClear: {},
-      bayBumpToNextUp: { id: 1 },
+      bayBumpToNextUp: { id: 1 }, bayNote: { id: 1, note: 'x' }, bayLinkHold: { id: 1, holdId: 'h-1' },
     };
     for (const action of BAY_LOG_ACTIONS) {
       expect(sample[action], `a sample for ${action}`).toBeDefined();

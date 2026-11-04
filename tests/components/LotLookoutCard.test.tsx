@@ -5,7 +5,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import type { BayLogRow } from '../../src/lib/lotBayLog';
 
 const row = (id: number, exit: BayLogRow['exit'], over: Partial<BayLogRow> = {}): BayLogRow => ({
-  id, vehicle_id: `v${id}`, plate: `LUR${id}`, unit_number: null, car: null, odometer: null, took_dirty: false, redo_of: null,
+  id, vehicle_id: `v${id}`, plate: `LUR${id}`, unit_number: null, car: null, odometer: null, took_dirty: false, redo_of: null, note: null, hold_id: null,
   shift_day: '2026-10-29', started_at: `2026-10-29T1${id}:00:00.000Z`, exit, exited_at: exit ? `2026-10-29T1${id}:30:00.000Z` : null, ...over,
 });
 let rows: BayLogRow[] = [];

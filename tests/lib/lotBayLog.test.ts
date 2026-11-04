@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { bayLines, bayMarkLine, bayMarkOf, bayOdoEntry, bayOdoLetsExit, bayReportLine, baySummary, inTheBay, isUnflaggedHold, startBlock, unflaggedHoldIds, vehicleForPick, type BayLogRow } from '../../src/lib/lotBayLog';
+import { sameHoldChoices, sameHoldLabel, bayLines, bayMarkLine, bayMarkOf, bayOdoEntry, bayOdoLetsExit, bayReportLine, baySummary, inTheBay, isUnflaggedHold, startBlock, unflaggedHoldIds, vehicleForPick, type BayLogRow } from '../../src/lib/lotBayLog';
 
 // Times are UTC; clockOf prints Winnipeg (CDT, UTC−5 on 2026-10-29).
 const row = (id: number, plate: string, start: string, exit: BayLogRow['exit'], exitAt: string | null, extra: Partial<BayLogRow> = {}): BayLogRow => ({
-  id, vehicle_id: `v-${plate}`, plate, unit_number: null, car: 'Kia Seltos · Gray', odometer: 1, took_dirty: false, redo_of: null,
+  id, vehicle_id: `v-${plate}`, plate, unit_number: null, car: 'Kia Seltos · Gray', odometer: 1, took_dirty: false, redo_of: null, note: null, hold_id: null,
   shift_day: '2026-10-29', started_at: `2026-10-29T${start}:00.000Z`, exit, exited_at: exitAt ? `2026-10-29T${exitAt}:00.000Z` : null, ...extra,
 });
 
@@ -50,7 +50,7 @@ describe('bayLines', () => {
 
 describe('baySummary', () => {
   it('counts the day', () => {
-    expect(baySummary(DAY)).toEqual({ clean: 2, mhold: 1, bhold: 1, stillToDo: 0 });
+    expect(baySummary(DAY)).toEqual({ clean: 2, erin: 0, mhold: 1, bhold: 1, stillToDo: 0 });
   });
   it('a bump waits until its restart; bumped twice is still ONE car to do', () => {
     expect(baySummary([row(3, 'X', '14:30', 'skip', '14:48')]).stillToDo).toBe(1);
@@ -143,5 +143,54 @@ describe('a hold mark not yet flagged', () => {
     expect(bayMarkOf(DAY[1], [held('v-0DM137', '2026-10-29T13:45:00.000Z')])).toBeNull();
     expect(bayMarkOf(DAY[4], [])).toBeNull();
     expect(bayMarkOf(null, [])).toBeNull();
+  });
+});
+
+// ── 2026-11-04: the Erin exit, his note, "Same as the … hold" (docs/ticket-bay-erin-exit-notes-existing-hold.md).
+describe('🏠 Erin on the list', () => {
+  const day = [row(1, 'LZM503', '12:02', 'erin', '12:31'), row(2, 'LUR183', '13:10', 'clean', '13:40'), row(3, 'X', '14:30', 'skip', '14:48'), row(4, 'X', '15:00', 'erin', '15:20', { redo_of: 3 })];
+  it('says Erin, for Erin St, and on the read-only link too', () => {
+    expect(bayLines(day)[0]).toMatchObject({ kind: 'erin', label: 'Erin', note: 'for Erin St' });
+    expect(bayLines(day, { readOnly: true })[0]).toMatchObject({ label: 'Erin', note: 'for Erin St' });
+  });
+  it('⭐ counted apart from the cleans (a clean for Erin St is not one the airport can have)', () => {
+    expect(baySummary(day)).toMatchObject({ clean: 1, erin: 2 });
+    expect(bayReportLine(day)).toBe('1 clean · 2 for Erin St');
+  });
+  it('a bumped car redone as Erin reads redone', () => {
+    expect(bayLines(day)[2].note).toBe('redone 10:20');
+    expect(bayLines(day)[3].note).toBe('for Erin St · was bumped');
+  });
+});
+
+describe('📝 his note rides the line', () => {
+  it('memo is his note, apart from the list\'s own word', () => {
+    const [l] = bayLines([row(1, 'LZM503', '12:02', 'bhold', '12:31', { note: 'rear bumper scuff' })]);
+    expect(l).toMatchObject({ note: 'damage', memo: 'rear bumper scuff' });
+    expect(bayLines([row(1, 'A', '12:02', 'clean', '12:31')])[0].memo).toBe('');
+  });
+});
+
+describe('⭐ Same as the … hold', () => {
+  const h = (id: string, over: Partial<{ vehicleId: string; status: string; holdTypes: string[]; flaggedAt: string }> = {}) =>
+    ({ id, vehicleId: 'v-LZM503', status: 'ACTIVE', holdTypes: ['damage'], flaggedAt: '2026-10-28T18:00:00.000Z', ...over });
+  const b = row(1, 'LZM503', '12:02', 'bhold', '12:31');
+
+  it('a row tied to a hold is flagged: no Flag it, no "not flagged yet"', () => {
+    expect(isUnflaggedHold(b, [])).toBe(true);
+    expect(isUnflaggedHold({ ...b, hold_id: 'h1' }, [])).toBe(false);
+    expect(bayMarkOf({ ...b, hold_id: 'h1' }, [])).toBeNull();
+  });
+  it('offers only this car\'s ACTIVE holds of the matching kind, newest first', () => {
+    const holds = [
+      h('old', { flaggedAt: '2026-10-20T18:00:00.000Z' }), h('new'), h('hail', { holdTypes: ['hail'], flaggedAt: '2026-10-25T18:00:00.000Z' }),
+      h('other-car', { vehicleId: 'v-X' }), h('released', { status: 'RELEASED' }), h('mech', { holdTypes: ['mechanical'] }),
+    ];
+    expect(sameHoldChoices(b, holds).map(x => x.id)).toEqual(['new', 'hail', 'old']);
+    expect(sameHoldChoices({ ...b, exit: 'mhold' }, holds).map(x => x.id)).toEqual(['mech']);
+    expect(sameHoldChoices({ ...b, exit: 'clean' }, holds)).toEqual([]);
+  });
+  it('names the hold by the day it was flagged', () => {
+    expect(sameHoldLabel('2026-10-28T18:00:00.000Z')).toBe('Same as the Oct 28 hold');
   });
 });

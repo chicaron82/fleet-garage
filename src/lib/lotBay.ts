@@ -33,7 +33,7 @@ export interface LotBay {
 }
 
 // set / drain / fill / undo: the Erin pill's quick taps (migration 156). held: a bay car out on M/B hold (migration 162).
-export type BayTapKind = 'ready' | 'used' | 'fix' | 'dirties' | 'set' | 'drain' | 'fill' | 'undo' | 'held';
+export type BayTapKind = 'ready' | 'used' | 'fix' | 'dirties' | 'set' | 'drain' | 'fill' | 'undo' | 'held' | 'erin';
 
 export interface LotBayTap {
   id: number;
@@ -106,5 +106,6 @@ export function bayTapLine(t: Pick<LotBayTap, 'kind' | 'value'>): string {
     case 'fill': return `Filled from the drivers · ${t.value} dirties`;
     case 'undo': return `Undone · back to ${t.value}`;
     case 'held': return `Held, off the dirties · ${t.value} dirties`;
+    case 'erin': return `Cleaned for Erin St, off the dirties · ${t.value} dirties`;
   }
 }

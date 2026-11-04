@@ -5,7 +5,7 @@
 //
 // Each answer is kept with the day it belongs to, so stepping days never shows one day's crew under another's heading
 // (and nothing is reset synchronously inside an effect).
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { rowToShiftBase } from '../lib/rowToShift';
 import { bayDayCrew, type BayDayCrew } from '../lib/bayCrewBlocks';
@@ -19,6 +19,8 @@ export interface BayDay {
   /** An earlier day's rows; null while loading, and always null for today (the live log has those). */
   pastRows: BayLogRow[] | null;
   error: string | null;
+  /** A row saved from this day's list (a note, a hold link): it replaces the one shown. */
+  replaceRow: (row: BayLogRow) => void;
 }
 
 export function useBayDay(day: string, me: string | null, isToday: boolean): BayDay {
@@ -49,5 +51,6 @@ export function useBayDay(day: string, me: string | null, isToday: boolean): Bay
     () => (dayShifts && me ? bayDayCrew(dayShifts, me, id => profiles.get(id)?.role ?? null) : null),
     [dayShifts, me, profiles],
   );
-  return { crew, pastRows: isToday ? null : past?.day === day ? past.rows : null, error: error?.day === day ? error.text : null };
+  const replaceRow = useCallback((row: BayLogRow) => setPast(p => (p ? { ...p, rows: p.rows.map(x => (x.id === row.id ? row : x)) } : p)), []);
+  return { crew, pastRows: isToday ? null : past?.day === day ? past.rows : null, error: error?.day === day ? error.text : null, replaceRow };
 }
