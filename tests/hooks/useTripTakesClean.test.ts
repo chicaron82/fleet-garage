@@ -90,6 +90,23 @@ describe('useTripLifecycle — the trip takes the clean', () => {
     expect(post).not.toHaveBeenCalled();
   });
 
+  it('⭐ a trip marked Other never touches the count, at start or on Reset (his ruling, 2026-11-03)', async () => {
+    const { result } = renderHook(() => useTripLifecycle({}));
+    act(() => result.current.setVehiclePlate('LZM542'));
+    await act(() => result.current.startTrip('OTHER', 'PERSONAL', ''));
+    expect(result.current.tripState).toBe('in_transit');
+    act(() => result.current.handleReset());
+    await new Promise(r => setTimeout(r, 0));
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it.each(['COVERAGE_ASSIST', 'CODE_RED'] as const)('%s still takes one', async reason => {
+    const { result } = renderHook(() => useTripLifecycle({}));
+    act(() => result.current.setVehiclePlate('LZM542'));
+    await act(() => result.current.startTrip(reason, 'MANAGEMENT', ''));
+    await waitFor(() => expect(deltas()).toEqual([-1]));
+  });
+
   it('a trip whose own write failed takes nothing (the trip is the thing)', async () => {
     write.mockImplementationOnce(async () => ({ ok: false }));
     const { result } = renderHook(() => useTripLifecycle({}));

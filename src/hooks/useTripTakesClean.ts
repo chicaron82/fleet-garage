@@ -3,7 +3,8 @@
 // is wired to handle more but only I'm using it"*, so it is automatic, with no prompt.
 // Ticket: docs/ticket-bay-on-deck-trip-clean-quick-holds.md.
 //
-// • Only a trip that is not a shuttle run (the caller decides; overflow sends never come through here).
+// • Only a trip that is not a shuttle run and not marked Other (the caller decides; overflow sends never come through
+//   here, and his 2026-11-03 ruling keeps them out: they may be cars already at the airport).
 // • The trip is the thing: its own write never waits on this, and a count that cannot move says so instead of failing it.
 // • Reset gives back only what THIS phone took, remembered by trip id, so a trip started at 0 cleans (or with no signal)
 //   never invents a clean when it is reset. Remembered across a reload, because the trip itself survives one.

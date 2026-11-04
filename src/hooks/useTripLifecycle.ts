@@ -48,7 +48,8 @@ export function useTripLifecycle({
   const { user } = useAuth();
   const { shuttlePlate } = useVehicleHoldContext();
   const { refresh: refreshActiveSessions } = useActiveSessions();
-  // A trip that is not a shuttle run takes a clean off Erin St (2026-11-03); its Reset gives it back.
+  // A trip that is not a shuttle run takes a clean off Erin St (2026-11-03); its Reset gives it back. Not one marked
+  // Other: *"don't include "other""* (his ruling, 2026-11-03 21:13; docs/ticket-trip-clean-not-other.md).
   const erinClean = useTripTakesClean(initialsOf(user?.name ?? null) || 'FG');
 
   const [tripState, setTripState]           = useState<TripState>('form');
@@ -167,7 +168,7 @@ export function useTripLifecycle({
     }
     setStartError(false);
     setStarting(false);
-    if (!isShuttle) void erinClean.take(tripId);
+    if (!isShuttle && r !== 'OTHER') void erinClean.take(tripId);
 
     setPendingTripId(tripId);
 
