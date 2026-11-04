@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ScanIdentityHeader } from '../../src/components/scan-router/ScanIdentityHeader';
+import { clockOf } from '../../src/lib/lotBay';
 import type { Vehicle } from '../../src/types';
 
 // Aaron, 2026-10-10: *"Tapping the car info on top opens the record instead of scrolling down to
@@ -33,9 +34,12 @@ describe('ScanIdentityHeader', () => {
   });
 
   // ⭐ 2026-11-03: M / B is one tap in the bay and the form waits. Until a hold is flagged, Find a car must not say Clear.
+  // ⚠️ The clock is the app's own clockOf, never a typed "09:42": Winnipeg kept UTC−5 past 2026-11-01, and a runner with
+  // newer time-zone tables reads this instant an hour later than one without (CI went red on exactly that, 2026-11-03).
   it('⭐ a bay mark not yet flagged takes the status line\'s place, never ✅ Clear', () => {
-    render(<ScanIdentityHeader plateLine="LZM532" vehicle={elantra} liveHolds={0} bayMark={{ kind: 'bhold', at: '2026-11-03T15:42:00.000Z' }} />);
-    expect(screen.getByText('⚠️ B hold in the bay 09:42 · not flagged yet')).toHaveClass('text-red-600');
+    const at = '2026-11-03T15:42:00.000Z';
+    render(<ScanIdentityHeader plateLine="LZM532" vehicle={elantra} liveHolds={0} bayMark={{ kind: 'bhold', at }} />);
+    expect(screen.getByText(`⚠️ B hold in the bay ${clockOf(at)} · not flagged yet`)).toHaveClass('text-red-600');
     expect(screen.queryByText(/Clear/)).toBeNull();
   });
 
