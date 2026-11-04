@@ -75,7 +75,6 @@ export function ScheduleScreen({ openImport }: { openImport?: boolean }) {
   useEffect(() => {
     try { localStorage.setItem(SHOW_MOCK_KEY, showMock ? '1' : '0'); } catch { /* ignore */ }
   }, [showMock]);
-  const isManager = user?.role === 'Branch Manager' || user?.role === 'Operations Manager';
   const canSchedule = user ? canManageSchedule(user.role) : false;
   const today = toISO(new Date());
 
@@ -154,9 +153,10 @@ export function ScheduleScreen({ openImport }: { openImport?: boolean }) {
       {/* Peak season banner. The READOUT is for everyone — it states what time closings start
           (14:30–23:00 in peak, 13:30–22:00 off), which is a fact about the reader's OWN shift, and
           the person working the closing is exactly who needs it. It was manager-gated wholesale,
-          which hid a schedule fact from the people it schedules. The TOGGLE stays manager-only:
-          flipping peak season changes the branch's defaults for everybody, which is a real
-          authority action rather than a personal one. Splitting them beats opening the gate. */}
+          which hid a schedule fact from the people it schedules. The TOGGLE was kept manager-only
+          until 2026-11-03, when it blocked the one person who uses FG: *"Can we toggle off peak
+          season. I think that's gated from my account"* (peak ended on Halloween). FG is his tool,
+          sole user (2026-07-26): a gate that blocks him gets opened. */}
       <div className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
         isPeakSeason
           ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400'
@@ -168,18 +168,16 @@ export function ScheduleScreen({ openImport }: { openImport?: boolean }) {
             {isPeakSeason ? '— closing defaults 14:30–23:00' : '— closing defaults 13:30–22:00'}
           </span>
         </span>
-        {isManager && (
-          <button
-            onClick={async () => {
-              setTogglingPeak(true);
-              try { await togglePeakSeason(); } finally { setTogglingPeak(false); }
-            }}
-            disabled={togglingPeak}
-            className="ml-3 px-2.5 py-1 rounded-md bg-white dark:bg-gray-800 border border-current text-current font-semibold hover:opacity-80 disabled:opacity-40 transition cursor-pointer"
-          >
-            {togglingPeak ? '…' : isPeakSeason ? 'Turn off' : 'Turn on'}
-          </button>
-        )}
+        <button
+          onClick={async () => {
+            setTogglingPeak(true);
+            try { await togglePeakSeason(); } finally { setTogglingPeak(false); }
+          }}
+          disabled={togglingPeak}
+          className="ml-3 shrink-0 whitespace-nowrap px-2.5 py-1 rounded-md bg-white dark:bg-gray-800 border border-current text-current font-semibold hover:opacity-80 disabled:opacity-40 transition cursor-pointer"
+        >
+          {togglingPeak ? '…' : isPeakSeason ? 'Turn off' : 'Turn on'}
+        </button>
       </div>
 
       {/* PTO + Sick stats */}
