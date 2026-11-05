@@ -22,6 +22,11 @@ export interface BayLogState {
   /** ↩ Back to Next up: the car in the bay goes back in line, no exit logged. `replace`: he said yes to bumping the car
    *  that was there. (docs/ticket-bay-clean-only-and-back-to-next-up.md) */
   bump: (id: number, replace: boolean) => Promise<string | null>;
+  /** A car cleaned while he was off the floor, straight onto the list as a Clean (migration 165), and its Undo.
+   *  `add` answers the new row's id so the note's Undo can name it, or null for a second tap the lock turned away.
+   *  (docs/ticket-bay-add-a-car-cleaned.md) */
+  add: (vehicleId: string) => Promise<{ error: string } | { id: number } | null>;
+  undoAdd: (id: number) => Promise<string | null>;
   /** The exit landed but Next up's car could not come in. Said until the next write. */
   nextIssue: string | null;
   /** His note on a finished row (null clears it), and "Same as the … hold" (migration 164). Either answers the saved
@@ -99,6 +104,17 @@ export function useBayLog(by = 'FG'): BayLogState {
   const bump = useCallback(async (id: number, replace: boolean) =>
     (await withSubmitLock(`bay:exit:${id}`, () => send({ action: 'bayBumpToNextUp', id, replace }))) ?? null, [send]);
 
+  // Not through `send`, which answers only an error: the note's Undo needs the new row's id. Its Undo answers removedId,
+  // which `send` already takes off the list.
+  const add = useCallback(async (vehicleId: string) => (await withSubmitLock('bay:add', async () => {
+    const r = await postLotSignedIn({ action: 'bayAdd', vehicleId, by });
+    if (!r.ok) return { error: r.error ?? 'The car did not go on the list. Try again.' };
+    const row = r.json.row as BayLogRow;
+    setRows(prev => [...prev.filter(x => x.id !== row.id), row].sort((a, b) => a.started_at.localeCompare(b.started_at)));
+    return { id: row.id };
+  })) ?? null, [by]);
+  const undoAdd = useCallback((id: number) => send({ action: 'bayAddUndo', id }), [send]);
+
   // Never through `send`: that adds whatever row comes back, and a note on an EARLIER day's row must not land on today's
   // list. Here a saved row only replaces one today's list already holds.
   const editRow = useCallback<BayLogState['editRow']>(async body => {
@@ -109,5 +125,5 @@ export function useBayLog(by = 'FG'): BayLogState {
     return { row };
   }, [by]);
 
-  return { rows, loaded, error, start, exit, undoExit, bump, nextIssue, editRow };
+  return { rows, loaded, error, start, exit, undoExit, bump, add, undoAdd, nextIssue, editRow };
 }

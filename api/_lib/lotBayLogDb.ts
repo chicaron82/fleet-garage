@@ -9,7 +9,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { bayChange, heldExitChange, type BayChange, type BayRequest, type BayRow } from './lotBay.js';
 import { carLine, linkRefusal, redoOf, startOdometer, undoAllowed, type BayExit, type DayRow } from './lotBayLog.js';
 
-export const BAY_LOG_COLS = 'id, vehicle_id, plate, unit_number, car, odometer, started_at, exit, exited_at, took_dirty, redo_of, shift_day, note, hold_id';
+export const BAY_LOG_COLS = 'id, vehicle_id, plate, unit_number, car, odometer, started_at, exit, exited_at, took_dirty, redo_of, shift_day, note, hold_id, added';
 
 /** A refusal the phone shows as it is (409), as opposed to a thrown error (500). */
 export class BayLogRefusal extends Error {}
@@ -188,6 +188,53 @@ export async function undoExit(db: SupabaseClient, id: number, by: string, nowIs
     ({ saved: bay } = await moveCount(db, r => heldExitChange(r, 'give', by, nowIso), nowIso, today));
   }
   return { row, bay, ...unpulled };
+}
+
+/**
+ * A car cleaned while he was off the floor (migration 165, docs/ticket-bay-add-a-car-cleaned.md): *"just a way to add
+ * them in if needed"*. Straight onto the list as a Clean, stamped NOW and marked `added`, so nobody reads its time as
+ * the minute it was washed. The car in the bay is never touched. The count moves first, as a Clean exit's does; a row
+ * that cannot land gives it back.
+ */
+export async function addCleaned(db: SupabaseClient, vehicleId: string, by: string, nowIso: string, today: string) {
+  const { data: v, error: vErr } = await db.from('vehicles')
+    .select('id, license_plate, unit_number, year, make, model, color, odometer, odometer_at').eq('id', vehicleId).maybeSingle();
+  if (vErr) throw vErr;
+  if (!v) throw new BayLogRefusal('That car is not in FG.');
+  const { data: day, error: dayErr } = await db.from('lot_bay_log')
+    .select('id, vehicle_id, exit, redo_of, started_at').or(`shift_day.eq.${today},exit.is.null`);
+  if (dayErr) throw dayErr;
+  if ((day ?? []).some(r => r.exit == null && r.vehicle_id === v.id)) throw new BayLogRefusal(`${v.license_plate} is in the bay now. Give it an exit there.`);
+  const { saved: bay, tookDirty } = await moveCount(db, { action: 'cleans', delta: 1, fix: false, by }, nowIso, today);
+  const { data: row, error } = await db.from('lot_bay_log').insert({
+    vehicle_id: v.id, plate: v.license_plate, unit_number: v.unit_number, car: carLine(v), odometer: startOdometer(v, today),
+    started_at: nowIso, started_by: by, exit: 'clean', exited_at: nowIso, took_dirty: tookDirty, added: true,
+    shift_day: today, redo_of: redoOf((day ?? []) as DayRow[], v.id),
+  }).select(BAY_LOG_COLS).single();
+  if (error) {
+    // The row did not land, so the +1 must not stand on its own. Best-effort: the save's own error is the one he sees.
+    await moveCount(db, { action: 'cleans', delta: -1, fix: true, giveDirty: tookDirty, by }, nowIso, today).catch(() => {});
+    throw error;
+  }
+  return { row, bay };
+}
+
+/** An added car's Undo: inside the window, and only a row that was added. The row goes (a mis-tap is not the record,
+ *  unpull's precedent) and the count goes back; a clean that already went up leaves the count as the lot is. */
+export async function undoAdd(db: SupabaseClient, id: number, by: string, nowIso: string, today: string) {
+  const { data: was, error: readErr } = await db.from('lot_bay_log').select('added, exited_at, took_dirty').eq('id', id).maybeSingle();
+  if (readErr) throw readErr;
+  if (!was || !was.added || !undoAllowed(was.exited_at, Date.parse(nowIso))) throw new BayLogRefusal('Too late to undo that one.');
+  const { data: gone, error: delErr } = await db.from('lot_bay_log').delete().eq('id', id).eq('added', true).select('id');
+  if (delErr) throw delErr;
+  if (!gone?.length) throw new BayLogRefusal('That car already changed.');
+  let bay: unknown = null;
+  try {
+    ({ saved: bay } = await moveCount(db, { action: 'cleans', delta: -1, fix: true, giveDirty: was.took_dirty, by }, nowIso, today));
+  } catch (e) {
+    if (!(e instanceof BayLogRefusal)) throw e;
+  }
+  return { removedId: id, bay };
 }
 
 /** His note on a row that has an exit (a car still in the bay has no line of its own yet). Null clears it. */

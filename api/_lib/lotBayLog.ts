@@ -23,9 +23,13 @@ export type BayLogRequest =
   // His note on a finished row (null clears it), and an M / B row linked to the hold already on the car (2026-11-04,
   // docs/ticket-bay-erin-exit-notes-existing-hold.md).
   | { action: 'bayNote'; id: number; note: string | null; by: string }
-  | { action: 'bayLinkHold'; id: number; holdId: string; by: string };
+  | { action: 'bayLinkHold'; id: number; holdId: string; by: string }
+  // A car cleaned while he was off the floor, added to the list as a Clean (migration 165,
+  // docs/ticket-bay-add-a-car-cleaned.md), and its Undo.
+  | { action: 'bayAdd'; vehicleId: string; by: string }
+  | { action: 'bayAddUndo'; id: number; by: string };
 
-export const BAY_LOG_ACTIONS: readonly BayLogRequest['action'][] = ['bayStart', 'bayExit', 'bayExitUndo', 'bayStandbySet', 'bayStandbyClear', 'bayBumpToNextUp', 'bayNote', 'bayLinkHold'];
+export const BAY_LOG_ACTIONS: readonly BayLogRequest['action'][] = ['bayStart', 'bayExit', 'bayExitUndo', 'bayStandbySet', 'bayStandbyClear', 'bayBumpToNextUp', 'bayNote', 'bayLinkHold', 'bayAdd', 'bayAddUndo'];
 
 /** A note's cap, the same as migration 164's check. */
 export const NOTE_MAX = 140;
@@ -113,6 +117,14 @@ export function parseBayLog(b: Record<string, unknown>, by: string): BayLogReque
       if (id == null) return { error: 'Which car?' };
       if (typeof b.holdId !== 'string' || !ID_TEXT.test(b.holdId)) return { error: 'Which hold?' };
       return { action: 'bayLinkHold', id, holdId: b.holdId, by };
+    }
+    case 'bayAdd':
+      if (typeof b.vehicleId !== 'string' || !ID_TEXT.test(b.vehicleId)) return { error: 'Pick the car first.' };
+      return { action: 'bayAdd', vehicleId: b.vehicleId, by };
+    case 'bayAddUndo': {
+      const id = rowId(b.id);
+      if (id == null) return { error: 'Nothing to undo.' };
+      return { action: 'bayAddUndo', id, by };
     }
     default:
       return { error: 'Unknown action.' };

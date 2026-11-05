@@ -1130,6 +1130,7 @@ export type Database = {
       }
       lot_bay_log: {
         Row: {
+          added: boolean
           car: string | null
           exit: string | null
           exited_at: string | null
@@ -1148,6 +1149,7 @@ export type Database = {
           vehicle_id: string
         }
         Insert: {
+          added?: boolean
           car?: string | null
           exit?: string | null
           exited_at?: string | null
@@ -1166,6 +1168,7 @@ export type Database = {
           vehicle_id: string
         }
         Update: {
+          added?: boolean
           car?: string | null
           exit?: string | null
           exited_at?: string | null

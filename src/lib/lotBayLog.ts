@@ -32,12 +32,15 @@ export interface BayLogRow {
   note: string | null;
   /** An M / B row tied to the hold already on the car ("Same as the … hold"). Set = flagged. */
   hold_id: string | null;
+  /** Added after the fact, not started in the bay (migration 165): its time is when he added it. Optional so a row read
+   *  before the column existed still types. */
+  added?: boolean;
 }
 
 /** A note's cap: migration 164's check, and the server's NOTE_MAX. */
 export const NOTE_MAX_CHARS = 140;
 
-export const BAY_LOG_COLUMNS = 'id, vehicle_id, plate, unit_number, car, odometer, started_at, exit, exited_at, took_dirty, redo_of, shift_day, note, hold_id';
+export const BAY_LOG_COLUMNS = 'id, vehicle_id, plate, unit_number, car, odometer, started_at, exit, exited_at, took_dirty, redo_of, shift_day, note, hold_id, added';
 
 /** What one line of the list says. `kind` 'bay' is the car in the bay now. */
 export type BayLineKind = BayExit | 'bay';
@@ -68,6 +71,8 @@ export function bayLines(rows: readonly BayLogRow[], { readOnly = false }: { rea
     else if (kind === 'skip') {
       note = skipNote(redoBy.get(r.id));
     } else if (r.redo_of != null) note = 'was bumped';
+    // Its stamp is when he added it, never when it was washed (2026-11-05, docs/ticket-bay-add-a-car-cleaned.md).
+    if (r.added) note = note ? `added later · ${note}` : 'added later';
     // The exit time, never the start, once the car is out: one stamp per finished car (no durations).
     const time = clockOf(r.exited_at ?? r.started_at);
     return { id: r.id, time, plate: r.plate, car: r.car ?? '', kind, label: labels[kind], note, memo: r.note ?? '' };

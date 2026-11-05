@@ -13,6 +13,9 @@ export function fakeDb(tables: Record<string, Row[]>): SupabaseClient {
     const filters: [string, unknown][] = [];
     const notNull: string[] = [];
     let deleting = false;
+    // `.or('shift_day.eq.D,exit.is.null')`, the one or() lotBayLogDb issues (addCleaned's day read). Only a read with an
+    // or() answers rows from `then`; the others stay null, as the tests before it were written against.
+    let anyOf: [string, unknown][] | null = null;
     const run = () => {
       const hit = (tables[t] ?? []).filter(r => filters.every(([k, v]) => r[k] === v) && notNull.every(k => r[k] != null));
       if (patch) hit.forEach(r => Object.assign(r, patch));
@@ -28,7 +31,15 @@ export function fakeDb(tables: Record<string, Row[]>): SupabaseClient {
       is: (k: string, v: unknown) => { filters.push([k, v]); return q; },
       // Only `.not(k, 'is', null)` is used: a row whose k is set.
       not: (k: string) => { notNull.push(k); return q; },
+      or: (spec: string) => {
+        anyOf = spec.split(',').map(p => { const [k, op, v] = p.split('.'); return [k!, op === 'is' && v === 'null' ? null : v]; });
+        return q;
+      },
       then: (ok: (v: unknown) => void) => {
+        if (anyOf) {
+          const any = anyOf;
+          return ok({ data: (tables[t] ?? []).filter(r => any.some(([k, v]) => (v === null ? r[k] == null : r[k] === v))).map(r => ({ ...r })), error: null });
+        }
         if (!deleting) return ok({ data: null, error: null });
         const gone = (tables[t] ?? []).filter(r => filters.every(([k, v]) => r[k] === v));
         tables[t] = (tables[t] ?? []).filter(r => !gone.includes(r));

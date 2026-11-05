@@ -5,7 +5,8 @@
 // taps. The airport went: *"airport lot data is hard to keep track of"*.)
 //
 // Top to bottom, in the order he uses it: the car in the bay and its exits, Erin St's count (the SAME blocks as the
-// Erin pill's sheet: *"steppers, use the same style as the header"*), today's list, the crew, the links.
+// Erin pill's sheet: *"steppers, use the same style as the header"*), today's list and its + Add a car already cleaned
+// (2026-11-05), the crew, the links.
 import { useCallback, useState } from 'react';
 import { initialsOf } from '../../lib/lotLookout';
 import { inTheBay, sameHoldChoices, sameHoldLabel, unflaggedHoldIds, type BayExit, type BayLogRow, type HoldExit } from '../../lib/lotBayLog';
@@ -24,6 +25,7 @@ import { ModuleHeader } from '../shared/ModuleHeader';
 import { LotCrewLine } from '../lot/LotCrewLine';
 import { BayInTheBay } from '../lot/BayInTheBay';
 import { BayLogList } from '../lot/BayLogList';
+import { BayAddCleaned } from '../lot/BayAddCleaned';
 import { BayDayHeader } from '../lot/BayDayHeader';
 import { ErinCountBlocks, UndoNoteBar } from '../lot/ErinCountBlocks';
 import { LotCrewPanel } from '../my-day/LotCrewPanel';
@@ -104,6 +106,16 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
     void settle(() => (pull === false ? bay.exit(id, kind, odometer, false) : odometer != null ? bay.exit(id, kind, odometer) : bay.exit(id, kind)),`${EXIT_NOTE[kind](plate)}${odoNote}${waits}`, undo)
       .then(ok => { if (ok) setBumped(kind === 'skip'); });
   };
+  // + Add a car already cleaned (2026-11-05, docs/ticket-bay-add-a-car-cleaned.md): the note names it, and Undo takes it off.
+  const addHere = async (vehicleId: string, plate: string) => {
+    setBusy(true);
+    const out = await bay.add(vehicleId);
+    setBusy(false);
+    if (!out) return false;
+    if ('error' in out) { show(out.error); return false; }
+    show(`${plate} added as clean`, () => void settle(() => bay.undoAdd(out.id), `${plate} taken off the list`));
+    return true;
+  };
   // No Undo on the note: the car is on deck, and its ▶ Start cleaning brings it straight back.
   const bumpHere = (replace: boolean) => {
     if (!open) return;
@@ -138,7 +150,12 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
         </section>
       )}
 
-      {isToday ? <BayLogList rows={bay.rows} heading="The bay log" edit={edit} />
+      {isToday ? (
+        <div className="space-y-2">
+          <BayLogList rows={bay.rows} heading="The bay log" edit={edit} />
+          {bay.loaded && <BayAddCleaned onAdd={addHere} onMore={search} />}
+        </div>
+      )
         : record.pastRows ? <BayLogList rows={record.pastRows} heading="The bay log" empty="No cars through the bay that day." edit={edit} />
         : <p className="text-center text-sm text-gray-500 dark:text-gray-400">Loading that day…</p>}
 
