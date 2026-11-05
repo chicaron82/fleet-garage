@@ -20,7 +20,7 @@
 // *"how bout a fall back to enter plate if the scanner goes down too."* A fallback that only appears
 // AFTER a failure is one he has to fail first to discover, and on a slow read he would sit waiting
 // instead of typing. It costs one line of screen and removes a whole failure mode.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { searchVehicles, type VehicleSearchResult } from '../../lib/ev-detection';
 import { foldOZero } from '../../lib/plateFold';
 import { VehicleName } from './VehicleName';
@@ -57,6 +57,7 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
   // ⚠️ Guards against a slow early request landing after a fast later one and repainting the list
   // with results for a query he has already typed past.
   const seq = useRef(0);
+  const wrapRef = useRef<HTMLDivElement>(null);
 
   // ⚠️ NO SYNCHRONOUS setState IN HERE — ESLint refuses it, correctly, and the right answer is the
   // one the closing-inventory card already learned: DERIVE instead of copying into state. Clearing
@@ -96,12 +97,15 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
   };
 
   const showRecents = armed && !query.trim() && (recents?.length ?? 0) > 0;
+  const listShown = showRecents || showFailed || (open && !failed && visible.length > 0);
+  useKeepListAboveKeyboard(wrapRef, listShown, visible.length);
   // ⭐ max-h + scroll: a look-up shows up to SEARCH_SHOW_LIMIT (12) since 2026-10-15, and the
   // half-row cut at the bottom is what tells him the list goes on.
   const listClass = `${inlineResults ? '' : 'absolute z-20 '}mt-1 w-full max-h-72 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg`;
 
   return (
-    <div className="relative">
+    // scroll-mt clears the sticky header when the field is scrolled to the top (useKeepListAboveKeyboard).
+    <div ref={wrapRef} className="relative scroll-mt-20">
       <div className="flex items-center gap-2">
         {/* ⭐ The × lives INSIDE the field, so the relative wrapper is on the input alone and the
             "Look up" button keeps its own place in the row. Aaron, 2026-09-15: *"some search fields
@@ -143,7 +147,7 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
       </div>
 
       {showRecents && (
-        <div className={listClass}>
+        <div data-lookup-list className={listClass}>
           <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Recent</p>
           <ul>
             {recents!.map(v => (
@@ -157,7 +161,7 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
           i 'look up'."* The search had died and looked exactly like a car that does not exist. It names the
           working door, because "Look up" resolves in memory and keeps working when the network does not. */}
       {showFailed && (
-        <div className={listClass}>
+        <div data-lookup-list className={listClass}>
           <p role="alert" className="px-3 py-2.5 text-xs text-amber-700 dark:text-amber-400">
             Couldn&apos;t search just now — tap <span className="font-semibold">Look up</span>.
           </p>
@@ -165,7 +169,7 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
       )}
 
       {open && !failed && visible.length > 0 && (
-        <ul className={listClass}>
+        <ul data-lookup-list className={listClass}>
           {visible.map(v => (
             // ⚠️ KEY ON PLATE + UNIT. Two rows can share a plate — a mock beside the real car
             // (2026-09-17), or a re-plate that made a duplicate record — and `key={plate}` gave
@@ -176,6 +180,35 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
       )}
     </div>
   );
+}
+
+/**
+ * When the suggestion list opens behind the phone's keyboard, scroll the field to the top of the screen so the list has
+ * the room above the keys.
+ *
+ * Aaron, 2026-11-04, mid-close at the bay, typing "0GY" with four Traxes and a K4 waiting under his keyboard: *"The
+ * keyboard is blocking my fuzzy search results"*. The bay's field sits low on Lot Lookout, so the list opened straight
+ * under the keys, and he had to drop the keyboard to see it.
+ *
+ * ⚠️ It acts ONLY when the list really is cut off: a host where the list already fits never moves under his thumb. It
+ * measures the VISUAL viewport, which is the part the keyboard leaves (Chrome on Android shrinks it and leaves
+ * `innerHeight` alone), and checks again when the keyboard finishes opening.
+ */
+function useKeepListAboveKeyboard(wrapRef: RefObject<HTMLDivElement | null>, listShown: boolean, rows: number) {
+  useEffect(() => {
+    if (!listShown) return;
+    const vv = window.visualViewport;
+    const check = () => {
+      const wrap = wrapRef.current;
+      const list = wrap?.querySelector('[data-lookup-list]');
+      if (!wrap || !list) return;
+      const visibleBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+      if (list.getBoundingClientRect().bottom > visibleBottom) wrap.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+    };
+    check();
+    vv?.addEventListener('resize', check);
+    return () => vv?.removeEventListener('resize', check);
+  }, [wrapRef, listShown, rows]);
 }
 
 /** One car in either list — a typed match or a recent. One row so the two can never drift apart. */

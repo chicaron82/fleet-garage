@@ -4,7 +4,7 @@
 // may be unreadable but you can still look up the unit right?… this isn't a new thing. its just
 // applied differently."* Four surfaces answered *which car is this* four ways, and the only one that
 // ever tried the UNIT NUMBER was the scan resolver — the one place least likely to need it.
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 const searchVehicles = vi.fn();
@@ -171,5 +171,39 @@ describe('a search that could not run says so', () => {
     type('LFJ334');
     expect(await screen.findByText(CAR.license_plate)).toBeTruthy();
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
+
+// Aaron, 2026-11-04, at the bay: *"The keyboard is blocking my fuzzy search results"*. A list opened behind the
+// keyboard scrolls the field up; a list that fits never moves.
+describe('⭐ the list stays above the keyboard', () => {
+  const realScroll = Element.prototype.scrollIntoView;
+  afterEach(() => {
+    vi.restoreAllMocks();
+    Element.prototype.scrollIntoView = realScroll;
+    Reflect.deleteProperty(window, 'visualViewport');
+  });
+  const setup = (listBottom: number, visibleHeight: number) => {
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({ bottom: listBottom } as DOMRect);
+    Object.defineProperty(window, 'visualViewport', { configurable: true,
+      value: { offsetTop: 0, height: visibleHeight, addEventListener: vi.fn(), removeEventListener: vi.fn() } });
+    return scroll;
+  };
+
+  it('⭐ the list opens under the keyboard → the field scrolls to the top', async () => {
+    const scroll = setup(700, 450);
+    render(<VehicleLookup onPick={vi.fn()} />);
+    type('0GY');
+    await waitFor(() => expect(scroll).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' }));
+  });
+
+  it('the list fits above the keyboard → nothing moves', async () => {
+    const scroll = setup(400, 450);
+    render(<VehicleLookup onPick={vi.fn()} />);
+    type('0GY');
+    await waitFor(() => screen.getByText('LUR512'));
+    expect(scroll).not.toHaveBeenCalled();
   });
 });
