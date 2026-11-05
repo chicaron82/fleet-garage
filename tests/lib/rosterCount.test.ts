@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { rosteredVsaCount, presentVsaCount } from '../../src/lib/rosterCount';
-import type { ShiftType, UserRole, Attendance } from '../../src/types';
+import { rosteredVsaCount, presentVsaCount, blockCrewSide, keepCrewIfStillSide } from '../../src/lib/rosterCount';
+import type { ShiftType, UserRole, Attendance, ExtraBlock } from '../../src/types';
 
 const row = (userId: string, date: string, shiftType: ShiftType, role: UserRole, attendance?: Attendance) =>
   ({ userId, date, shiftType, user: { role }, attendance });
@@ -52,39 +52,64 @@ describe('rosteredVsaCount', () => {
 });
 
 // Aaron, 2026-11-04: *"Overtime hours for me were added today, so why still roster of 1?"* He opened, went home, and
-// came back 18:00–21:00 to close with Khaiat (docs/ticket-roster-counts-plus-block-at-close.md).
-describe('⭐ a [+] block after the shift puts them on the close', () => {
-  const opener = (userId: string, more: { start: string; end: string }[], attendance?: Attendance) =>
-    ({ ...row(userId, DAY, 'opening', 'VSA', attendance), startTime: '06:45', endTime: '15:15', extraBlocks: more });
-  const tonight = [opener('aaron', [{ start: '18:00', end: '21:00' }]), row('khaiat', DAY, 'closing', 'VSA', 'present')];
+// came back 18:00–21:00 to close with Khaiat. His fix: *"an explicit check to the added hours. ✅ If closing"*, made
+// smart by when the hours sit (docs/ticket-plus-block-crew-tick.md).
+describe('⭐ a ticked [+] block puts them on that crew', () => {
+  const opener = (userId: string, more: ExtraBlock[], attendance?: Attendance) =>
+    ({ ...row(userId, DAY, 'opening', 'VSA', attendance), extraBlocks: more });
+  const back = (crew?: 'opening' | 'closing'): ExtraBlock => ({ start: '18:00', end: '21:00', ...(crew ? { crew } : {}) });
+  const tonight = [opener('aaron', [back('closing')]), row('khaiat', DAY, 'closing', 'VSA', 'present')];
 
-  it('⭐ tonight: the opener who came back counts, so the roster shows 2', () => {
+  it('⭐ tonight, ticked Closing crew: the roster shows 2', () => {
     expect(rosteredVsaCount(tonight, DAY, ['closing'])).toBe(2);
     expect(presentVsaCount(tonight, DAY, ['closing'])).toBe(2);
   });
 
-  it('the opening handoff ignores the block: he is still one opener', () => {
+  it('⭐ unticked, the block counts for nothing: his word, never a guess', () => {
+    expect(rosteredVsaCount([opener('aaron', [back()]), row('khaiat', DAY, 'closing', 'VSA')], DAY, ['closing'])).toBe(1);
+  });
+
+  it('⭐ a closer who came in to help the morning counts toward the opening handoff', () => {
+    const closer = { ...row('a', DAY, 'closing', 'VSA'), extraBlocks: [{ start: '06:45', end: '10:00', crew: 'opening' as const }] };
+    expect(rosteredVsaCount([closer, row('b', DAY, 'opening', 'VSA')], DAY, ['opening'])).toBe(2);
+  });
+
+  it('a Closing tick never counts toward the opening', () => {
     expect(rosteredVsaCount(tonight, DAY, ['opening'])).toBe(1);
   });
 
-  it('a block before the shift is not a return trip', () => {
-    expect(rosteredVsaCount([opener('a', [{ start: '05:00', end: '06:45' }])], DAY, ['closing'])).toBe(0);
-  });
-
-  it('the logged end wins: a block that starts after it counts', () => {
-    const s = { ...opener('a', [{ start: '16:00', end: '21:00' }]), endTime: '17:00', actualEndTime: '15:00' };
-    expect(rosteredVsaCount([s], DAY, ['closing'])).toBe(1);
-  });
-
   it('marked absent: on the roster, off the present count', () => {
-    const shifts = [opener('a', [{ start: '18:00', end: '21:00' }], 'absent')];
+    const shifts = [opener('a', [back('closing')], 'absent')];
     expect(rosteredVsaCount(shifts, DAY, ['closing'])).toBe(1);
     expect(presentVsaCount(shifts, DAY, ['closing'])).toBe(0);
   });
+});
 
-  it('a closer with a block of their own is still one person', () => {
-    const s = { ...row('k', DAY, 'closing', 'VSA'), endTime: '22:00', extraBlocks: [{ start: '23:00', end: '23:30' }] };
-    expect(rosteredVsaCount([s], DAY, ['closing'])).toBe(1);
+describe("blockCrewSide: the tick's label follows the times", () => {
+  const b = (start: string): ExtraBlock => ({ start, end: '' });
+  it('after the main hours: Closing; before them: Opening', () => {
+    expect(blockCrewSide('06:45', '15:15', b('18:00'))).toBe('closing');
+    expect(blockCrewSide('06:45', '15:15', b('15:15'))).toBe('closing');
+    expect(blockCrewSide('13:30', '22:00', b('06:45'))).toBe('opening');
+  });
+  it('nothing to offer: no start yet, no main hours, or inside the shift', () => {
+    expect(blockCrewSide('06:45', '15:15', b(''))).toBeNull();
+    expect(blockCrewSide('', '', b('18:00'))).toBeNull();
+    expect(blockCrewSide('06:45', '15:15', b('10:00'))).toBeNull();
+  });
+  it('a close past midnight: a block after it is still Closing', () => {
+    expect(blockCrewSide('16:30', '01:00', b('01:30'))).toBe('closing');
+  });
+});
+
+describe('keepCrewIfStillSide: an edit never re-points his tick', () => {
+  it('kept while the block stays on its side', () => {
+    const blk: ExtraBlock = { start: '18:00', end: '21:00', crew: 'closing' };
+    expect(keepCrewIfStillSide('06:45', '15:15', blk)).toBe(blk);
+  });
+  it('dropped (not flipped) once the times move it', () => {
+    expect(keepCrewIfStillSide('06:45', '15:15', { start: '05:00', end: '06:30', crew: 'closing' }))
+      .toEqual({ start: '05:00', end: '06:30' });
   });
 });
 

@@ -75,7 +75,7 @@ export function ShiftActualHours({ shift, actual, onClose }: Props) {
 
         <ShiftBreakChips breakMinutes={breakMinutes} onChange={setBreakMinutes} />
 
-        <ShiftExtraBlocks blocks={extraBlocks} onChange={setExtraBlocks} />
+        <ShiftExtraBlocks blocks={extraBlocks} onChange={setExtraBlocks} mainStart={actualStart} mainEnd={actualEnd} />
 
         {/* Stat checkbox */}
         <label className="flex items-center gap-2.5 cursor-pointer">

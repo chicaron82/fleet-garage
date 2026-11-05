@@ -647,6 +647,8 @@ export function isFullDayShift(t: ShiftType): boolean {
 export interface ExtraBlock {
   start: string;
   end: string;
+  /** Ticked ✅ Opening crew / ✅ Closing crew: this block puts them on that crew's roster. Absent = not ticked. */
+  crew?: 'opening' | 'closing';
 }
 
 export interface Shift {

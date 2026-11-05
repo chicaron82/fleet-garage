@@ -14,6 +14,7 @@ import { useTodayShifts } from '../hooks/useTodayShifts';
 // 330-cap wall; import them from there, not from this context.
 import { toISO, getWeekBounds, formatShiftLabel, isManagerEditingOtherUser, buildRowToShift } from '../lib/schedule-helpers';
 import { shiftDateStr } from '../lib/shiftDay';
+import { keepCrewIfStillSide } from '../lib/rosterCount';
 import { PROTECTED_IMPORT_TYPES, dropProtectedDays, type ImportOutcome, type PreservedDay } from '../lib/scheduleImportBuild';
 import { canManageSchedule } from '../types';
 import type { Attendance, ExtraBlock, Shift, ShiftType, ShiftWithUser } from '../types';
@@ -340,7 +341,9 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   // a block with a blank time is dropped rather than saved half-typed.
   const logActualHours = (id: string, actualStartTime: string, actualEndTime: string, isStat: boolean, breakMinutes?: number | null, extraBlocks?: ExtraBlock[]) => {
     const hasMain = !!(actualStartTime && actualEndTime);
-    const blocks  = hasMain ? (extraBlocks ?? []).filter(b => b.start && b.end) : [];
+    const blocks  = hasMain
+      ? (extraBlocks ?? []).filter(b => b.start && b.end).map(b => keepCrewIfStillSide(actualStartTime, actualEndTime, b))
+      : [];
     return updateShiftRow(id, {
       actual_start_time: actualStartTime || null, actual_end_time: actualEndTime || null, is_stat: isStat,
       break_minutes: hasMain ? (breakMinutes ?? null) : null,
