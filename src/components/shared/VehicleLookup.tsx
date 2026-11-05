@@ -191,8 +191,9 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
  * under the keys, and he had to drop the keyboard to see it.
  *
  * ⚠️ It acts ONLY when the list really is cut off: a host where the list already fits never moves under his thumb. It
- * measures the VISUAL viewport, which is the part the keyboard leaves (Chrome on Android shrinks it and leaves
- * `innerHeight` alone), and checks again when the keyboard finishes opening.
+ * measures the VISUAL viewport, the part the keyboard leaves, and checks again when the keyboard finishes opening.
+ * (FG's index.html sets `interactive-widget=resizes-content`, so the keyboard shrinks the layout viewport too and
+ * `innerHeight` would agree; the visual viewport is right under either setting.)
  */
 function useKeepListAboveKeyboard(wrapRef: RefObject<HTMLDivElement | null>, listShown: boolean, rows: number) {
   useEffect(() => {
