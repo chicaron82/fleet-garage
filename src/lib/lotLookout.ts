@@ -6,14 +6,15 @@
 // data is hard to keep track of"*. Their tables (lot_stalls, lot_aisle, lot_taps, lot_airport, lot_airport_taps) stay as
 // history; git holds the code. Lot Lookout is Erin St now: the count and the bay log (161).
 
-/** Which Lot Lookout page a path opens, or null for FG itself. /lot/erin is Erin St's count (migration 153), /lot/view
- *  the read-only bay. ⭐ /lot was the drivers' airport page until 2026-10-29 (*"cutting it altogether and focusing on
- *  erin st"*); it opens the read-only view now, so a link already saved on a driver's phone is never a dead page.
- *  A trailing slash is the same page. */
-export type LotPageKind = 'erin' | 'view';
+/** Which Lot Lookout page a path opens, or null for FG itself. There is one page now: /lot/view, the read-only bay.
+ *  ⭐ Two old addresses open it too, so a link already saved on a phone is never a dead page: /lot (the drivers'
+ *  airport page until 2026-10-29, *"cutting it altogether and focusing on erin st"*) and /lot/erin (Erin St's count
+ *  behind the shared PIN until 2026-11-05, *"It's unused and just keeping the read-only"*). A trailing slash is the
+ *  same page. */
+export type LotPageKind = 'view';
 export function lotPageOf(pathname: string): LotPageKind | null {
   const p = pathname.replace(/\/+$/, '').toLowerCase();
-  return p === '/lot' || p === '/lot/view' ? 'view' : p === '/lot/erin' ? 'erin' : null;
+  return p === '/lot' || p === '/lot/view' || p === '/lot/erin' ? 'view' : null;
 }
 
 /** A quick tap can be taken back within this window (Erin St's count: a −1 right after your own +1 is a slip). */

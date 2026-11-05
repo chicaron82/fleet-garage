@@ -3,11 +3,12 @@
 // 2026-10-29: *"airport lot data is hard to keep track of ... focusing on erin st"*.
 // GET /api/lot — today's crew: numbers for anyone (the read-only /lot/view), names only for a signed-in FG session.
 //
-// The /lot page has no FG login; a driver opens it with a shared PIN (Aaron, 2026-10-14). Migration 151 makes
-// the lot tables read-only to the browser's keys, so this function checks the PIN and writes with the
-// service role. It touches nothing but the lot tables. Rules: _lib/lotRequest.ts.
+// Migration 151 makes the lot tables read-only to the browser's keys, so this function checks the caller and writes
+// with the service role. It touches nothing but the lot tables. Rules: _lib/lotRequest.ts.
+// ⭐ ONE DOOR: a signed-in FG session. The shared PIN (2026-10-14) was for pages with no FG login: the drivers' airport
+// page (retired 2026-10-29) and /lot/erin (retired 2026-11-05, *"It's unused and just keeping the read-only"*).
 import { createClient } from '@supabase/supabase-js';
-import { bearerOf, parseLotRequest, pinMatches } from './_lib/lotRequest.js';
+import { bearerOf, parseLotRequest } from './_lib/lotRequest.js';
 import { BAY_ACTIONS, bayChange, type BayRequest } from './_lib/lotBay.js';
 import { BAY_LOG_ACTIONS, type BayLogRequest } from './_lib/lotBayLog.js';
 import { BayLogRefusal, bumpToNextUp, clearStandby, exitCar, linkHold, setNote, setStandby, startCar, undoExit } from './_lib/lotBayLogDb.js';
@@ -32,8 +33,7 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
   }
   const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SECRET_KEY;
-  const pin = process.env.LOT_PIN;
-  if (!url || !serviceKey || !pin) {
+  if (!url || !serviceKey) {
     res.status(500).json({ error: 'The lot board is not set up yet.' });
     return;
   }
@@ -52,13 +52,11 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
   const body = (typeof req.body === 'string' ? safeJson(req.body) : req.body) as Record<string, unknown> | null;
   const parsed = parseLotRequest(body);
   const db = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
-  // Two doors: the shared PIN (a driver with no FG login), or a signed-in FG session (FG's My Day card, 2026-10-15:
-  // *"May I suggest adding the cleans steppers here"*). FG is trusted-crew-only; the PIN is for everyone else.
-  const pinOk = pinMatches(body?.pin, pin);
+  // The one door: a signed-in FG session (FG is trusted-crew-only). A body still carrying a PIN gets no further.
   const token = bearerOf(req.headers?.authorization);
-  const signedIn = !pinOk && token != null && !(await db.auth.getUser(token)).error;
-  if (!pinOk && !signedIn) {
-    res.status(401).json({ error: token ? 'Your FG sign-in has run out. Sign in again.' : 'That PIN is not right.' });
+  const signedIn = token != null && !(await db.auth.getUser(token)).error;
+  if (!signedIn) {
+    res.status(401).json({ error: token ? 'Your FG sign-in has run out. Sign in again.' : 'Sign in to FG to change the lot.' });
     return;
   }
   if ('error' in parsed) {
@@ -68,10 +66,6 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
   const now = new Date().toISOString();
 
   try {
-    if (parsed.action === 'check') {
-      res.status(200).json({ ok: true });
-      return;
-    }
     if (isBayLogRequest(parsed)) {
       // His log, his taps: a signed-in FG session only, never the shared PIN (ticket-lot-lookout-bay-log).
       if (!signedIn) {

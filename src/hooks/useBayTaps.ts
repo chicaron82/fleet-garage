@@ -10,13 +10,13 @@
 //
 // And setBoth, for the closing inventory: copying the sheet out sets Erin's count to its A/D (useErinFromInventory).
 //
-// Two ways in, one writer: the public /lot/erin page sends the shared PIN (useBayTaps); FG sends the signed-in
-// session instead (useBayTapsSignedIn — Aaron, 2026-10-15: *"May I suggest adding the cleans steppers here"*).
+// One way in: FG's signed-in session (useBayTapsSignedIn — Aaron, 2026-10-15: *"May I suggest adding the cleans steppers
+// here"*). The public /lot/erin page and its shared PIN were retired on 2026-11-05 (*"It's unused"*).
 import { useCallback, useRef } from 'react';
 import { bayFromRow, isCleansFix, usedToday, type BayRow, type LotBay } from '../lib/lotBay';
 import { businessDateOf } from '../lib/shiftDay';
 import type { LotBayState } from './useLotBay';
-import { postLot, postLotSignedIn, useLotPin, type LotPost } from './useLotPin';
+import { postLotSignedIn, type LotPost } from './useLotPin';
 
 type Send = (body: Record<string, unknown>) => Promise<LotPost>;
 /** A note, and (for a quick tap) what its Undo does. Pages without an Undo just show the note. */
@@ -139,21 +139,7 @@ function useBayWriter(state: LotBayState, toast: BayToast, send: Send, by: strin
   return { tapCleans, stepDirties, setCount, setDirties, drain, fill, setBoth };
 }
 
-/** The public /lot/erin page: the shared PIN and the initials this phone remembers. */
-export function useBayTaps(state: LotBayState, toast: BayToast) {
-  const { pin, by, setBy, unlock, forgetPin, fail, pinWorked } = useLotPin(toast);
-  // Any write that gets through proves a PIN taken on trust (Reflection 87): before, only an AIRPORT tap cleared it, so
-  // a driver who only tapped Erin's count kept seeing "your PIN is checked when there is" on the airport page.
-  const send = useCallback<Send>(async body => {
-    const r = await postLot({ pin, ...body });
-    if (r.ok) pinWorked();
-    return r;
-  }, [pin, pinWorked]);
-  const writer = useBayWriter(state, toast, send, by || 'Lot', fail);
-  return { pin, by, setBy, unlock, forgetPin, ...writer };
-}
-
-/** FG itself (the Erin pill, My Day's card, the module): the signed-in session stands in for the PIN. */
+/** FG itself (the Erin pill, My Day's card, the module): the signed-in session. */
 export function useBayTapsSignedIn(state: LotBayState, toast: BayToast, by: string) {
   const fail = useCallback((r: LotPost) => toast(r.error ?? 'The tap did not save.'), [toast]);
   return useBayWriter(state, toast, postLotSignedIn, by || 'FG', fail);

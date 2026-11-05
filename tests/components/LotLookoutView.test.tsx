@@ -197,9 +197,9 @@ describe('LotLookoutView — the bay log', () => {
     expect(screen.getByRole('region', { name: 'Crew now' })).toHaveTextContent('VSAs 2 on');
   });
 
-  it('the outside links: Erin St\'s count and the read-only view (the driver link went with the airport)', () => {
+  it('⭐ one outside link: the read-only view (the driver link went with the airport, Erin St\'s PIN count on 2026-11-05)', () => {
     render(<LotLookoutView onNavigate={vi.fn()} />);
-    expect(screen.getAllByRole('link', { name: 'Open' }).map(a => a.getAttribute('href'))).toEqual(['/lot/erin', '/lot/view']);
+    expect(screen.getAllByRole('link', { name: 'Open' }).map(a => a.getAttribute('href'))).toEqual(['/lot/view']);
   });
 
   // ── first-shift friction (2026-10-31, docs/ticket-bay-log-first-shift-friction.md) ──

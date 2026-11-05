@@ -1,10 +1,10 @@
-// The outside ways into Lot Lookout, each with Open and Copy: Erin St's count (PIN) and the read-only view (no PIN).
+// The outside way into Lot Lookout, with Open and Copy: the read-only view (no PIN). Erin St's count link (the PIN page)
+// came off on 2026-11-05: *"It's unused and just keeping the read-only"*. FG is the count's only writer now.
 // Moved off the My Day card into the module, 2026-10-15. The drivers' airport link went with the airport (2026-10-29):
 // /lot still opens, and lands on the read-only view, so a link already on a driver's phone is never a dead page.
 import { useState } from 'react';
 
 const LINKS = [
-  { path: '/lot/erin', label: 'Erin St count' },
   { path: '/lot/view', label: 'Read only, no PIN' },
 ] as const;
 

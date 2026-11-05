@@ -15,10 +15,11 @@ describe('labels', () => {
 describe('lotPageOf', () => {
   it('the Lot Lookout pages, trailing slash or not', () => {
     // ⭐ /lot was the drivers' airport page; since 2026-10-29 it lands on the read-only bay, never a dead link.
+    // ⭐ /lot/erin was Erin St's count behind the shared PIN; since 2026-11-05 it lands there too.
     expect(lotPageOf('/lot')).toBe('view');
     expect(lotPageOf('/lot/')).toBe('view');
-    expect(lotPageOf('/lot/erin')).toBe('erin');
-    expect(lotPageOf('/lot/Erin/')).toBe('erin');
+    expect(lotPageOf('/lot/erin')).toBe('view');
+    expect(lotPageOf('/lot/Erin/')).toBe('view');
     expect(lotPageOf('/lot/view')).toBe('view');
   });
   it('⚠️ everything else is FG, behind its login', () => {

@@ -8,7 +8,6 @@ const sent: Record<string, unknown>[] = [];
 let reply: (body: Record<string, unknown>) => Record<string, unknown>;
 vi.mock('../../src/hooks/useLotPin', () => ({
   postLot: vi.fn(),
-  useLotPin: vi.fn(),
   postLotSignedIn: vi.fn(async (body: Record<string, unknown>) => {
     sent.push(body);
     return { ok: true, status: 200, json: { bay: reply(body) } };

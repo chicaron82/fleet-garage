@@ -1,19 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { pinMatches, parseLotRequest, cleanBy, DIRTIES_MAX, bearerOf } from '../../api/_lib/lotRequest';
+import { parseLotRequest, cleanBy, DIRTIES_MAX, bearerOf } from '../../api/_lib/lotRequest';
 import { BAY_LOG_ACTIONS } from '../../api/_lib/lotBayLog';
-
-describe('pinMatches', () => {
-  it('matches the set PIN, trimmed', () => {
-    expect(pinMatches(' 4821 ', '4821')).toBe(true);
-  });
-  it('⚠️ refuses a wrong PIN, a missing one, and any PIN when none is set', () => {
-    expect(pinMatches('4820', '4821')).toBe(false);
-    expect(pinMatches(undefined, '4821')).toBe(false);
-    expect(pinMatches(4821, '4821')).toBe(false);
-    expect(pinMatches('4821', undefined)).toBe(false);
-    expect(pinMatches('', '')).toBe(false);
-  });
-});
 
 describe('parseLotRequest', () => {
   it('⚠️ the retired airport actions are refused, so an old open tab or a queued tap cannot write them (2026-10-29)', () => {
@@ -21,6 +8,9 @@ describe('parseLotRequest', () => {
     expect(parseLotRequest({ action: 'stall', stall: 'O7', state: 'dirty', by: 'AS' })).toHaveProperty('error');
     expect(parseLotRequest({ action: 'undo', stall: 'P7', prev: { state: null } })).toHaveProperty('error');
     expect(parseLotRequest({ action: 'aisle', delta: 1 })).toHaveProperty('error');
+  });
+  it('⚠️ the PIN page\'s unlock is refused too: the PIN door is gone (2026-11-05)', () => {
+    expect(parseLotRequest({ action: 'check', by: 'AS' })).toHaveProperty('error');
   });
   it('the bay log (migration 161) goes to its own rules', () => {
     expect(parseLotRequest({ action: 'bayStart', vehicleId: 'v-123', by: 'AS' })).toEqual({ action: 'bayStart', vehicleId: 'v-123', by: 'AS' });

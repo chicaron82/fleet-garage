@@ -1,11 +1,9 @@
-// Lot Lookout's request rules for api/lot.ts — pure, so the PIN check and the shape check are tested
-// without a server. (Ticket: docs/ticket-lot-lookout-live-airport-stall-board.md.)
+// Lot Lookout's request rules for api/lot.ts — pure, so the shape check is tested without a server.
+// (Ticket: docs/ticket-lot-lookout-live-airport-stall-board.md.)
 //
-// ⚠️ The PIN is the ONLY thing between the public /lot page and the board: migration 151 makes the lot tables
-// read-only to every key the browser holds, and this function is the one writer. His ruling, 2026-10-14:
-// *"separate page with a pin works"*. If it leaks, the damage is a wrong reading and he changes LOT_PIN.
-// The one other door (2026-10-15): a signed-in FG session, for FG's own My Day card (bearerOf + auth.getUser).
-import { timingSafeEqual } from 'node:crypto';
+// Migration 151 makes the lot tables read-only to every key the browser holds, and api/lot.ts is the one writer. Its
+// only door is a signed-in FG session (bearerOf + auth.getUser). The shared PIN that once let a driver with no FG login
+// write (2026-10-14) was retired with the last page that used it, /lot/erin, on 2026-11-05.
 import type { BayRequest } from './lotBay.js';
 import { parseBayLog, BAY_LOG_ACTIONS, type BayLogRequest } from './lotBayLog.js';
 
@@ -15,7 +13,6 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // its two readings: *"airport lot data is hard to keep track of that's why i proposed cutting it altogether and focusing
 // on erin st"*. Its tables stay as history. Lot Lookout is Erin St's count and the bay log (161).
 export type LotRequest =
-  | { action: 'check'; by: string }
   | BayRequest
   | BayLogRequest
   | { action: 'leaveOff'; user: string; off: boolean; by: string };
@@ -29,13 +26,6 @@ const CREW_TAP_MAX = 20;
 function countOf(v: unknown): number | null {
   const n = typeof v === 'number' ? v : typeof v === 'string' && /^\d+$/.test(v.trim()) ? Number(v) : NaN;
   return Number.isInteger(n) && n >= 0 && n <= DIRTIES_MAX ? n : null;
-}
-
-export function pinMatches(given: unknown, expected: string | undefined): boolean {
-  if (!expected || typeof given !== 'string') return false;
-  const a = Buffer.from(given.trim());
-  const b = Buffer.from(expected.trim());
-  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 /** The token from an `Authorization: Bearer …` header, or null. The caller checks it with auth.getUser. */
@@ -60,8 +50,6 @@ export function parseLotRequest(body: unknown): LotRequest | { error: string } {
   // here, so the server answered his first real Next up with "Unknown action." One list, so it cannot drift again.
   if ((BAY_LOG_ACTIONS as readonly unknown[]).includes(b.action)) return parseBayLog(b, by);
   switch (b.action) {
-    case 'check':
-      return { action: 'check', by };
     // Erin St's count (migration 153).
     case 'cleans':
       if (b.delta !== 1 && b.delta !== -1) return { error: 'Cleans move one car at a time.' };

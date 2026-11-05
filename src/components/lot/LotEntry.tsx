@@ -11,24 +11,23 @@
 // (That offer lived on the drivers' airport page, retired 2026-10-29; a phone that already said yes keeps its copy, and
 // this prompt is how it learns /lot is the read-only view now.)
 import { Suspense, lazy } from 'react';
-import type { LotPageKind } from '../../lib/lotLookout';
 import { LOT_OFFLINE_KEY, lotOfflineState, registersWorker } from '../../lib/lotOffline';
 import { PwaUpdatePrompt } from '../shared/PwaUpdatePrompt';
 
-const LotBayPage = lazy(() => import('./LotBayPage').then(m => ({ default: m.LotBayPage })));
 const LotViewPage = lazy(() => import('./LotViewPage').then(m => ({ default: m.LotViewPage })));
 
 function optedInBefore(): boolean {
   try { return localStorage.getItem(LOT_OFFLINE_KEY) === '1'; } catch { return false; }
 }
 
-export function LotEntry({ page }: { page: LotPageKind }) {
+// One page since /lot/erin retired (2026-11-05): every /lot address opens the read-only view.
+export function LotEntry() {
   const hasCopy = typeof navigator !== 'undefined' && !!navigator.serviceWorker?.controller;
   const state = lotOfflineState(hasCopy, optedInBefore());
   return (
     <>
       <Suspense fallback={null}>
-        {page === 'erin' ? <LotBayPage /> : <LotViewPage />}
+        <LotViewPage />
       </Suspense>
       {registersWorker(state) && <PwaUpdatePrompt />}
     </>
