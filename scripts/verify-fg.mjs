@@ -61,7 +61,11 @@ const shot = `${verifyDir}${name}.png`;
 
 const fresh = existsSync(statePath) && (Date.now() - statSync(statePath).mtimeMs < 30 * 60 * 1000);
 
-const browser = await chromium.launch();
+// ⚠️ The installed Google Chrome when there is one (2026-11-05): Playwright's bundled Chromium (149) carries tz tables
+// from before Manitoba kept UTC−5, so every render read Winnipeg an hour early ("as of 15:25" for a 16:25 tap). Chrome
+// 157 reads it right, and it updates itself. Falls back to the bundled one where Chrome isn't installed.
+const browser = await chromium.launch({ channel: 'chrome' }).catch(() => chromium.launch());
+console.log(`BROWSER ${browser.version()}`);
 const ctx = await browser.newContext({
   // ⭐ So a `clip` step can read back what a copy-out actually put on the clipboard. Aaron asked the
   // question this exists to answer: *"if it copies things?"* — and a button that fires is not the
