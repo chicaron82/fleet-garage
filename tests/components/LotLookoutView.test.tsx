@@ -174,6 +174,15 @@ describe('LotLookoutView — the bay log', () => {
     expect(onNavigate).not.toHaveBeenCalled();
   });
 
+  it('⚠️ a hold from BEFORE the car went in is not this visit\'s, even with the start in Postgres\' spelling (d2441b18, pinned at /reflect 89)', () => {
+    // As strings, "2026-10-29T16:15…Z" sorts after "2026-10-29 16:20:00+00" ('T' > ' '), which offered "Close it as held"
+    // for an old hold. Compared as instants it is 5 minutes BEFORE the start.
+    rows = [row({ started_at: '2026-10-29 16:20:00+00' })];
+    holds = [{ vehicleId: 'v-536', flaggedAt: '2026-10-29T16:15:00.000Z', holdTypes: ['mechanical'] }];
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: /Close it as held/ })).toBeNull();
+  });
+
   it('Skip bumps it, and the empty bay says what comes next', async () => {
     rows = [row({})];
     const { rerender } = render(<LotLookoutView onNavigate={vi.fn()} />);
