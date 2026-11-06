@@ -10,9 +10,15 @@
 // here too, so a driver's saved airport link lands on something live.
 //
 // Today's crew (migration 154) shows as NUMBERS from GET /api/lot, which never sends this page a name.
+//
+// ⭐ NOT BEING KEPT (2026-11-05, docs/ticket-lot-view-count-not-kept.md): after 2 h with nothing done (his number, any
+// tap), the page blurs behind a card in the BAY's voice, never his: no name, no hours, no "back at". Show it anyway
+// clears it for the visit; his next tap clears it for everyone.
+import { useState } from 'react';
 import { useBayLog } from '../../hooks/useBayLog';
 import { useLotBay } from '../../hooks/useLotBay';
 import { useLotCrew } from '../../hooks/useLotCrew';
+import { isCountKept, lastActivity } from '../../lib/countKept';
 import { clockOf } from '../../lib/lotBay';
 import { inTheBay } from '../../lib/lotBayLog';
 import { shiftDayLabel } from '../../lib/shiftDay';
@@ -25,6 +31,9 @@ export function LotViewPage() {
   const bay = useBayLog();
   const { crew } = useLotCrew();
   const open = inTheBay(bay.rows);
+  const [shown, setShown] = useState(false);
+  const last = lastActivity(erin.bay, bay.rows);
+  const covered = erin.loaded && bay.loaded && !shown && !isCountKept(last, erin.nowMs);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
@@ -34,7 +43,18 @@ export function LotViewPage() {
           <span className="text-xs text-gray-500 dark:text-gray-400">Erin St · read only</span>
         </div>
         {!erin.loaded || !bay.loaded ? <p className="mt-8 text-center text-sm text-gray-500">Loading the bay…</p> : (
-          <>
+          <div className="relative">
+          {covered && (
+            <section aria-label="Not being kept" className="absolute inset-x-0 top-6 z-10 mx-2 rounded-2xl border border-gray-300 dark:border-gray-600 bg-white/95 dark:bg-gray-900/95 px-4 py-4 text-center shadow-lg">
+              <p className="font-bold">The count isn't being kept right now.</p>
+              {last && <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Last updated {clockOf(last)}.</p>}
+              <button type="button" onClick={() => setShown(true)}
+                className="mt-3 rounded-xl border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-semibold text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800">
+                Show it anyway
+              </button>
+            </section>
+          )}
+          <div className={covered ? 'space-y-3 blur-sm pointer-events-none select-none' : 'space-y-3'} aria-hidden={covered || undefined}>
             <section aria-label="In the bay now"
               className={`rounded-2xl px-4 py-3 ${open ? 'border-2 border-amber-500 bg-white dark:bg-gray-900' : 'border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900'}`}>
               <p className="text-[11px] font-extrabold uppercase tracking-wider text-amber-800 dark:text-amber-300">In the bay now</p>
@@ -53,7 +73,8 @@ export function LotViewPage() {
             {bay.error && <p className="text-sm text-red-700 dark:text-red-400">{bay.error}</p>}
             <BayLogList rows={bay.rows} readOnly heading={`Today · ${shiftDayLabel()}`} />
             {crew && <LotCrewLine summary={crew.summary} />}
-          </>
+          </div>
+          </div>
         )}
         <p className="text-center text-xs text-gray-500 dark:text-gray-400">Updates by itself. Cars and times from the bay log.</p>
       </div>
