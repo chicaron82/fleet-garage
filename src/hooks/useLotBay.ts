@@ -23,7 +23,7 @@ let channelSeq = 0;
 
 function fetchBay() {
   return supabase.from('lot_bay')
-    .select('cleans, cleans_by, cleans_at, dirties, dirties_by, dirties_at, used, used_on').eq('id', 1).maybeSingle();
+    .select('cleans, cleans_by, cleans_at, dirties, dirties_by, dirties_at, used, used_on, break_at').eq('id', 1).maybeSingle();
 }
 function fetchLog() {
   return supabase.from('lot_bay_taps').select('id, kind, value, prev, tapped_by, tapped_at')

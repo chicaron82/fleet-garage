@@ -52,3 +52,36 @@ describe('LotViewPage, when the count is not being kept', () => {
     expect(screen.queryByRole('region', { name: 'Not being kept' })).toBeNull();
   });
 });
+
+describe('LotViewPage, on break (migration 166)', () => {
+  beforeEach(() => { state.rows = []; });
+
+  it('⭐ a heads-up, not the blur, and no time on it', () => {
+    state.bay = { ...state.bay, cleansAt: ago(40), dirtiesAt: ago(45), breakAt: ago(20) } as typeof state.bay;
+    render(<LotViewPage />);
+    const note = screen.getByRole('status');
+    expect(note.textContent).toBe('The count is paused for a break. It catches up after.');
+    expect(screen.queryByRole('region', { name: 'Not being kept' })).toBeNull();
+    expect(screen.getByText('the count').closest('[aria-hidden="true"]')).toBeNull();
+  });
+
+  it('⭐ his next tap ends it, with nothing cleared', () => {
+    state.bay = { ...state.bay, cleansAt: ago(5), dirtiesAt: ago(45), breakAt: ago(20) } as typeof state.bay;
+    render(<LotViewPage />);
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('a break he never came back from turns into "not being kept" 2 h after it began, with the count\'s own last time', () => {
+    state.bay = { ...state.bay, cleansAt: ago(150), dirtiesAt: ago(150), breakAt: ago(125) } as typeof state.bay;
+    render(<LotViewPage />);
+    expect(screen.queryByRole('status')).toBeNull();
+    const card = screen.getByRole('region', { name: 'Not being kept' });
+    expect(card.textContent).toContain('Last updated');
+  });
+
+  it('the break keeps the 2 h clock alive: a break 1 h ago after a last tap 3 h ago is a break, not "not kept"', () => {
+    state.bay = { ...state.bay, cleansAt: ago(180), dirtiesAt: ago(180), breakAt: ago(60) } as typeof state.bay;
+    render(<LotViewPage />);
+    expect(screen.getByRole('status')).toBeTruthy();
+  });
+});

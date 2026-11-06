@@ -30,6 +30,8 @@ export interface LotBay {
   used: number;
   /** The shift-day `used` belongs to (YYYY-MM-DD). */
   usedOn: string | null;
+  /** When he went on break (migration 166); null = not on one. Any later tap ends it (src/lib/countKept.ts). */
+  breakAt?: string | null;
 }
 
 // set / drain / fill / undo: the Erin pill's quick taps (migration 156). held: a bay car out on M/B hold (migration 162).
@@ -48,13 +50,15 @@ export interface BayRow {
   cleans: number; cleans_by: string | null; cleans_at: string | null;
   dirties: number | null; dirties_by: string | null; dirties_at: string | null;
   used: number; used_on: string | null;
+  /** Absent from a row read before migration 166's column was selected: treated as no break. */
+  break_at?: string | null;
 }
 
 export function bayFromRow(r: BayRow): LotBay {
   return {
     cleans: r.cleans, cleansBy: r.cleans_by, cleansAt: r.cleans_at,
     dirties: r.dirties, dirtiesBy: r.dirties_by, dirtiesAt: r.dirties_at,
-    used: r.used, usedOn: r.used_on,
+    used: r.used, usedOn: r.used_on, breakAt: r.break_at ?? null,
   };
 }
 

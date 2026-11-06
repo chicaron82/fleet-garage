@@ -136,7 +136,13 @@ function useBayWriter(state: LotBayState, toast: BayToast, send: Send, by: strin
     toast(`Erin set to ${cleans}/${dirties}`, undoTo(before, 'cleans'));
   }, [state, write, by, toast, undoTo]);
 
-  return { tapCleans, stepDirties, setCount, setDirties, drain, fill, setBoth };
+  /** On break / Back (migration 166): a stamp on the row, not a count. Any later tap ends a break by itself. */
+  const setBreak = useCallback(async (on: boolean) => {
+    const saved = await write({ action: 'bayBreak', on }, (b, at) => ({ ...b, breakAt: on ? at : null }));
+    if (saved) toast(on ? 'On break. The read-only page says the count is paused.' : 'Back. The count is live again.');
+  }, [write, toast]);
+
+  return { tapCleans, stepDirties, setCount, setDirties, drain, fill, setBoth, setBreak };
 }
 
 /** FG itself (the Erin pill, My Day's card, the module): the signed-in session. */

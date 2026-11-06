@@ -44,3 +44,37 @@ describe('api/lot — the one door', () => {
     expect((await call({ action: 'check' }, 'Bearer good')).status).toBe(400);
   });
 });
+
+describe('api/lot — On break (migration 166, docs/ticket-lot-bay-on-break.md)', () => {
+  function fakeBay() {
+    const patches: Record<string, unknown>[] = [], tables: string[] = [];
+    from.mockImplementation(((table: string) => {
+      tables.push(table);
+      return {
+        update(patch: Record<string, unknown>) {
+          patches.push(patch);
+          const chain = { eq: () => chain, select: () => chain, single: async () => ({ data: { id: 1, cleans: 6, ...patch }, error: null }) };
+          return chain;
+        },
+      };
+    }) as never);
+    return { patches, tables };
+  }
+
+  it('⭐ on stamps break_at, back clears it; it moves no count and logs no tap', async () => {
+    const f = fakeBay();
+    const on = await call({ action: 'bayBreak', on: true, by: 'AS' }, 'Bearer good');
+    expect(on.status).toBe(200);
+    expect(typeof f.patches[0]!.break_at).toBe('string');
+    expect(Object.keys(f.patches[0]!)).toEqual(['break_at']);
+    const back = await call({ action: 'bayBreak', on: false, by: 'AS' }, 'Bearer good');
+    expect(back.status).toBe(200);
+    expect(f.patches[1]).toEqual({ break_at: null });
+    expect(f.tables).toEqual(['lot_bay', 'lot_bay']);
+  });
+
+  it('needs the sign-in like everything else', async () => {
+    fakeBay();
+    expect((await call({ action: 'bayBreak', on: true, by: 'AS' })).status).toBe(401);
+  });
+});

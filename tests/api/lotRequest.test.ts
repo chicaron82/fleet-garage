@@ -110,3 +110,14 @@ describe('parseLotRequest — leaveOff (migration 155)', () => {
     expect(parseLotRequest({ action: 'leaveOff', user: u })).toHaveProperty('error');
   });
 });
+
+describe('parseLotRequest — bayBreak (migration 166, docs/ticket-lot-bay-on-break.md)', () => {
+  it('on break, and back', () => {
+    expect(parseLotRequest({ action: 'bayBreak', on: true, by: 'AS' })).toEqual({ action: 'bayBreak', on: true, by: 'AS' });
+    expect(parseLotRequest({ action: 'bayBreak', on: false })).toMatchObject({ action: 'bayBreak', on: false });
+  });
+  it('refuses a break with no on/off', () => {
+    expect(parseLotRequest({ action: 'bayBreak' })).toHaveProperty('error');
+    expect(parseLotRequest({ action: 'bayBreak', on: 'yes' })).toHaveProperty('error');
+  });
+});

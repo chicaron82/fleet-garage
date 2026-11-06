@@ -1,7 +1,7 @@
 // The read-only page's "is the count being kept?" (docs/ticket-lot-view-count-not-kept.md). Aaron, 2026-11-05: on at
 // the first clean, off after 2 h with nothing done.
 import { describe, it, expect } from 'vitest';
-import { COUNT_KEPT_MS, isCountKept, lastActivity } from '../../src/lib/countKept';
+import { COUNT_KEPT_MS, isCountKept, isOnBreak, lastActivity, lastHand } from '../../src/lib/countKept';
 
 const at = (ms: number) => new Date(ms).toISOString();
 const T = Date.parse('2026-11-05T21:14:25.796Z');
@@ -39,5 +39,28 @@ describe('isCountKept', () => {
 
   it('never touched at all is not kept', () => {
     expect(isCountKept(null, T)).toBe(false);
+  });
+});
+
+describe('isOnBreak / lastHand (migration 166)', () => {
+  it('⭐ on break while nothing has happened since it began', () => {
+    expect(isOnBreak(at(T), at(T - 5 * 60_000))).toBe(true);
+    expect(isOnBreak(at(T), null)).toBe(true);
+  });
+
+  it('⭐ any tap after it ends it, with nothing cleared', () => {
+    expect(isOnBreak(at(T), at(T + 60_000))).toBe(false);
+  });
+
+  it('no break started, or Back cleared it', () => {
+    expect(isOnBreak(null, at(T))).toBe(false);
+    expect(isOnBreak(undefined, at(T))).toBe(false);
+  });
+
+  it('the 2 h clock runs from the later of the last tap and the break', () => {
+    expect(lastHand(at(T - 60 * 60_000), at(T))).toBe(at(T));
+    expect(lastHand(at(T), at(T - 60 * 60_000))).toBe(at(T));
+    expect(lastHand(null, at(T))).toBe(at(T));
+    expect(lastHand(at(T), null)).toBe(at(T));
   });
 });

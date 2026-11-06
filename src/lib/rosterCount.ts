@@ -1,5 +1,5 @@
 import type { Attendance, ExtraBlock, ShiftType, UserRole } from '../types';
-import { dayMinute } from './bayCrewBlocks';
+import { dayMinute } from './bayDay';
 
 const VSA_ROLES: UserRole[] = ['VSA', 'Lead VSA'];
 

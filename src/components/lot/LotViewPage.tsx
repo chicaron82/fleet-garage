@@ -14,11 +14,14 @@
 // ⭐ NOT BEING KEPT (2026-11-05, docs/ticket-lot-view-count-not-kept.md): after 2 h with nothing done (his number, any
 // tap), the page blurs behind a card in the BAY's voice, never his: no name, no hours, no "back at". Show it anyway
 // clears it for the visit; his next tap clears it for everyone.
+//
+// ⭐ ON BREAK (migration 166, docs/ticket-lot-bay-on-break.md): a heads-up, not the blur: the count isn't stale, it's
+// paused. No time on it: this link reaches his manager, and a start time would make it a log of his breaks.
 import { useState } from 'react';
 import { useBayLog } from '../../hooks/useBayLog';
 import { useLotBay } from '../../hooks/useLotBay';
 import { useLotCrew } from '../../hooks/useLotCrew';
-import { isCountKept, lastActivity } from '../../lib/countKept';
+import { isCountKept, isOnBreak, lastActivity, lastHand } from '../../lib/countKept';
 import { clockOf } from '../../lib/lotBay';
 import { inTheBay } from '../../lib/lotBayLog';
 import { shiftDayLabel } from '../../lib/shiftDay';
@@ -33,7 +36,10 @@ export function LotViewPage() {
   const open = inTheBay(bay.rows);
   const [shown, setShown] = useState(false);
   const last = lastActivity(erin.bay, bay.rows);
-  const covered = erin.loaded && bay.loaded && !shown && !isCountKept(last, erin.nowMs);
+  const breakAt = erin.bay?.breakAt;
+  const hand = lastHand(last, breakAt);
+  const covered = erin.loaded && bay.loaded && !shown && !isCountKept(hand, erin.nowMs);
+  const onBreak = !covered && isCountKept(hand, erin.nowMs) && isOnBreak(breakAt, last);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
@@ -55,6 +61,11 @@ export function LotViewPage() {
             </section>
           )}
           <div className={covered ? 'space-y-3 blur-sm pointer-events-none select-none' : 'space-y-3'} aria-hidden={covered || undefined}>
+            {onBreak && (
+              <p role="status" className="rounded-2xl border border-sky-300 dark:border-sky-700 bg-sky-50 dark:bg-sky-950 px-4 py-2.5 text-sm text-sky-900 dark:text-sky-100">
+                <span className="font-bold">The count is paused for a break.</span> It catches up after.
+              </p>
+            )}
             <section aria-label="In the bay now"
               className={`rounded-2xl px-4 py-3 ${open ? 'border-2 border-amber-500 bg-white dark:bg-gray-900' : 'border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900'}`}>
               <p className="text-[11px] font-extrabold uppercase tracking-wider text-amber-800 dark:text-amber-300">In the bay now</p>

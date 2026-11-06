@@ -5,8 +5,8 @@
 // taps. The airport went: *"airport lot data is hard to keep track of"*.)
 //
 // Top to bottom, in the order he uses it: the car in the bay and its exits, Erin St's count (the SAME blocks as the
-// Erin pill's sheet: *"steppers, use the same style as the header"*), today's list and its + Add a car already cleaned
-// (2026-11-05), the crew, the links.
+// Erin pill's sheet: *"steppers, use the same style as the header"*) with On break beside its heading (2026-11-05),
+// today's list and its + Add a car already cleaned (2026-11-05), the crew, the links.
 import { useCallback, useState } from 'react';
 import { initialsOf } from '../../lib/lotLookout';
 import { inTheBay, sameHoldChoices, sameHoldLabel, unflaggedHoldIds, type BayExit, type BayLogRow, type HoldExit } from '../../lib/lotBayLog';
@@ -27,6 +27,8 @@ import { BayInTheBay } from '../lot/BayInTheBay';
 import { BayLogList } from '../lot/BayLogList';
 import { BayAddCleaned } from '../lot/BayAddCleaned';
 import { BayDayHeader } from '../lot/BayDayHeader';
+import { BayBreakButton, BayBreakStrip } from '../lot/BayBreak';
+import { isOnBreak, lastActivity } from '../../lib/countKept';
 import { ErinCountBlocks, UndoNoteBar } from '../lot/ErinCountBlocks';
 import { LotCrewPanel } from '../my-day/LotCrewPanel';
 import { LotLinks } from './LotLinks';
@@ -54,6 +56,8 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
   const [busy, setBusy] = useState(false);
   const [bumped, setBumped] = useState(false);
   const open = inTheBay(bay.rows);
+  // On break (migration 166): held only while nothing has happened since; any tap ends it.
+  const onBreak = isOnBreak(erin.bay?.breakAt, lastActivity(erin.bay, bay.rows));
   // The day record (Phase 2): ‹ › back through his days. Today is the live log; an earlier day is history.
   const [back, setBack] = useState(0);
   const isToday = back === 0, day = shiftDateStr(-back);
@@ -128,7 +132,7 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
       <ModuleHeader title="Lot Lookout" subtitle="Erin St · the bay log" />
 
       {bay.error && <p className="text-sm text-red-700 dark:text-red-400">{bay.error}</p>}
-      <BayDayHeader label={dayLabel} isToday={isToday} canForward={back > 0} crew={record.crew} nowMs={erin.nowMs}
+      <BayDayHeader label={dayLabel} isToday={isToday} canForward={back > 0} mine={record.mine} nowMs={erin.nowMs}
         onBack={() => setBack(b => b + 1)} onForward={() => setBack(b => Math.max(0, b - 1))} onToday={() => setBack(0)} />
       {record.error && <p className="text-sm text-red-700 dark:text-red-400">{record.error}</p>}
 
@@ -145,7 +149,11 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
 
       {isToday && erin.bay && (
         <section aria-label="Erin St" className="space-y-2">
-          <h2 className={SECTION_HEAD}>Erin St</h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 className={SECTION_HEAD}>Erin St</h2>
+            {!onBreak && <BayBreakButton onBreak={() => void taps.setBreak(true)} />}
+          </div>
+          {onBreak && <BayBreakStrip onBack={() => void taps.setBreak(false)} />}
           <ErinCountBlocks erin={erin} taps={taps} drivers={crew?.summary.driver.on ?? 0} />
         </section>
       )}

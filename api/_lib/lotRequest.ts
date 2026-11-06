@@ -15,7 +15,9 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export type LotRequest =
   | BayRequest
   | BayLogRequest
-  | { action: 'leaveOff'; user: string; off: boolean; by: string };
+  | { action: 'leaveOff'; user: string; off: boolean; by: string }
+  // On break (migration 166): on = he's off the floor, off = he's back. Any later tap ends it on its own.
+  | { action: 'bayBreak'; on: boolean; by: string };
 
 /** A typed count at Erin St (dirties, and cleans since migration 156). A cap, so a fat-fingered 2300 is refused. */
 export const DIRTIES_MAX = 300;
@@ -97,6 +99,9 @@ export function parseLotRequest(body: unknown): LotRequest | { error: string } {
       if (typeof b.user !== 'string' || !UUID.test(b.user)) return { error: 'Pick who this is for.' };
       if (typeof b.off !== 'boolean') return { error: 'Leave off, or bring back?' };
       return { action: 'leaveOff', user: b.user, off: b.off, by };
+    case 'bayBreak':
+      if (typeof b.on !== 'boolean') return { error: 'On break, or back?' };
+      return { action: 'bayBreak', on: b.on, by };
     default:
       return { error: 'Unknown action.' };
   }

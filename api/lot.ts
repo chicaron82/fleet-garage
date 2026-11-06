@@ -104,6 +104,13 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
       res.status(200).json({ ok: true, crew: await loadCrew(db, Date.parse(now), true) });
       return;
     }
+    if (parsed.action === 'bayBreak') {
+      // On break (migration 166, docs/ticket-lot-bay-on-break.md): a stamp, not a count. Moves no number, logs no tap.
+      const { data: saved, error } = await db.from('lot_bay').update({ break_at: parsed.on ? now : null }).eq('id', 1).select().single();
+      if (error) throw error;
+      res.status(200).json({ ok: true, bay: saved });
+      return;
+    }
     if (isBayRequest(parsed)) {
       const { data: row, error: readErr } = await db.from('lot_bay').select('cleans, dirties, used, used_on').eq('id', 1).single();
       if (readErr) throw readErr;

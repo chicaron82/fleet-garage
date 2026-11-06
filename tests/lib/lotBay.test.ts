@@ -73,7 +73,11 @@ describe('bayTapLine', () => {
 describe('bayFromRow', () => {
   it('maps the row', () => {
     expect(bayFromRow({ cleans: 6, cleans_by: 'AS', cleans_at: 'x', dirties: null, dirties_by: null, dirties_at: null, used: 2, used_on: '2026-10-15' }))
-      .toEqual({ cleans: 6, cleansBy: 'AS', cleansAt: 'x', dirties: null, dirtiesBy: null, dirtiesAt: null, used: 2, usedOn: '2026-10-15' });
+      .toEqual({ cleans: 6, cleansBy: 'AS', cleansAt: 'x', dirties: null, dirtiesBy: null, dirtiesAt: null, used: 2, usedOn: '2026-10-15', breakAt: null });
+  });
+
+  it('carries a break (migration 166)', () => {
+    expect(bayFromRow({ cleans: 6, cleans_by: 'AS', cleans_at: 'x', dirties: 1, dirties_by: 'AS', dirties_at: 'x', used: 2, used_on: '2026-10-15', break_at: 'b' }).breakAt).toBe('b');
   });
 });
 

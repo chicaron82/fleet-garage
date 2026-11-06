@@ -1,21 +1,20 @@
-// Lot Lookout's day record (docs/ticket-lot-lookout-bay-log.md, Phase 2): for the day he's looking at, that day's crew
-// blocks (his shift, the VSAs on, numbers only) and, for an EARLIER day, its bay log. Today's bay log stays live in
+// Lot Lookout's day record (docs/ticket-lot-lookout-bay-log.md, Phase 2): for the day he's looking at, whether it was
+// one of his logging days and when his shift ran (the header's status line), and, for an EARLIER day, its bay log. Today's bay log stays live in
 // useBayLog; an earlier day is history, read once. ‹ › walks back through his days: *"let's keep a daily record of the
 // day as well"* (2026-10-29).
 //
-// Each answer is kept with the day it belongs to, so stepping days never shows one day's crew under another's heading
+// Each answer is kept with the day it belongs to, so stepping days never shows one day's status under another's heading
 // (and nothing is reset synchronously inside an effect).
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { rowToShiftBase } from '../lib/rowToShift';
-import { bayDayCrew, type BayDayCrew } from '../lib/bayCrewBlocks';
+import { myBayDay, type MyBayDay } from '../lib/bayDay';
 import { BAY_LOG_COLUMNS, type BayLogRow } from '../lib/lotBayLog';
-import { useProfiles } from '../context/ProfilesContext';
 import type { Shift } from '../types';
 
 export interface BayDay {
   /** Null while the day's schedule loads (or with nobody signed in). */
-  crew: BayDayCrew | null;
+  mine: MyBayDay | null;
   /** An earlier day's rows; null while loading, and always null for today (the live log has those). */
   pastRows: BayLogRow[] | null;
   error: string | null;
@@ -24,7 +23,6 @@ export interface BayDay {
 }
 
 export function useBayDay(day: string, me: string | null, isToday: boolean): BayDay {
-  const profiles = useProfiles();
   const [shifts, setShifts] = useState<{ day: string; rows: Shift[] } | null>(null);
   const [past, setPast] = useState<{ day: string; rows: BayLogRow[] } | null>(null);
   const [error, setError] = useState<{ day: string; text: string } | null>(null);
@@ -47,10 +45,7 @@ export function useBayDay(day: string, me: string | null, isToday: boolean): Bay
   }, [day, isToday]);
 
   const dayShifts = shifts?.day === day ? shifts.rows : null;
-  const crew = useMemo(
-    () => (dayShifts && me ? bayDayCrew(dayShifts, me, id => profiles.get(id)?.role ?? null) : null),
-    [dayShifts, me, profiles],
-  );
+  const mine = useMemo(() => (dayShifts && me ? myBayDay(dayShifts, me) : null), [dayShifts, me]);
   const replaceRow = useCallback((row: BayLogRow) => setPast(p => (p ? { ...p, rows: p.rows.map(x => (x.id === row.id ? row : x)) } : p)), []);
-  return { crew, pastRows: isToday ? null : past?.day === day ? past.rows : null, error: error?.day === day ? error.text : null, replaceRow };
+  return { mine, pastRows: isToday ? null : past?.day === day ? past.rows : null, error: error?.day === day ? error.text : null, replaceRow };
 }
