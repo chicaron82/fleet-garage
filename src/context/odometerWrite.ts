@@ -126,3 +126,54 @@ export function makeCorrectOdometer(deps: {
     return true;
   };
 }
+
+/**
+ * "Still reads X": the reading on file is confirmed today, and only its DATE moves.
+ *
+ * ⭐ Aaron, 2026-11-07: *"no change - for situations where it was logged earlier, but sat ... today when i get it, the odo
+ * reads the same."* An equal number used to say "nothing to update" and leave yesterday's date, so FG believed the car
+ * was last read yesterday. The date is what checkOdometerJump divides by, so a confirmed-today reading keeps that check
+ * honest. The VALUE never moves, so the forward-only rule is untouched.
+ *
+ * Guarded server-side on the value (`odometer = km`): if a different reading landed meanwhile, nothing is written.
+ */
+export function makeConfirmOdometer(deps: {
+  setAllVehicles: React.Dispatch<React.SetStateAction<Vehicle[]>>;
+}) {
+  const { setAllVehicles } = deps;
+
+  return async (vehicleId: string, km: number): Promise<boolean> => {
+    commitSightingFor(vehicleId);   // reading a dash is presence, same as a Log (makeRecordOdometer)
+    const at = new Date().toISOString();
+    const { data, error } = await writeWithRefresh(() =>
+      supabase.from('vehicles').update({ odometer_at: at }).eq('id', vehicleId).eq('odometer', km).select('id'));
+    if (error || !data?.length) return false;
+    setAllVehicles(prev => prev.map(v => (v.id === vehicleId ? { ...v, odometerAt: at } : v)));
+    return true;
+  };
+}
+
+/**
+ * Undo a reading just saved: the number AND its date go back to what they were.
+ *
+ * ⭐ Aaron, 2026-11-07: *"revert to last entered/previous odo. i think it was LUR184, i updated its odo when it should have
+ * been for LUR185. so i cleared what i entered then just re-entered what it was before"*. Clear-and-retype put the old
+ * number back with TODAY's date (47,420 "read" on 11-06 when it was read 10-25), which skews the next jump check. This
+ * puts back both. `prevKm` null = it was the car's first reading, so the car returns to "not logged".
+ *
+ * Guarded on the value just saved (`odometer = savedKm`): a reading that landed after it is never undone.
+ */
+export function makeRestoreOdometer(deps: {
+  setAllVehicles: React.Dispatch<React.SetStateAction<Vehicle[]>>;
+}) {
+  const { setAllVehicles } = deps;
+
+  return async (vehicleId: string, savedKm: number, prevKm: number | null, prevAt: string | null): Promise<boolean> => {
+    const back = prevKm == null ? { odometer: null, odometer_at: null } : { odometer: prevKm, odometer_at: prevAt };
+    const { data, error } = await writeWithRefresh(() =>
+      supabase.from('vehicles').update(back).eq('id', vehicleId).eq('odometer', savedKm).select('id'));
+    if (error || !data?.length) return false;
+    setAllVehicles(prev => prev.map(v => (v.id === vehicleId ? { ...v, odometer: back.odometer, odometerAt: back.odometer_at } : v)));
+    return true;
+  };
+}

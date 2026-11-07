@@ -71,6 +71,10 @@ export interface VehicleHoldContextValue {
   /** The one write allowed to move an odometer DOWN — a correction, never an ordinary log.
    *  See context/odometerWrite.makeCorrectOdometer. */
   correctOdometer: (vehicleId: string, km: number) => Promise<boolean>;
+  /** "Still reads X": the reading on file seen again today; only its date moves. See odometerWrite. */
+  confirmOdometer: (vehicleId: string, km: number) => Promise<boolean>;
+  /** Undo a reading just saved: number and date back to what they were. See odometerWrite. */
+  restoreOdometer: (vehicleId: string, savedKm: number, prevKm: number | null, prevAt: string | null) => Promise<boolean>;
   /** Release a manual lock on one identity field — the un-lock half of the provenance ladder
    *  (inferred < tag < manual). Deletes the field from field_sources; the value is untouched. */
   unlockVehicleField: (vehicleId: string, field: string) => Promise<void>;

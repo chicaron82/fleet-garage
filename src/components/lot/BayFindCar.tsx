@@ -20,7 +20,7 @@ import { BayCarHeader } from './BayCarHeader';
 
 /** `onOpenCar`: the header's tap, to the car's record. */
 export function BayFindCar({ bay, onMore, onOpenCar }: { bay: BayLogState; onMore: () => void; onOpenCar: (vehicleId: string) => void }) {
-  const { vehicles, archivedVehicles, recordOdometer, clearOdometer, correctOdometer } = useVehicleHoldContext();
+  const { vehicles, archivedVehicles, recordOdometer, clearOdometer, correctOdometer, confirmOdometer, restoreOdometer } = useVehicleHoldContext();
   const { recents, record } = useLookupRecents(true);
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [missed, setMissed] = useState<string | null>(null);
@@ -40,7 +40,8 @@ export function BayFindCar({ bay, onMore, onOpenCar }: { bay: BayLogState; onMor
         {/* The popup's own header and damage map (BayCarHeader): Unit #, codes, status, and where the damage is. */}
         <BayCarHeader vehicle={car} onOpen={() => onOpenCar(car.id)} />
         <OdometerCapture isUs={car.isUs} vehicleId={car.id} resetKey={car.id} currentKm={car.odometer} currentAt={car.odometerAt}
-          onSave={recordOdometer} onClear={clearOdometer} onCorrect={correctOdometer} />
+          onSave={recordOdometer} onClear={clearOdometer} onCorrect={correctOdometer}
+          onConfirm={confirmOdometer} onRestore={restoreOdometer} />
         {/* Started: the module's own list gets the row, so this card turns into "In the bay" by itself. */}
         <ScanBayStart vehicle={car} bayLog={bay} onOpenBay={() => {}} />
       </div>

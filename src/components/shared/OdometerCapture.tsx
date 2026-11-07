@@ -23,7 +23,7 @@ import { centreAfterKeypad } from '../../lib/centreAfterKeypad';
 /** How long a first tap on Clear stays armed before it stands down on its own. */
 export const CLEAR_ARM_MS = 4000;
 
-export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isUs, autoFocus, onSave, onClear, onCorrect }: {
+export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isUs, autoFocus, onSave, onClear, onCorrect, onConfirm, onRestore }: {
   vehicleId: string;
   /** What counts as "a new subject", decided by the CALLER — because the two homes mean different
    *  things by it. The SCAN passes its per-scan nonce, because a scan is an EVENT and re-scanning
@@ -64,6 +64,12 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
    *  Deliberately separate from `onSave`: the forward-only rule owns the ordinary path and stays
    *  intact, so going down has to be a different call as well as a different tap. */
   onCorrect?: (vehicleId: string, km: number) => Promise<boolean>;
+  /** ⭐ "Still reads X" (Aaron, 2026-11-07): the same number seen again today; only the date moves. Omitted → the old
+   *  neutral "nothing to update" line. */
+  onConfirm?: (vehicleId: string, km: number) => Promise<boolean>;
+  /** ⭐ Undo on "✓ saved" (Aaron, 2026-11-07, the LUR184 reading meant for LUR185): the number AND its date go back.
+   *  Omitted → no Undo offered. */
+  onRestore?: (vehicleId: string, savedKm: number, prevKm: number | null, prevAt: string | null) => Promise<boolean>;
 }) {
   const [draft, setDraft] = useState('');
   const [saved, setSaved] = useState(false);
@@ -71,9 +77,15 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
   const [clearing, setClearing] = useState(false);
   const [clearArmed, setClearArmed] = useState(false);
   const [correcting, setCorrecting] = useState(false);
+  // What a save replaced, so its Undo can put back the number AND its date (null km = it was the first reading).
+  const [undoTo, setUndoTo] = useState<{ km: number; prevKm: number | null; prevAt: string | null } | null>(null);
+  const [undoing, setUndoing] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  const [undone, setUndone] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const unit = odometerUnitFor(isUs);
 
-  useRoutedProp(resetKey, () => { setDraft(''); setSaved(false); setFailed(false); setClearArmed(false); });
+  useRoutedProp(resetKey, () => { setDraft(''); setSaved(false); setFailed(false); setClearArmed(false); setUndoTo(null); setConfirmed(false); setUndone(null); setActionError(null); });
 
   // An armed Clear that is not confirmed stands down by itself — a stray tap must not leave a
   // loaded button waiting under his thumb for the next one.
@@ -124,9 +136,37 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
     setFailed(false);
     // ⚠️ It used to set "saved" on the next line regardless, and recordOdometer swallowed its failures, so a weak signal
     // read "✓ 48,213 km saved" with nothing written (found 2026-11-02, docs/ticket-odo-capture-claims-saved.md).
+    const before = { prevKm: currentKm ?? null, prevAt: currentAt ?? null };
     const landed = await onSave(vehicleId, km).catch(() => false);
     if (landed === false) { setFailed(true); return; }
+    setUndone(null);
+    setUndoTo({ km, ...before });
     setSaved(true);
+  };
+
+  const undo = async () => {
+    if (!undoTo || !onRestore) return;
+    hapticLight();
+    setUndoing(true);
+    const ok = await onRestore(vehicleId, undoTo.km, undoTo.prevKm, undoTo.prevAt).catch(() => false);
+    setUndoing(false);
+    // Refused too when a newer reading landed since: the guard never undoes a reading that came after.
+    if (!ok) { setActionError('That did not undo. Check your signal, or the reading changed since.'); return; }
+    setActionError(null);
+    // Said plainly, so he can see the old number (and that it kept its old date) came back.
+    setUndone(undoTo.prevKm == null ? 'Undone: back to not logged' : `Undone: back to ${undoTo.prevKm.toLocaleString()} ${unit}`);
+    setUndoTo(null);
+    setSaved(false);
+    setDraft('');
+  };
+
+  const confirmSame = async () => {
+    if (km === null || !onConfirm) return;
+    hapticLight();
+    setActionError(null);
+    const ok = await onConfirm(vehicleId, km).catch(() => false);
+    if (!ok) { setActionError('That did not save. Check your signal and tap it again.'); return; }
+    setConfirmed(true);
   };
 
   return (
@@ -141,8 +181,19 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
           ⚠️ {jump.detail}
         </p>
       )}
-      {saved ? (
-        <span className="text-xs font-semibold text-green-700 dark:text-green-400">✓ {km?.toLocaleString()} {unit} saved</span>
+      {confirmed ? (
+        <span className="text-xs font-semibold text-green-700 dark:text-green-400">✓ Still {km?.toLocaleString()} {unit}, seen today</span>
+      ) : saved ? (
+        <span className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-green-700 dark:text-green-400">✓ {km?.toLocaleString()} {unit} saved</span>
+          {/* ⭐ The wrong-car slip, caught in the moment: back to the number AND its date, which clear-and-retype can't do. */}
+          {onRestore && undoTo && (
+            <button type="button" onClick={() => void undo()} disabled={undoing}
+              className="h-9 px-3 rounded-lg border border-gray-300 dark:border-gray-700 text-xs font-semibold text-gray-700 dark:text-gray-300 disabled:opacity-40 cursor-pointer">
+              {undoing ? 'Undoing…' : 'Undo'}
+            </button>
+          )}
+        </span>
       ) : (
         // ⭐ ONE LINE AT HIS WIDTH. Aaron, 2026-10-14: on his Pixel 10 (~412 px) the box, Log and Clear
         // wrapped under the reading, and only shrinking the whole phone's display size put them back
@@ -224,7 +275,17 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
           "Same" is not a mistake at all — the record already says that — so it reads as a neutral
           nothing-to-do rather than an accusation. Saying "lower" for an equal value would be a small
           lie inside a message whose whole job is catching one. */}
-      {notForward && !saved && (
+      {actionError && <p role="alert" className="w-full text-[11px] font-semibold text-red-600 dark:text-red-400">{actionError}</p>}
+      {undone && !saved && <span role="status" className="text-[11px] font-semibold text-gray-600 dark:text-gray-300">{undone}</span>}
+      {/* ⭐ "Still reads X" (2026-11-07): the same number is not a mistake, and now it is not a dead end either. With
+          onConfirm, it is a tap that moves only the DATE to today; without it, the old neutral line. */}
+      {sameAsFile && !saved && !confirmed && onConfirm && (
+        <button type="button" onClick={() => void confirmSame()}
+          className="w-full h-11 px-4 rounded-lg border border-gray-300 dark:border-gray-700 text-xs font-semibold text-gray-800 dark:text-gray-200 cursor-pointer">
+          {`Still reads ${currentKm?.toLocaleString()} ${unit} — confirm it today`}
+        </button>
+      )}
+      {notForward && !saved && !confirmed && !(sameAsFile && onConfirm) && (
         <span className={`text-[11px] font-semibold ${
           sameAsFile ? 'text-gray-500 dark:text-gray-400' : 'text-red-600 dark:text-red-400'
         }`}>
@@ -245,8 +306,11 @@ export function OdometerCapture({ vehicleId, resetKey, currentKm, currentAt, isU
             if (km === null) return;
             hapticLight();
             setCorrecting(true);
+            const before = { prevKm: currentKm ?? null, prevAt: currentAt ?? null };
             const ok = await onCorrect!(vehicleId, km);
             setCorrecting(false);
+            // A correction can land on the wrong car as easily as a Log, so it gets the same Undo.
+            if (ok) { setUndone(null); setUndoTo({ km, ...before }); }
             // ⚠️ Only claims success when the write actually landed — the R61/R62 lesson, and the
             // same reason `save` cannot simply assume. A correction that silently failed while the
             // screen said "saved" would leave the wrong number on a car he believes he fixed.

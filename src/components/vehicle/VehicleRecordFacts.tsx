@@ -97,7 +97,7 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
   /** Opens the identity modal. Omitted → the chip stays plain text, as it was before. */
   onEditCodes?: () => void;
 }) {
-  const { recordKeyCount, recordOdometer, clearOdometer, correctOdometer, recordWinterTires, recordOnLot } = useVehicleHoldContext();
+  const { recordKeyCount, recordOdometer, clearOdometer, correctOdometer, confirmOdometer, restoreOdometer, recordWinterTires, recordOnLot } = useVehicleHoldContext();
   const sightings = useVehicleSightings(plate, vehicleId);
   const profiles = useProfiles();
   const [zoom, setZoom] = useState(false);
@@ -236,11 +236,15 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
           /* He tapped to open this. Finishing that gesture is the point — he is at the dash with
              one hand free, and the second tap was never carrying information. */
           autoFocus
-          onSave={async (id, km) => { const ok = await recordOdometer(id, km); if (ok) setEditingOdo(false); return ok; }}
+          /* ⚠️ Stays OPEN after a save since 2026-11-07, so the "✓ saved" line can offer Undo (the wrong-car slip is
+             noticed right then). It used to close on save, which would have taken the Undo away with it. */
+          onSave={recordOdometer}
           /* Closes the editor on a successful clear, the same as a save — the row underneath then
              reads "Odometer not logged", which IS the confirmation. */
           onClear={async (id) => { const ok = await clearOdometer(id); if (ok) setEditingOdo(false); return ok; }}
           onCorrect={correctOdometer}
+          onConfirm={confirmOdometer}
+          onRestore={restoreOdometer}
         />
       ) : (
         <button

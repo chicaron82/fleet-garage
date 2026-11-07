@@ -56,7 +56,7 @@ export function ScanIdentityCard({
   scanRead, result, holdLines, scanNonce, canRegister, onPickCandidate, onOpenVehicle,
   geotabPending, scanPhoto, backfillToast, conflictToast, codexToast,
 }: Props) {
-  const { holds, recordKeyCount, recordOdometer, clearOdometer, correctOdometer, updateVehicleEVAssets, adoptPlate, retakeKeytagPhoto } = useVehicleHoldContext();
+  const { holds, recordKeyCount, recordOdometer, clearOdometer, correctOdometer, confirmOdometer, restoreOdometer, updateVehicleEVAssets, adoptPlate, retakeKeytagPhoto } = useVehicleHoldContext();
   const photographed = !!scanPhoto;
   const vehicle = result.vehicle ?? null;
   // The photo in his hand is a picture of the car's CURRENT tag: it was photographed, and its plate
@@ -158,6 +158,8 @@ export function ScanIdentityCard({
             recordOdometer={recordOdometer}
             clearOdometer={clearOdometer}
             correctOdometer={correctOdometer}
+            confirmOdometer={confirmOdometer}
+            restoreOdometer={restoreOdometer}
             updateVehicleEVAssets={updateVehicleEVAssets}
           />
         </>
