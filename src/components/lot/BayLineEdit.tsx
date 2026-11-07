@@ -48,6 +48,38 @@ export function BayNoteEditor({ initial, onSave, onClose }: {
   );
 }
 
+/** His delete (2026-11-06, docs/ticket-bay-remove-a-row.md): *"We need a delete option for me"*. Asked in the line, never
+ *  a dialog. A refusal or a failed save stays here and says so. */
+export function BayRemoveConfirm({ what, onRemove, onClose }: {
+  /** "LUR367 · Clean 16:40" */
+  what: string;
+  /** Resolves the error text, or null when it came off. */
+  onRemove: () => Promise<string | null>;
+  onClose: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const remove = async () => {
+    setBusy(true);
+    const e = await onRemove();
+    setBusy(false);
+    if (e) setErr(e); else onClose();
+  };
+  return (
+    <div role="group" aria-label="Remove from the list" className="space-y-1.5 pt-1">
+      <p className="text-xs text-gray-700 dark:text-gray-200">Remove {what} from today's list? The count goes back with it.</p>
+      {err && <p role="alert" className="text-xs font-semibold text-red-700 dark:text-red-400">{err}</p>}
+      <div className="flex items-center gap-1.5">
+        <button type="button" disabled={busy} onClick={() => void remove()}
+          className="min-h-9 rounded-lg bg-red-600 hover:bg-red-700 px-3 text-xs font-bold text-white cursor-pointer touch-manipulation disabled:opacity-40">
+          Remove
+        </button>
+        <button type="button" disabled={busy} onClick={onClose} className={QUIET}>Keep</button>
+      </div>
+    </div>
+  );
+}
+
 export interface SameHoldChoice { id: string; label: string }
 
 export function BayFlagChoices({ choices, onSame, onNew, onClose }: {

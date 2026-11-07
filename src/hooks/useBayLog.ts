@@ -27,6 +27,8 @@ export interface BayLogState {
    *  (docs/ticket-bay-add-a-car-cleaned.md) */
   add: (vehicleId: string) => Promise<{ error: string } | { id: number } | null>;
   undoAdd: (id: number) => Promise<string | null>;
+  /** His delete (2026-11-06, docs/ticket-bay-remove-a-row.md): a finished row off today's list, the count back with it. */
+  remove: (id: number) => Promise<string | null>;
   /** The exit landed but Next up's car could not come in. Said until the next write. */
   nextIssue: string | null;
   /** His note on a finished row (null clears it), and "Same as the … hold" (migration 164). Either answers the saved
@@ -114,6 +116,9 @@ export function useBayLog(by = 'FG'): BayLogState {
     return { id: row.id };
   })) ?? null, [by]);
   const undoAdd = useCallback((id: number) => send({ action: 'bayAddUndo', id }), [send]);
+  // Answers removedId, which `send` takes off the list. Locked like an exit: it settles the same row.
+  const remove = useCallback(async (id: number) =>
+    (await withSubmitLock(`bay:exit:${id}`, () => send({ action: 'bayRemove', id }))) ?? null, [send]);
 
   // Never through `send`: that adds whatever row comes back, and a note on an EARLIER day's row must not land on today's
   // list. Here a saved row only replaces one today's list already holds.
@@ -125,5 +130,5 @@ export function useBayLog(by = 'FG'): BayLogState {
     return { row };
   }, [by]);
 
-  return { rows, loaded, error, start, exit, undoExit, bump, add, undoAdd, nextIssue, editRow };
+  return { rows, loaded, error, start, exit, undoExit, bump, add, undoAdd, remove, nextIssue, editRow };
 }

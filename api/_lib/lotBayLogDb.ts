@@ -7,7 +7,7 @@
 // the link to a hold already on the car: setNote, linkHold (docs/ticket-bay-erin-exit-notes-existing-hold.md).
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { bayChange, heldExitChange, type BayChange, type BayRequest, type BayRow } from './lotBay.js';
-import { carLine, linkRefusal, redoOf, startOdometer, undoAllowed, type BayExit, type DayRow } from './lotBayLog.js';
+import { carLine, linkRefusal, redoOf, removeCountPlan, startOdometer, undoAllowed, type BayExit, type DayRow } from './lotBayLog.js';
 
 export const BAY_LOG_COLS = 'id, vehicle_id, plate, unit_number, car, odometer, started_at, exit, exited_at, took_dirty, redo_of, shift_day, note, hold_id, added';
 
@@ -232,6 +232,42 @@ export async function undoAdd(db: SupabaseClient, id: number, by: string, nowIso
   try {
     ({ saved: bay } = await moveCount(db, { action: 'cleans', delta: -1, fix: true, giveDirty: was.took_dirty, by }, nowIso, today));
   } catch (e) {
+    if (!(e instanceof BayLogRefusal)) throw e;
+  }
+  return { removedId: id, bay };
+}
+
+/**
+ * His delete (2026-11-06, docs/ticket-bay-remove-a-row.md): a finished row on TODAY's list goes, and Erin St's count goes
+ * back with it by removeCountPlan. A car still in the bay is an exit's job (or Back to Next up); an earlier day's counts
+ * are long settled. The rows it pulled in, or that redid it, keep their own lines: their links to it are cleared first,
+ * because both columns reference this row (migrations 161, 163) and would refuse the delete.
+ */
+export async function removeRow(db: SupabaseClient, id: number, by: string, nowIso: string, today: string) {
+  const { data: was, error: readErr } = await db.from('lot_bay_log').select('plate, exit, exited_at, took_dirty, shift_day').eq('id', id).maybeSingle();
+  if (readErr) throw readErr;
+  if (!was) throw new BayLogRefusal('That car is already off the list.');
+  if (!was.exit || !was.exited_at) throw new BayLogRefusal(`${was.plate} is still in the bay. Give it an exit first.`);
+  if (was.shift_day !== today) throw new BayLogRefusal('Only today\'s list can take a car off.');
+  // His hand counts since the exit: a typed cleans SET, a dirties set or step.
+  const { data: taps, error: tapErr } = await db.from('lot_bay_taps').select('kind').gt('tapped_at', was.exited_at).in('kind', ['set', 'dirties']);
+  if (tapErr) throw tapErr;
+  const plan = removeCountPlan(was as { exit: BayExit; took_dirty: boolean },
+    { cleansSet: (taps ?? []).some(t => t.kind === 'set'), dirtiesSet: (taps ?? []).some(t => t.kind === 'dirties') });
+  for (const col of ['pulled_by', 'redo_of'] as const) {
+    const { error } = await db.from('lot_bay_log').update({ [col]: null }).eq(col, id);
+    if (error) throw error;
+  }
+  // Guarded on the exit it was read with: an Undo in between leaves the row as it now is.
+  const { data: gone, error: delErr } = await db.from('lot_bay_log').delete().eq('id', id).eq('exited_at', was.exited_at).select('id');
+  if (delErr) throw delErr;
+  if (!gone?.length) throw new BayLogRefusal('That car already changed.');
+  let bay: unknown = null;
+  try {
+    if (plan.cleans) ({ saved: bay } = await moveCount(db, { action: 'cleans', delta: -1, fix: true, giveDirty: plan.giveDirty, by }, nowIso, today));
+    else if (plan.giveDirty) ({ saved: bay } = await moveCount(db, r => heldExitChange(r, 'give', by, nowIso), nowIso, today));
+  } catch (e) {
+    // A count already at 0 stays as the lot is (undoAdd's precedent). The row is gone either way.
     if (!(e instanceof BayLogRefusal)) throw e;
   }
   return { removedId: id, bay };

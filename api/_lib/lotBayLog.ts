@@ -27,9 +27,11 @@ export type BayLogRequest =
   // A car cleaned while he was off the floor, added to the list as a Clean (migration 165,
   // docs/ticket-bay-add-a-car-cleaned.md), and its Undo.
   | { action: 'bayAdd'; vehicleId: string; by: string }
-  | { action: 'bayAddUndo'; id: number; by: string };
+  | { action: 'bayAddUndo'; id: number; by: string }
+  // His delete (2026-11-06, docs/ticket-bay-remove-a-row.md): *"We need a delete option for me"*.
+  | { action: 'bayRemove'; id: number; by: string };
 
-export const BAY_LOG_ACTIONS: readonly BayLogRequest['action'][] = ['bayStart', 'bayExit', 'bayExitUndo', 'bayStandbySet', 'bayStandbyClear', 'bayBumpToNextUp', 'bayNote', 'bayLinkHold', 'bayAdd', 'bayAddUndo'];
+export const BAY_LOG_ACTIONS: readonly BayLogRequest['action'][] = ['bayStart', 'bayExit', 'bayExitUndo', 'bayStandbySet', 'bayStandbyClear', 'bayBumpToNextUp', 'bayNote', 'bayLinkHold', 'bayAdd', 'bayAddUndo', 'bayRemove'];
 
 /** A note's cap, the same as migration 164's check. */
 export const NOTE_MAX = 140;
@@ -126,9 +128,27 @@ export function parseBayLog(b: Record<string, unknown>, by: string): BayLogReque
       if (id == null) return { error: 'Nothing to undo.' };
       return { action: 'bayAddUndo', id, by };
     }
+    case 'bayRemove': {
+      const id = rowId(b.id);
+      if (id == null) return { error: 'Which car?' };
+      return { action: 'bayRemove', id, by };
+    }
     default:
       return { error: 'Unknown action.' };
   }
+}
+
+/**
+ * What taking a finished row off today's list does to Erin St's count (Aaron, 2026-11-06: *"We need a delete option for
+ * me"*; docs/ticket-bay-remove-a-row.md). The count goes back the way the exit moved it: a Clean's +1 comes off (a fix,
+ * never "used"), and the dirty an exit took comes back. Skip moved nothing.
+ *
+ * ⭐ Unless he has SET that count by hand since the exit: then his count already covers the car, and moving it again would
+ * throw it off. LUR367, the same day: Clean 16:40, his dirties recount 16:45, so its dirty stayed where he put it.
+ */
+export function removeCountPlan(row: { exit: BayExit; took_dirty: boolean }, since: { cleansSet: boolean; dirtiesSet: boolean }): { cleans: 0 | -1; giveDirty: boolean } {
+  if (row.exit === 'skip') return { cleans: 0, giveDirty: false };
+  return { cleans: row.exit === 'clean' && !since.cleansSet ? -1 : 0, giveDirty: row.took_dirty && !since.dirtiesSet };
 }
 
 /** "2026 Toyota Corolla Cross · Gray": the car as it was at Start, kept on the row so the list never re-reads it. */

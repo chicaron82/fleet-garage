@@ -16,8 +16,14 @@ export function fakeDb(tables: Record<string, Row[]>): SupabaseClient {
     // `.or('shift_day.eq.D,exit.is.null')`, the one or() lotBayLogDb issues (addCleaned's day read). Only a read with an
     // or() answers rows from `then`; the others stay null, as the tests before it were written against.
     let anyOf: [string, unknown][] | null = null;
+    // removeRow's taps read (2026-11-06): `.gt(k, iso)` compared as instants, `.in(k, list)`. A read with either answers
+    // rows from `then`, as an or() read does.
+    const after: [string, string][] = [];
+    const within: [string, readonly unknown[]][] = [];
+    const match = (r: Row) => filters.every(([k, v]) => r[k] === v) && notNull.every(k => r[k] != null)
+      && after.every(([k, iso]) => Date.parse(String(r[k])) > Date.parse(iso)) && within.every(([k, vs]) => vs.includes(r[k]));
     const run = () => {
-      const hit = (tables[t] ?? []).filter(r => filters.every(([k, v]) => r[k] === v) && notNull.every(k => r[k] != null));
+      const hit = (tables[t] ?? []).filter(match);
       if (patch) hit.forEach(r => Object.assign(r, patch));
       return hit.map(r => ({ ...r }));
     };
@@ -31,6 +37,8 @@ export function fakeDb(tables: Record<string, Row[]>): SupabaseClient {
       is: (k: string, v: unknown) => { filters.push([k, v]); return q; },
       // Only `.not(k, 'is', null)` is used: a row whose k is set.
       not: (k: string) => { notNull.push(k); return q; },
+      gt: (k: string, iso: string) => { after.push([k, iso]); return q; },
+      in: (k: string, vs: readonly unknown[]) => { within.push([k, vs]); return q; },
       or: (spec: string) => {
         anyOf = spec.split(',').map(p => { const [k, op, v] = p.split('.'); return [k!, op === 'is' && v === 'null' ? null : v]; });
         return q;
@@ -40,6 +48,9 @@ export function fakeDb(tables: Record<string, Row[]>): SupabaseClient {
           const any = anyOf;
           return ok({ data: (tables[t] ?? []).filter(r => any.some(([k, v]) => (v === null ? r[k] == null : r[k] === v))).map(r => ({ ...r })), error: null });
         }
+        if (after.length || within.length) return ok({ data: run(), error: null });
+        // An update awaited with no select (removeRow clearing a link): it lands.
+        if (patch && !deleting) { run(); return ok({ data: null, error: null }); }
         if (!deleting) return ok({ data: null, error: null });
         const gone = (tables[t] ?? []).filter(r => filters.every(([k, v]) => r[k] === v));
         tables[t] = (tables[t] ?? []).filter(r => !gone.includes(r));
