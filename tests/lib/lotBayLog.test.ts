@@ -7,6 +7,8 @@ const row = (id: number, plate: string, start: string, exit: BayLogRow['exit'], 
   shift_day: '2026-10-29', started_at: `2026-10-29T${start}:00.000Z`, exit, exited_at: exitAt ? `2026-10-29T${exitAt}:00.000Z` : null, ...extra,
 });
 
+const D = '2026-10-29';
+
 const DAY = [
   row(1, 'LUR183', '12:02', 'clean', '12:31'),
   row(2, '0DM137', '13:10', 'bhold', '13:40'),
@@ -137,12 +139,29 @@ describe('a hold mark not yet flagged', () => {
     expect([...unflaggedHoldIds(DAY, [held('v-LUR352', '2026-10-29T16:10:00.000Z')])]).toEqual([2]);
   });
   it('⭐ Find a car reads the LATEST finished row: the mark, until a hold or a newer exit clears it', () => {
-    expect(bayMarkOf(DAY[1], [])).toEqual({ kind: 'bhold', at: '2026-10-29T13:40:00.000Z' });
-    expect(bayMarkLine(bayMarkOf(DAY[1], [])!)).toBe('⚠️ B hold in the bay 08:40 · not flagged yet');
-    expect(bayMarkLine(bayMarkOf(DAY[3], [])!)).toBe('🔧 M hold in the bay 11:05 · not flagged yet');
-    expect(bayMarkOf(DAY[1], [held('v-0DM137', '2026-10-29T13:45:00.000Z')])).toBeNull();
-    expect(bayMarkOf(DAY[4], [])).toBeNull();
-    expect(bayMarkOf(null, [])).toBeNull();
+    expect(bayMarkOf(DAY[1], [], D)).toEqual({ kind: 'bhold', at: '2026-10-29T13:40:00.000Z' });
+    expect(bayMarkLine(bayMarkOf(DAY[1], [], D)!)).toBe('⚠️ B hold in the bay 08:40 · not flagged yet');
+    expect(bayMarkLine(bayMarkOf(DAY[3], [], D)!)).toBe('🔧 M hold in the bay 11:05 · not flagged yet');
+    expect(bayMarkOf(DAY[1], [held('v-0DM137', '2026-10-29T13:45:00.000Z')], D)).toBeNull();
+    expect(bayMarkOf(DAY[4], [], D)).toBeNull();
+    expect(bayMarkOf(null, [], D)).toBeNull();
+  });
+
+  // Aaron, 2026-11-06 (docs/ticket-bay-mark-flagged-same-day.md): *"I've flagged it through the regular process"*.
+  // LJF683's hold went in at 14:28, the car into the bay at 14:30, and the mark kept nagging him.
+  it('⭐ a hold flagged the same day, minutes BEFORE the car went in, is the flag: no Flag it, no "not flagged yet"', () => {
+    const before = [held('v-0DM137', '2026-10-29T13:00:00.000Z')];
+    expect(isUnflaggedHold(DAY[1], before)).toBe(false);
+    expect([...unflaggedHoldIds(DAY, before)]).toEqual([4]);
+    expect(bayMarkOf(DAY[1], before, D)).toBeNull();
+  });
+  it('⚠️ an earlier day\'s hold still does not count (that is what "Same as the … hold" is for)', () => {
+    expect(isUnflaggedHold(DAY[1], [held('v-0DM137', '2026-10-28T18:00:00.000Z')])).toBe(true);
+  });
+  // MCN113: M on 11-05, never flagged, looked up on the 6th: "M hold in the bay 13:09 · not flagged yet", no date.
+  it('⭐ the mark speaks only on its own day: yesterday\'s M is silent today', () => {
+    expect(bayMarkOf(DAY[3], [], '2026-10-30')).toBeNull();
+    expect(bayMarkOf(DAY[3], [], D)).toEqual({ kind: 'mhold', at: '2026-10-29T16:05:00.000Z' });
   });
 });
 
@@ -179,7 +198,7 @@ describe('⭐ Same as the … hold', () => {
   it('a row tied to a hold is flagged: no Flag it, no "not flagged yet"', () => {
     expect(isUnflaggedHold(b, [])).toBe(true);
     expect(isUnflaggedHold({ ...b, hold_id: 'h1' }, [])).toBe(false);
-    expect(bayMarkOf({ ...b, hold_id: 'h1' }, [])).toBeNull();
+    expect(bayMarkOf({ ...b, hold_id: 'h1' }, [], '2026-10-29')).toBeNull();
   });
   it('offers only this car\'s ACTIVE holds of the matching kind, newest first', () => {
     const holds = [

@@ -10,6 +10,7 @@
 import { clockOf } from './lotBay';
 import { classifyOdometerEntry, parseOdometer } from './odometer';
 import { foldOZero } from './plateFold';
+import { businessDateOf } from './shiftDay';
 
 // 'erin' (2026-11-04, migration 164): *"cleaning them goes to their row to be rented at Erin St and not going up for the
 // airport"*. A clean, off the dirties, never +1 on the cleans. Ticket: docs/ticket-bay-erin-exit-notes-existing-hold.md.
@@ -169,12 +170,19 @@ export interface BayMark { kind: HoldExit; at: string }
 
 const isHoldExit = (e: BayExit | null): e is HoldExit => e === 'mhold' || e === 'bhold';
 
-/** A hold exit with no hold flagged on that car since it went in, and not tied to the one already on it (hold_id,
- *  2026-11-04). Compared as instants: a hold's ISO and Postgres' timestamptz text are spelled differently ("Z" vs "+00:00"). */
-export function isUnflaggedHold(row: Pick<BayLogRow, 'vehicle_id' | 'exit' | 'started_at'> & { hold_id?: string | null }, holds: readonly HoldStamp[]): boolean {
+/** A hold exit with no hold flagged on that car since it went in or on the same business day, and not tied to the one
+ *  already on it (hold_id, 2026-11-04). Compared as instants: a hold's ISO and Postgres' timestamptz text are spelled
+ *  differently ("Z" vs "+00:00").
+ *
+ *  ⭐ The same day counts (Aaron, 2026-11-06, docs/ticket-bay-mark-flagged-same-day.md): *"I've flagged it through the
+ *  regular process"*. LJF683's hold went in at 14:28 and the car into the bay at 14:30, and "since it went in" kept
+ *  nagging him about a hold he'd already flagged. An EARLIER day's hold still doesn't count: "Same as the … hold" is
+ *  how he ties a new mark to an old one. */
+export function isUnflaggedHold(row: Pick<BayLogRow, 'vehicle_id' | 'exit' | 'started_at' | 'shift_day'> & { hold_id?: string | null }, holds: readonly HoldStamp[]): boolean {
   if (!isHoldExit(row.exit) || row.hold_id) return false;
   const since = Date.parse(row.started_at);
-  return !holds.some(h => h.vehicleId === row.vehicle_id && Date.parse(h.flaggedAt) >= since);
+  return !holds.some(h => h.vehicleId === row.vehicle_id
+    && (Date.parse(h.flaggedAt) >= since || businessDateOf(h.flaggedAt) === row.shift_day));
 }
 
 /** The rows on a day's list that still carry Flag it. */
@@ -183,9 +191,13 @@ export function unflaggedHoldIds(rows: readonly BayLogRow[], holds: readonly Hol
 }
 
 /** What Find a car says about a car, from its LATEST finished bay row: a hold mark not yet flagged, or null. A later
- *  Clean or Skip of the same car is the newer row, so it clears the mark by itself. */
-export function bayMarkOf(last: (Pick<BayLogRow, 'vehicle_id' | 'exit' | 'started_at' | 'exited_at'> & { hold_id?: string | null }) | null, holds: readonly HoldStamp[]): BayMark | null {
-  if (!last || !last.exited_at || !isHoldExit(last.exit) || !isUnflaggedHold(last, holds)) return null;
+ *  Clean or Skip of the same car is the newer row, so it clears the mark by itself.
+ *
+ *  ⭐ Only on the mark's own business day (2026-11-06): MCN113's 11-05 M read "M hold in the bay 13:09 · not flagged
+ *  yet" on the 6th, with no date, so yesterday's mark passed for today's. Flag it lives on the day's list; the reminder
+ *  ends with the day. */
+export function bayMarkOf(last: (Pick<BayLogRow, 'vehicle_id' | 'exit' | 'started_at' | 'exited_at' | 'shift_day'> & { hold_id?: string | null }) | null, holds: readonly HoldStamp[], today: string): BayMark | null {
+  if (!last || !last.exited_at || last.shift_day !== today || !isHoldExit(last.exit) || !isUnflaggedHold(last, holds)) return null;
   return { kind: last.exit, at: last.exited_at };
 }
 
