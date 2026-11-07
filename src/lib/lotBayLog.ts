@@ -11,6 +11,7 @@ import { clockOf } from './lotBay';
 import { classifyOdometerEntry, parseOdometer } from './odometer';
 import { foldOZero } from './plateFold';
 import { businessDateOf } from './shiftDay';
+import { agoLabel, minutesAgo } from './lotLookout';
 
 // 'erin' (2026-11-04, migration 164): *"cleaning them goes to their row to be rented at Erin St and not going up for the
 // airport"*. A clean, off the dirties, never +1 on the cleans. Ticket: docs/ticket-bay-erin-exit-notes-existing-hold.md.
@@ -106,6 +107,28 @@ export function baySummary(rows: readonly BayLogRow[]): BaySummary {
 export function startBlock(open: BayLogRow | null, vehicleId: string): { plate: string; since: string; same: boolean } | null {
   if (!open) return null;
   return { plate: open.plate, since: clockOf(open.started_at), same: open.vehicle_id === vehicleId };
+}
+
+// ── Already on today's list (Aaron, 2026-11-06: *"Maybe a heads up "this vehicle was already cleaned (insert time since)
+// ago"?"*; docs/ticket-bay-already-done-today.md). LUR322 went through twice in five minutes, LUR367 got a Clean after
+// its B. A warning, never a block: a car really can come back dirty the same day.
+
+export type DoneToday = Pick<BayLogRow, 'plate' | 'exit' | 'exited_at'> & { exit: Exclude<BayExit, 'skip'>; exited_at: string };
+
+/** The car's latest FINISHED row on the day's list, or null. A Skip says nothing: a skipped car is meant to come back. */
+export function doneToday(rows: readonly BayLogRow[], vehicleId: string): DoneToday | null {
+  const last = rows.filter(r => r.vehicle_id === vehicleId && r.exit && r.exited_at)
+    .reduce<BayLogRow | null>((a, r) => (!a || Date.parse(r.exited_at!) > Date.parse(a.exited_at!) ? r : a), null);
+  return last && last.exit !== 'skip' ? (last as DoneToday) : null;
+}
+
+const DONE_VERB: Record<DoneToday['exit'], string> = {
+  clean: 'was cleaned', erin: 'was cleaned for Erin St', mhold: 'went on M hold', bhold: 'went on B hold',
+};
+
+/** "LUR322 was cleaned 4 min ago (14:40)". */
+export function doneTodayLine(d: DoneToday, nowMs: number): string {
+  return `${d.plate} ${DONE_VERB[d.exit]} ${agoLabel(minutesAgo(d.exited_at, nowMs))} (${clockOf(d.exited_at)})`;
 }
 
 /**

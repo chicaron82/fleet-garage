@@ -10,6 +10,10 @@
 // empty bay with a car on deck offers that car's Start on the bay card, so loading it never starts a clock.
 // Docs: docs/ticket-bay-on-deck-trip-clean-quick-holds.md.
 //
+// ⚠️ Already on today's list (Aaron, 2026-11-06: *"Maybe a heads up "this vehicle was already cleaned (insert time
+// since) ago"?"*): the heads-up takes Start / On deck's place until he taps Clean it again. A warning, never a block.
+// Closing the sheet is the cancel. Docs: docs/ticket-bay-already-done-today.md.
+//
 // ⚠️ The odo is NOT a gate (since 2026-10-31, docs/ticket-bay-log-first-shift-friction.md). It was, and on a
 // passenger-side day it fought him: *"When I work passenger side I don't see the odo until I take it out to park"*, so
 // he started each car one early to get past it. His call: *"How bout leaving the odo optional. You and I do gas sheets
@@ -22,7 +26,7 @@ import { useBayStandby } from '../../hooks/useBayStandby';
 import { useAuth } from '../../context/AuthContext';
 import { initialsOf } from '../../lib/lotLookout';
 import { hapticMedium } from '../../lib/haptics';
-import { startBlock, inTheBay } from '../../lib/lotBayLog';
+import { doneToday, doneTodayLine, startBlock, inTheBay } from '../../lib/lotBayLog';
 import { businessDateOf } from '../../lib/shiftDay';
 import type { Vehicle } from '../../types';
 
@@ -36,11 +40,24 @@ export function ScanBayStart({ vehicle, onOpenBay, bayLog }: { vehicle: Vehicle;
   const bay = bayLog ?? own;
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [again, setAgain] = useState(false);
+  const [openedAt] = useState(() => Date.now());
   if (!bay.loaded) return null;
   const block = startBlock(inTheBay(bay.rows), vehicle.id);
   const odoToday = !!vehicle.odometerAt && businessDateOf(vehicle.odometerAt) === businessDateOf(new Date());
 
   const onDeck = next.standby?.vehicle_id === vehicle.id;
+  // Already on deck means he was warned when he loaded it.
+  const done = again || onDeck ? null : doneToday(bay.rows, vehicle.id);
+  const headsUp = done && (
+    <div role="alert" className="rounded-xl border-2 border-amber-500 bg-amber-50 dark:bg-amber-900/20 px-3 py-2.5 space-y-2">
+      <p className="text-sm font-bold text-amber-900 dark:text-amber-200">⚠️ {doneTodayLine(done, openedAt)}</p>
+      <button type="button" onClick={() => setAgain(true)}
+        className="w-full rounded-xl border-2 border-gray-900 dark:border-gray-200 bg-white dark:bg-gray-900 py-3 text-sm font-extrabold text-gray-900 dark:text-gray-100 cursor-pointer">
+        Clean it again
+      </button>
+    </div>
+  );
   const lineUp = async () => {
     hapticMedium();
     setBusy(true);
@@ -65,14 +82,14 @@ export function ScanBayStart({ vehicle, onOpenBay, bayLog }: { vehicle: Vehicle;
           </>
         )}
       </button>
-      {!block.same && next.loaded && (onDeck ? (
+      {!block.same && next.loaded && (headsUp || (onDeck ? (
         <p className="text-center text-sm font-bold text-gray-700 dark:text-gray-200">⏭ On deck. It comes in when {block.plate} leaves.</p>
       ) : (
         <button type="button" disabled={busy} onClick={() => void lineUp()}
           className="w-full rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi py-3 text-sm font-extrabold text-black cursor-pointer disabled:opacity-40">
           ⏭ On deck{next.standby ? ` (replaces ${next.standby.plate})` : ''}
         </button>
-      ))}
+      )))}
       {err && <p role="alert" className="text-center text-xs font-semibold text-red-700 dark:text-red-400">{err}</p>}
       </div>
     );
@@ -87,6 +104,8 @@ export function ScanBayStart({ vehicle, onOpenBay, bayLog }: { vehicle: Vehicle;
     if (e) setErr(e);
     else onOpenBay(true);
   };
+
+  if (headsUp) return headsUp;
 
   const other = next.standby && !onDeck ? next.standby.plate : null;
   const line = err || (onDeck ? 'On deck. Start clean when you\'re ready.'

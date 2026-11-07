@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sameHoldChoices, sameHoldLabel, bayLines, bayMarkLine, bayMarkOf, bayOdoEntry, bayOdoLetsExit, bayReportLine, baySummary, inTheBay, isUnflaggedHold, startBlock, unflaggedHoldIds, vehicleForPick, type BayLogRow } from '../../src/lib/lotBayLog';
+import { doneToday, doneTodayLine, sameHoldChoices, sameHoldLabel, bayLines, bayMarkLine, bayMarkOf, bayOdoEntry, bayOdoLetsExit, bayReportLine, baySummary, inTheBay, isUnflaggedHold, startBlock, unflaggedHoldIds, vehicleForPick, type BayLogRow } from '../../src/lib/lotBayLog';
 
 // Times are UTC; clockOf prints Winnipeg (CDT, UTC−5 on 2026-10-29).
 const row = (id: number, plate: string, start: string, exit: BayLogRow['exit'], exitAt: string | null, extra: Partial<BayLogRow> = {}): BayLogRow => ({
@@ -211,5 +211,25 @@ describe('⭐ Same as the … hold', () => {
   });
   it('names the hold by the day it was flagged', () => {
     expect(sameHoldLabel('2026-10-28T18:00:00.000Z')).toBe('Same as the Oct 28 hold');
+  });
+});
+
+// Already on today's list (2026-11-06, docs/ticket-bay-already-done-today.md): LUR322 twice in five minutes, LUR367's
+// Clean after its B.
+describe('⚠️ doneToday: a car already on today\'s list', () => {
+  it('⭐ the car\'s latest finished row: MCN139 skipped then cleaned reads cleaned', () => {
+    expect(doneToday(DAY, 'v-MCN139')).toMatchObject({ exit: 'clean', exited_at: '2026-10-29T15:55:00.000Z' });
+    expect(doneToday(DAY, 'v-0DM137')).toMatchObject({ exit: 'bhold' });
+  });
+  it('a Skip says nothing (it is meant to come back); nor does a car still in, or one not on the list', () => {
+    expect(doneToday(DAY.slice(0, 3), 'v-MCN139')).toBeNull();
+    expect(doneToday(DAY, 'v-LZM536')).toBeNull();
+    expect(doneToday(DAY, 'v-NOPE')).toBeNull();
+  });
+  it('the line: what happened, how long ago, and when', () => {
+    const at = Date.parse('2026-10-29T16:09:00.000Z');
+    expect(doneTodayLine(doneToday(DAY, 'v-MCN139')!, at)).toBe('MCN139 was cleaned 14 min ago (10:55)');
+    expect(doneTodayLine(doneToday(DAY, 'v-LUR352')!, at)).toBe('LUR352 went on M hold 4 min ago (11:05)');
+    expect(doneTodayLine(doneToday(DAY, 'v-0DM137')!, Date.parse('2026-10-29T16:10:00.000Z'))).toBe('0DM137 went on B hold 2h 30m ago (08:40)');
   });
 });
