@@ -10,6 +10,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { bearerOf, parseLotRequest } from './_lib/lotRequest.js';
 import { BAY_ACTIONS, bayChange, type BayRequest } from './_lib/lotBay.js';
+import { moveCountSafely } from './_lib/lotCount.js';
 import { BAY_LOG_ACTIONS, type BayLogRequest } from './_lib/lotBayLog.js';
 import { addCleaned, BayLogRefusal, bumpToNextUp, clearStandby, exitCar, linkHold, removeRow, setNote, setStandby, startCar, undoAdd, undoExit } from './_lib/lotBayLogDb.js';
 import type { LotRequest } from './_lib/lotRequest.js';
@@ -113,17 +114,14 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
       return;
     }
     if (isBayRequest(parsed)) {
-      const { data: row, error: readErr } = await db.from('lot_bay').select('cleans, dirties, used, used_on').eq('id', 1).single();
-      if (readErr) throw readErr;
-      const change = bayChange(row, parsed, now, shiftBusinessDate(new Date(now)));
-      if ('error' in change) {
-        res.status(409).json({ error: change.error });
+      // moveCountSafely: two taps in flight together used to save one (docs/ticket-erin-count-drops-a-tap.md).
+      const today = shiftBusinessDate(new Date(now));
+      const moved = await moveCountSafely(db, row => bayChange(row, parsed, now, today));
+      if (moved.kind === 'refused') {
+        res.status(409).json({ error: moved.error });
         return;
       }
-      const { data: saved, error } = await db.from('lot_bay').update(change.patch).eq('id', 1).select().single();
-      if (error) throw error;
-      await db.from('lot_bay_taps').insert(change.tap);
-      res.status(200).json({ ok: true, bay: saved });
+      res.status(200).json({ ok: true, bay: moved.kind === 'saved' ? moved.saved : moved.row });
       return;
     }
     res.status(400).json({ error: 'Unknown action.' });

@@ -7,6 +7,7 @@
 // the link to a hold already on the car: setNote, linkHold (docs/ticket-bay-erin-exit-notes-existing-hold.md).
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { bayChange, heldExitChange, type BayChange, type BayRequest, type BayRow } from './lotBay.js';
+import { moveCountSafely } from './lotCount.js';
 import { carLine, linkRefusal, redoOf, removeCountPlan, startOdometer, undoAllowed, type BayExit, type DayRow } from './lotBayLog.js';
 
 export const BAY_LOG_COLS = 'id, vehicle_id, plate, unit_number, car, odometer, started_at, exit, exited_at, took_dirty, redo_of, shift_day, note, hold_id, added';
@@ -21,16 +22,13 @@ const isHold = (exit: BayExit | null) => exit === 'mhold' || exit === 'bhold';
 const dirtyOnly = (exit: BayExit | null): 'held' | 'erin' | null => (isHold(exit) ? 'held' : exit === 'erin' ? 'erin' : null);
 
 /** Erin St's count, moved by the count's own rule: a tap's request, or a hold exit's change (null = nothing to move). */
+// Through moveCountSafely, like a tap on the count: an exit and a tap landing together used to save one of them.
 async function moveCount(db: SupabaseClient, req: BayRequest | ((row: BayRow) => BayChange | null), nowIso: string, today: string) {
-  const { data: row, error: readErr } = await db.from('lot_bay').select('cleans, dirties, used, used_on').eq('id', 1).single();
-  if (readErr) throw readErr;
-  const change = typeof req === 'function' ? req(row) : bayChange(row, req, nowIso, today);
-  if (!change) return { saved: null, tookDirty: false };
-  if ('error' in change) throw new BayLogRefusal(change.error);
-  const { data: saved, error } = await db.from('lot_bay').update(change.patch).eq('id', 1).select().single();
-  if (error) throw error;
-  await db.from('lot_bay_taps').insert(change.tap);
-  return { saved, tookDirty: (saved.dirties ?? 0) < (row.dirties ?? 0) };
+  const moved = await moveCountSafely(db, row => (typeof req === 'function' ? req(row) : bayChange(row, req, nowIso, today)));
+  if (moved.kind === 'refused') throw new BayLogRefusal(moved.error);
+  if (moved.kind === 'none') return { saved: null, tookDirty: false };
+  const saved = moved.saved as { dirties?: number | null };
+  return { saved, tookDirty: (saved.dirties ?? 0) < (moved.row.dirties ?? 0) };
 }
 
 /** `pulledBy`: the exit that pulled this car in off Next up, so its Undo can rewind both (migration 163). */
