@@ -6,7 +6,7 @@
 // no Erin St strip (2026-10-18): the Erin pill in the top bar is the count.
 import { useBayLog } from '../../hooks/useBayLog';
 import { useLotCrew } from '../../hooks/useLotCrew';
-import { clockOf } from '../../lib/lotBay';
+import { whenOf } from '../../lib/lotBay';
 import { baySummary, inTheBay } from '../../lib/lotBayLog';
 import { LotCrewLine } from '../lot/LotCrewLine';
 
@@ -24,7 +24,7 @@ export function LotLookoutCard({ cardClass, onOpen }: { cardClass: string; onOpe
         <span>
           <span className="block text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Lot Lookout · the bay</span>
           <span className="block text-sm font-semibold text-gray-900 dark:text-gray-100">
-            {open ? `In the bay: ${open.plate} since ${clockOf(open.started_at)}` : "The bay's empty"}
+            {open ? `In the bay: ${open.plate} since ${whenOf(open.started_at)}` : "The bay's empty"}
           </span>
           <span className="block text-xs text-gray-500 dark:text-gray-400">
             {s.clean} clean today{s.stillToDo > 0 ? ` · ${s.stillToDo} still to do` : ''}

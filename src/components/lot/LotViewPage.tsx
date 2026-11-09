@@ -22,7 +22,7 @@ import { useBayLog } from '../../hooks/useBayLog';
 import { useLotBay } from '../../hooks/useLotBay';
 import { useLotCrew } from '../../hooks/useLotCrew';
 import { isCountKept, isOnBreak, lastActivity, lastHand } from '../../lib/countKept';
-import { clockOf } from '../../lib/lotBay';
+import { whenOf } from '../../lib/lotBay';
 import { inTheBay } from '../../lib/lotBayLog';
 import { shiftDayLabel } from '../../lib/shiftDay';
 import { BayLogList } from './BayLogList';
@@ -53,7 +53,7 @@ export function LotViewPage() {
           {covered && (
             <section aria-label="Not being kept" className="absolute inset-x-0 top-6 z-10 mx-2 rounded-2xl border border-gray-300 dark:border-gray-600 bg-white/95 dark:bg-gray-900/95 px-4 py-4 text-center shadow-lg">
               <p className="font-bold">The count isn't being kept right now.</p>
-              {last && <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Last updated {clockOf(last)}.</p>}
+              {last && <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Last updated {whenOf(last, erin.nowMs)}.</p>}
               <button type="button" onClick={() => setShown(true)}
                 className="mt-3 rounded-xl border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-semibold text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800">
                 Show it anyway
@@ -73,7 +73,7 @@ export function LotViewPage() {
                 <>
                   <p className="mt-1 flex items-baseline justify-between gap-2">
                     <span className="font-mono text-lg font-bold">{open.plate}</span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">since {clockOf(open.started_at)}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">since {whenOf(open.started_at, erin.nowMs)}</span>
                   </p>
                   {open.car && <p className="text-sm text-gray-600 dark:text-gray-300">{open.car}</p>}
                 </>

@@ -3,7 +3,7 @@
 // stuck waiting at the airport"*); −1 is "used".
 import { describe, it, expect } from 'vitest';
 import {
-  BAY_STALE_MIN, bayFromInventory, bayFromRow, bayTapLine, clockOf, isBayStale, isCleansFix, usedToday,
+  BAY_STALE_MIN, bayFromInventory, bayFromRow, bayTapLine, clockOf, isBayStale, isCleansFix, usedToday, whenOf,
 } from '../../src/lib/lotBay';
 import { UNDO_MS } from '../../src/lib/lotLookout';
 import { businessDateOf } from '../../src/lib/shiftDay';
@@ -86,5 +86,27 @@ describe('bayFromInventory', () => {
     // His 2026-10-23 close: 18 A, 6 D, 4 B. The pill read 22/0 from a 20:48 tap.
     expect(bayFromInventory({ A: 18, D: 6, B: 4, M: 0, F: 0 } as { A: number; D: number })).toEqual({ cleans: 18, dirties: 6 });
     expect(bayFromInventory({ A: 0, D: 0 })).toEqual({ cleans: 0, dirties: 0 });
+  });
+});
+
+// A time with no day reads as last night (Aaron, 2026-11-08; docs/ticket-lot-times-carry-the-day.md). Mid-afternoon
+// times only, so no tz table puts them across midnight; expected clocks come from clockOf, never typed.
+describe('whenOf', () => {
+  const sunday = Date.parse('2026-11-08T22:00:00Z');   // Sun 8 Nov, afternoon in Winnipeg
+  it('⭐ today: just the time (control: nothing changes for a fresh count)', () => {
+    const iso = '2026-11-08T20:15:00Z';
+    expect(whenOf(iso, sunday)).toBe(clockOf(iso));
+  });
+  it('yesterday says so', () => {
+    const iso = '2026-11-07T20:15:00Z';
+    expect(whenOf(iso, sunday)).toBe(`yesterday ${clockOf(iso)}`);
+  });
+  it("⭐ his case: Friday's stamp seen on Sunday reads Fri, not as if it were last night", () => {
+    const iso = '2026-11-06T20:15:00Z';
+    expect(whenOf(iso, sunday)).toBe(`Fri ${clockOf(iso)}`);
+  });
+  it('a week or more: the date', () => {
+    const iso = '2026-11-01T20:15:00Z';
+    expect(whenOf(iso, sunday)).toBe(`Nov 1, ${clockOf(iso)}`);
   });
 });

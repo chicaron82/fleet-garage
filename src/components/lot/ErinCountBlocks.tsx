@@ -3,7 +3,7 @@
 // SAME control: *"steppers, use the same style as the header when updating the values"*. One control, two homes, so a
 // change to one is a change to both.
 import { useState } from 'react';
-import { BAY_DIRTIES_MAX, clockOf, isBayStale } from '../../lib/lotBay';
+import { BAY_DIRTIES_MAX, isBayStale, whenOf } from '../../lib/lotBay';
 import { hapticLight } from '../../lib/haptics';
 import type { LotBayState } from '../../hooks/useLotBay';
 import type { BayField, useBayTapsSignedIn } from '../../hooks/useBayTaps';
@@ -47,7 +47,7 @@ function CountBlock({ field, value, at, nowMs, onStep, onSet, onZero, quick }: {
           <div className={`text-xs font-bold uppercase tracking-wide ${tone.label}`}>{field === 'cleans' ? 'Cleans' : 'Dirties'}</div>
           <div className="text-4xl font-extrabold tabular-nums text-gray-900 dark:text-gray-100 leading-tight">{value ?? '–'}</div>
           <div className={`text-[11px] ${isBayStale(at, nowMs) ? 'font-semibold text-amber-700 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400'}`}>
-            {at ? `as of ${clockOf(at)}` : 'not counted yet'}
+            {at ? `as of ${whenOf(at, nowMs)}` : 'not counted yet'}
           </div>
         </div>
         <button type="button" onClick={() => onStep(1)} aria-label={`One more ${field === 'cleans' ? 'clean' : 'dirty'}`} className={STEP}>+</button>

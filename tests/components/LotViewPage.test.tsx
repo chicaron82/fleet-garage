@@ -14,6 +14,7 @@ vi.mock('../../src/hooks/useLotCrew', () => ({ useLotCrew: () => ({ crew: null }
 vi.mock('../../src/components/lot/LotBayStrip', () => ({ LotBayStrip: () => <p>the count</p> }));
 vi.mock('../../src/components/lot/BayLogList', () => ({ BayLogList: () => <p>the list</p> }));
 const { LotViewPage } = await import('../../src/components/lot/LotViewPage');
+const { clockOf } = await import('../../src/lib/lotBay');
 
 const ago = (min: number) => new Date(NOW - min * 60_000).toISOString();
 
@@ -28,6 +29,14 @@ describe('LotViewPage, when the count is not being kept', () => {
     expect(card.textContent).toMatch(/Last updated \d\d:\d\d\./);
     expect(screen.getByText('the count').closest('[aria-hidden="true"]')).not.toBeNull();   // blurred and hidden from reading
     expect(card.textContent).not.toMatch(/Aaron|back at|shift/i);
+  });
+
+  it("⭐ an update from another day says its day (his: a bare time reads as last night; ticket-lot-times-carry-the-day)", () => {
+    const tuesday = ago(2 * 24 * 60);   // NOW is Thu evening in Winnipeg: two days back is Tue, same hour
+    state.bay = { ...state.bay, cleansAt: tuesday, dirtiesAt: tuesday };
+    render(<LotViewPage />);
+    const card = screen.getByRole('region', { name: 'Not being kept' });
+    expect(card.textContent).toContain(`Last updated Tue ${clockOf(tuesday)}.`);
   });
 
   it('Show it anyway clears it for this visit', () => {

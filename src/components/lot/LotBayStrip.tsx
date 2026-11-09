@@ -6,7 +6,7 @@
 // ⚠️ Times, never initials: it is about the count, not about who is in the bay (Aaron, 2026-10-15). And never a
 // bare number: his ruling is that each count is a snapshot, true as of its time. Amber past 30 min.
 import { useState } from 'react';
-import { BAY_DIRTIES_MAX, clockOf, isBayStale, type LotBay } from '../../lib/lotBay';
+import { BAY_DIRTIES_MAX, isBayStale, whenOf, type LotBay } from '../../lib/lotBay';
 import { agoLabel, minutesAgo } from '../../lib/lotLookout';
 
 function Stamp({ at, nowMs }: { at: string | null; nowMs: number }) {
@@ -14,7 +14,7 @@ function Stamp({ at, nowMs }: { at: string | null; nowMs: number }) {
   const old = isBayStale(at, nowMs);
   return (
     <span className={`block text-[11px] ${old ? 'font-semibold text-amber-700 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400'}`}>
-      as of {clockOf(at)} · {agoLabel(minutesAgo(at, nowMs))}
+      as of {whenOf(at, nowMs)} · {agoLabel(minutesAgo(at, nowMs))}
     </span>
   );
 }

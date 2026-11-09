@@ -1,7 +1,7 @@
 // The Lot Lookout module, renovated into the bay log (2026-10-29; ticket-lot-lookout-bay-log). Aaron: *"removing the
 // airport status and swatches making it strictly erin st / turning it into a VSA module for cleaning"*. One car in the
 // bay, four exits, Erin St's count in the header's own blocks, today's list, the crew, the links. Signed in, no PIN.
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { CrewMember } from '../../src/lib/lotCrew';
 import type { BayLogRow } from '../../src/lib/lotBayLog';
@@ -72,7 +72,10 @@ vi.mock('../../src/context/scanRouter', () => ({ useScanRouter: () => ({ search 
 
 const { LotLookoutView } = await import('../../src/components/lot-lookout/LotLookoutView');
 
+// The bay card's "Since" reads against now (ticket-lot-times-carry-the-day): pin now to the rows' own afternoon.
+afterEach(() => { vi.useRealTimers(); });
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-29T20:00:00Z'));
   rows = []; holds = []; vehicles = [seltos]; vi.clearAllMocks();
   standbyState = { standby: null, loaded: true, load: loadNext, clear: clearNext };
   // ⚠️ clearAllMocks keeps a queued mockResolvedValueOnce. The "cannot place" test queues one its Enter path never

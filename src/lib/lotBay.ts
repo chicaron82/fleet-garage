@@ -93,6 +93,27 @@ export function clockOf(iso: string): string {
   return CLOCK.format(new Date(iso));
 }
 
+// ⭐ A time with no day reads as last night (Aaron, 2026-11-08: *"someone who looks at it now, would see a time and may
+// think its from last night instead of friday night"*; docs/ticket-lot-times-carry-the-day.md).
+const DAY_KEY = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Winnipeg', year: 'numeric', month: '2-digit', day: '2-digit' });
+const WEEKDAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Winnipeg', weekday: 'short' });
+const MONTH_DAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Winnipeg', month: 'short', day: 'numeric' });
+const dayNumber = (ms: number) => { const [y, m, d] = DAY_KEY.format(new Date(ms)).split('-').map(Number); return Date.UTC(y, m - 1, d) / 86_400_000; };
+
+/**
+ * A lot stamp that says its day when it isn't today's, Winnipeg days: "21:45" today, "yesterday 21:45",
+ * "Fri 21:45" within the week, "Nov 2, 21:45" older. `nowMs` defaults to now.
+ */
+export function whenOf(iso: string, nowMs: number = Date.now()): string {
+  const at = Date.parse(iso);
+  const clock = clockOf(iso);
+  const days = dayNumber(nowMs) - dayNumber(at);
+  if (days <= 0) return clock;
+  if (days === 1) return `yesterday ${clock}`;
+  if (days < 7) return `${WEEKDAY.format(new Date(at)).replace('.', '')} ${clock}`;
+  return `${MONTH_DAY.format(new Date(at)).replace('.', '')}, ${clock}`;
+}
+
 /** A −1 within 5 s of this phone's own +1 fixes a slip; it is not a car being used. */
 export function isCleansFix(lastPlusAtMs: number | null, nowMs: number): boolean {
   return lastPlusAtMs != null && nowMs - lastPlusAtMs < UNDO_MS;

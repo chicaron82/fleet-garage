@@ -32,7 +32,7 @@ import { useState } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import type { BayStandbyState } from '../../hooks/useBayStandby';
 import { hapticMedium } from '../../lib/haptics';
-import { clockOf } from '../../lib/lotBay';
+import { whenOf } from '../../lib/lotBay';
 import { bayOdoEntry, bayOdoLetsExit, type BayExit, type BayLogRow } from '../../lib/lotBayLog';
 import { odometerUnitFor } from '../../lib/odometer';
 import { businessDateOf } from '../../lib/shiftDay';
@@ -80,7 +80,7 @@ export function BayOpenCar({ open, next, onStart, busy, onExit, onBump, onCloseH
   // A reading from today, on the row or on the car (the popup or a correction may have logged it since Start).
   const carToday = car?.odometer != null && !!car.odometerAt && businessDateOf(car.odometerAt) === businessDateOf(new Date()) ? car.odometer : null;
   const readToday = open.odometer ?? carToday;
-  const since = `Since ${clockOf(open.started_at)}${readToday != null ? ` · odo ${readToday.toLocaleString('en-CA')}` : ''}`;
+  const since = `Since ${whenOf(open.started_at)}${readToday != null ? ` · odo ${readToday.toLocaleString('en-CA')}` : ''}`;
   const entry = bayOdoEntry(draft, car?.odometer);
   const showBox = !!car && !heldKind && (readToday == null || draft !== '');
   const held = busy || saving;
@@ -133,7 +133,7 @@ export function BayOpenCar({ open, next, onStart, busy, onExit, onBump, onCloseH
       {heldKind ? (
         <button type="button" disabled={busy} onClick={tap(() => onCloseHeld(heldKind))}
           className="w-full rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi py-3.5 text-base font-bold text-black cursor-pointer disabled:opacity-50">
-          Held at {clockOf(heldSince!.flaggedAt)}. Close it as held
+          Held at {whenOf(heldSince!.flaggedAt)}. Close it as held
         </button>
       ) : (
         <>
