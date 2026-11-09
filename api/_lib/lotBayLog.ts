@@ -33,9 +33,19 @@ export type BayLogRequest =
   // 2026-11-09 (migration 167, docs/ticket-bay-sent-up-and-change-exit.md): *"Editing a cleaned vehicle to M, B, or Erin
   // afterwards"*, and ✈ Sent up: *"something we cleaned was sent up right away and marking it as such"*.
   | { action: 'bayChangeExit'; id: number; exit: ChangeableExit; by: string }
-  | { action: 'baySentUp'; id: number; sent: boolean; by: string };
+  | { action: 'baySentUp'; id: number; sent: boolean; by: string }
+  // A trip to the airport marks today's Clean for that plate ✈ (2026-11-09, docs/ticket-trip-marks-sent-up.md): *"if I
+  // make a trip to the airport and it's a car that was cleaned today, it changes it to sent up"*.
+  | { action: 'bayTripSentUp'; plate: string; by: string };
 
-export const BAY_LOG_ACTIONS: readonly BayLogRequest['action'][] = ['bayStart', 'bayExit', 'bayExitUndo', 'bayStandbySet', 'bayStandbyClear', 'bayBumpToNextUp', 'bayNote', 'bayLinkHold', 'bayAdd', 'bayAddUndo', 'bayRemove', 'bayChangeExit', 'baySentUp'];
+export const BAY_LOG_ACTIONS: readonly BayLogRequest['action'][] = ['bayStart', 'bayExit', 'bayExitUndo', 'bayStandbySet', 'bayStandbyClear', 'bayBumpToNextUp', 'bayNote', 'bayLinkHold', 'bayAdd', 'bayAddUndo', 'bayRemove', 'bayChangeExit', 'baySentUp', 'bayTripSentUp'];
+
+/** A trip's plate as the bay log writes it: trips hold "KUR 261", the log never has a space. Null when it is not one. */
+export function tripPlate(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const p = v.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return p.length >= 2 && p.length <= 10 ? p : null;
+}
 
 /** The exits a finished line may be changed between. Skip is part of a redo chain and never changes. */
 export type ChangeableExit = Exclude<BayExit, 'skip'>;
@@ -152,6 +162,11 @@ export function parseBayLog(b: Record<string, unknown>, by: string): BayLogReque
       if (id == null) return { error: 'Which car?' };
       if (typeof b.sent !== 'boolean') return { error: 'Sent up, or not?' };
       return { action: 'baySentUp', id, sent: b.sent, by };
+    }
+    case 'bayTripSentUp': {
+      const plate = tripPlate(b.plate);
+      if (!plate) return { error: 'Which plate?' };
+      return { action: 'bayTripSentUp', plate, by };
     }
     default:
       return { error: 'Unknown action.' };

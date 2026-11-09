@@ -51,3 +51,22 @@ export async function setSentUp(db: SupabaseClient, id: number, sent: boolean) {
   if (!row) throw new BayLogRefusal('Only a Clean goes up from the list.');
   return { row };
 }
+
+/**
+ * A trip to the airport marks the car's Clean on today's list ✈ (2026-11-09, docs/ticket-trip-marks-sent-up.md): *"if I
+ * make a trip to the airport and it's a car that was cleaned today, it changes it to sent up"*. The plate's NEWEST line
+ * today, only when it is a Clean not yet marked. Anything else is quiet (`row: null`, never a refusal): most trips are
+ * cars not on today's list, and a hand ✈ is his. Moves no count; the trip's −1 is its own call. The phone keeps the row
+ * id so the trip's Reset can take back only what it marked.
+ */
+export async function sentUpByTrip(db: SupabaseClient, plate: string, today: string) {
+  const { data: lines, error: readErr } = await db.from('lot_bay_log').select('id, exit, sent_up, exited_at')
+    .eq('plate', plate).eq('shift_day', today).not('exited_at', 'is', null).order('exited_at', { ascending: false });
+  if (readErr) throw readErr;
+  const newest = (lines ?? [])[0] as { id: number; exit: string | null; sent_up: boolean | null } | undefined;
+  if (!newest || newest.exit !== 'clean' || newest.sent_up) return { row: null };
+  const { data: row, error } = await db.from('lot_bay_log').update({ sent_up: true })
+    .eq('id', newest.id).eq('exit', 'clean').eq('sent_up', false).select(BAY_LOG_COLS).maybeSingle();
+  if (error) throw error;
+  return { row: row ?? null };
+}

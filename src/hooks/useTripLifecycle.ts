@@ -168,7 +168,7 @@ export function useTripLifecycle({
     }
     setStartError(false);
     setStarting(false);
-    if (!isShuttle && r !== 'OTHER') void erinClean.take(tripId);
+    if (!isShuttle && r !== 'OTHER') void erinClean.take(tripId, vehiclePlate);
 
     setPendingTripId(tripId);
 

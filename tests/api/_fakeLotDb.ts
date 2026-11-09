@@ -20,6 +20,8 @@ export function fakeDb(tables: Record<string, Row[]>): SupabaseClient {
     // rows from `then`, as an or() read does.
     const after: [string, string][] = [];
     const within: [string, readonly unknown[]][] = [];
+    // sentUpByTrip's read (2026-11-09): `.order(k, { ascending })` answers its rows from `then`, sorted.
+    let sorted: [string, boolean] | null = null;
     const match = (r: Row) => filters.every(([k, v]) => r[k] === v) && notNull.every(k => r[k] != null)
       && after.every(([k, iso]) => Date.parse(String(r[k])) > Date.parse(iso)) && within.every(([k, vs]) => vs.includes(r[k]));
     const run = () => {
@@ -39,6 +41,7 @@ export function fakeDb(tables: Record<string, Row[]>): SupabaseClient {
       not: (k: string) => { notNull.push(k); return q; },
       gt: (k: string, iso: string) => { after.push([k, iso]); return q; },
       in: (k: string, vs: readonly unknown[]) => { within.push([k, vs]); return q; },
+      order: (k: string, o?: { ascending?: boolean }) => { sorted = [k, o?.ascending !== false]; return q; },
       or: (spec: string) => {
         anyOf = spec.split(',').map(p => { const [k, op, v] = p.split('.'); return [k!, op === 'is' && v === 'null' ? null : v]; });
         return q;
@@ -49,6 +52,10 @@ export function fakeDb(tables: Record<string, Row[]>): SupabaseClient {
           return ok({ data: (tables[t] ?? []).filter(r => any.some(([k, v]) => (v === null ? r[k] == null : r[k] === v))).map(r => ({ ...r })), error: null });
         }
         if (after.length || within.length) return ok({ data: run(), error: null });
+        if (sorted) {
+          const [k, up] = sorted;
+          return ok({ data: run().sort((a, b) => (String(a[k]) < String(b[k]) ? -1 : String(a[k]) > String(b[k]) ? 1 : 0) * (up ? 1 : -1)), error: null });
+        }
         // An update awaited with no select (removeRow clearing a link): it lands.
         if (patch && !deleting) { run(); return ok({ data: null, error: null }); }
         if (!deleting) return ok({ data: null, error: null });
