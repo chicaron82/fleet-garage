@@ -94,17 +94,18 @@ export function BackfillEntryForm({ label, form, setForm, saving, saveError, onS
       </div>
 
       {/* Numeric fields */}
+      {/* Cleans, then dirties: the A/D order (docs/November/ticket-close-counts-cleans-first.md). */}
       <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">In queue at close</label>
-          <input type="number" min="0" value={form.carsRemaining}
-            onChange={e => setForm(f => ({ ...f, carsRemaining: e.target.value }))}
-            placeholder="0" className={INPUT} />
-        </div>
         <div>
           <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Clean, not picked up</label>
           <input type="number" min="0" value={form.cleanNotPickedUp}
             onChange={e => setForm(f => ({ ...f, cleanNotPickedUp: e.target.value }))}
+            placeholder="0" className={INPUT} />
+        </div>
+        <div>
+          <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">In queue at close</label>
+          <input type="number" min="0" value={form.carsRemaining}
+            onChange={e => setForm(f => ({ ...f, carsRemaining: e.target.value }))}
             placeholder="0" className={INPUT} />
         </div>
       </div>

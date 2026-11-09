@@ -193,19 +193,20 @@ export function WashbayClosingLog() {
           </p>
         )}
 
+        {/* Cleans, then dirties: the A/D order (docs/November/ticket-close-counts-cleans-first.md). */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">In queue at close</label>
+            <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Clean, not picked up</label>
             <input
-              type="number" min="0" value={carsRemaining} onChange={e => setUserCarsRemaining(e.target.value)}
+              type="number" min="0" value={cleanNotPickedUp} onChange={e => setUserCleanNotPickedUp(e.target.value)}
               placeholder="0"
               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
             />
           </div>
           <div>
-            <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">Clean, not picked up</label>
+            <label className="text-xs text-gray-400 dark:text-gray-500 mb-1 block">In queue at close</label>
             <input
-              type="number" min="0" value={cleanNotPickedUp} onChange={e => setUserCleanNotPickedUp(e.target.value)}
+              type="number" min="0" value={carsRemaining} onChange={e => setUserCarsRemaining(e.target.value)}
               placeholder="0"
               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
             />

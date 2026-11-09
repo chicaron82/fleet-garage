@@ -125,8 +125,9 @@ export function OpeningLotCard({ openedToday = true }: { openedToday?: boolean }
             : 'Log what was left overnight — dirties carry into today’s rate.'}
         </p>
       </div>
-      <Counter label="Dirties left in queue" value={dirties} onChange={setDirties} />
+      {/* Cleans, then dirties: the A/D order he says them in (docs/November/ticket-close-counts-cleans-first.md). */}
       <Counter label="Clean, not picked up" value={cleans} onChange={setCleans} />
+      <Counter label="Dirties left in queue" value={dirties} onChange={setDirties} />
       <button
         type="button"
         onClick={save}

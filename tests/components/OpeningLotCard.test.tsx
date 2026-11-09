@@ -51,3 +51,14 @@ describe('OpeningLotCard — the carry-over is typeable', () => {
     expect(dirties().value).toBe('31');
   });
 });
+
+// Aaron, 2026-11-09: *"Since we're consistently using A and D, should this be flipped to cleans then dirties"*.
+// Every other test here finds a field by its label, so none of them would notice the order (docs/November/
+// ticket-close-counts-cleans-first.md).
+describe('OpeningLotCard — A then D', () => {
+  it('⭐ asks for the cleans before the dirties', () => {
+    render(<OpeningLotCard />);
+    const cleans = screen.getByLabelText('Clean, not picked up');
+    expect(cleans.compareDocumentPosition(dirties()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
