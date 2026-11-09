@@ -145,3 +145,18 @@ export function heldExitChange(row: BayRow, dir: 'take' | 'give', by: string, no
     tap: { kind: dir === 'take' ? as : 'undo', value: dirties, prev: row.dirties, tapped_by: by },
   };
 }
+
+/**
+ * A finished line's exit changed from the list (2026-11-09, docs/ticket-bay-sent-up-and-change-exit.md): the cleans only,
+ * by changeExitPlan's ±1. Never the dirties, which the first exit already took. Not the +1 tap's rule, which takes a
+ * dirty: this car came off the pile once, and only once. At 0 a −1 is null and the count stays as the lot is (removeRow's
+ * precedent: the clean already went up).
+ */
+export function changedExitCount(row: BayRow, delta: 1 | -1, by: string, nowIso: string): BayChange | null {
+  if (delta === -1 && row.cleans === 0) return null;
+  const cleans = Math.min(COUNT_MAX, row.cleans + delta);
+  return {
+    patch: { cleans, cleans_by: by, cleans_at: nowIso },
+    tap: { kind: delta === 1 ? 'ready' : 'fix', value: cleans, prev: row.cleans, tapped_by: by },
+  };
+}

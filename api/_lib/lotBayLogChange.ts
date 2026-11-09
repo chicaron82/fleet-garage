@@ -1,0 +1,53 @@
+// A finished line on the bay list, changed after the fact (migration 167, docs/ticket-bay-sent-up-and-change-exit.md).
+// Aaron, 2026-11-09: *"Editing a cleaned vehicle to M, B, or Erin afterwards"*, and of a clean that went straight back
+// up: *"FG doesn't need to know about an ASAP vehicle. Just that something we cleaned was sent up right away and marking
+// it as such"*. Its own file because lotBayLogDb.ts is at its line cap; the rules are pure in lotBayLog.ts / lotBay.ts.
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { changedExitCount } from './lotBay.js';
+import { moveCountSafely } from './lotCount.js';
+import { changeExitPlan, nextWasExit, type BayExit, type ChangeableExit } from './lotBayLog.js';
+import { BAY_LOG_COLS, BayLogRefusal } from './lotBayLogDb.js';
+
+const SAID: Record<BayExit, string> = { clean: 'a Clean', erin: 'an Erin car', mhold: 'on M hold', bhold: 'on B hold', skip: 'bumped' };
+
+/**
+ * Today's finished line gets another exit. The row first, guarded on the exit it was read with, then the cleans by
+ * changeExitPlan. It keeps its exit time; `was_exit` remembers the first exit so the list says "was Clean". A hold link
+ * goes (it fitted the old exit), and so does ✈ sent up once it is no longer a Clean.
+ */
+export async function changeExit(db: SupabaseClient, id: number, to: ChangeableExit, by: string, nowIso: string, today: string) {
+  const { data: was, error: readErr } = await db.from('lot_bay_log').select('plate, exit, exited_at, shift_day, was_exit').eq('id', id).maybeSingle();
+  if (readErr) throw readErr;
+  if (!was) throw new BayLogRefusal('That car is off the list now.');
+  if (!was.exit || !was.exited_at) throw new BayLogRefusal(`${was.plate} is still in the bay. Give it an exit first.`);
+  if (was.exit === 'skip') throw new BayLogRefusal('A bumped car keeps its line. Its redo gets the exit.');
+  if (was.shift_day !== today) throw new BayLogRefusal('Only today\'s list can change a car.');
+  if (was.exit === to) throw new BayLogRefusal(`${was.plate} is already ${SAID[to]}.`);
+  // His hand count since the exit: a typed cleans SET already covers this car.
+  const { data: taps, error: tapErr } = await db.from('lot_bay_taps').select('kind').gt('tapped_at', was.exited_at).in('kind', ['set']);
+  if (tapErr) throw tapErr;
+  const delta = changeExitPlan(was.exit as ChangeableExit, to, { cleansSet: (taps ?? []).length > 0 });
+  const { data: row, error } = await db.from('lot_bay_log')
+    .update({ exit: to, was_exit: nextWasExit(was.was_exit as BayExit | null, was.exit as BayExit, to), hold_id: null, ...(to === 'clean' ? {} : { sent_up: false }) })
+    .eq('id', id).eq('exit', was.exit).eq('exited_at', was.exited_at)
+    .select(BAY_LOG_COLS).maybeSingle();
+  if (error) throw error;
+  if (!row) throw new BayLogRefusal('That car already changed.');
+  let bay: unknown = null;
+  if (delta !== 0) {
+    const moved = await moveCountSafely(db, r => changedExitCount(r, delta, by, nowIso));
+    // A busy count says so; the line already changed, so the words say where things stand.
+    if (moved.kind === 'refused') throw new BayLogRefusal(`${was.plate} changed, but the cleans count did not move. Check it.`);
+    if (moved.kind === 'saved') bay = moved.saved;
+  }
+  return { row, bay };
+}
+
+/** ✈ Sent up, or taken back. A Clean only; no time of its own, and no count moves. Any day's list, as a note is. */
+export async function setSentUp(db: SupabaseClient, id: number, sent: boolean) {
+  const { data: row, error } = await db.from('lot_bay_log').update({ sent_up: sent }).eq('id', id).eq('exit', 'clean')
+    .select(BAY_LOG_COLS).maybeSingle();
+  if (error) throw error;
+  if (!row) throw new BayLogRefusal('Only a Clean goes up from the list.');
+  return { row };
+}

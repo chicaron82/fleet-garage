@@ -29,11 +29,14 @@ export interface BayLogState {
   undoAdd: (id: number) => Promise<string | null>;
   /** His delete (2026-11-06, docs/ticket-bay-remove-a-row.md): a finished row off today's list, the count back with it. */
   remove: (id: number) => Promise<string | null>;
+  /** Today's finished line gets another exit, the cleans with it (migration 167, docs/ticket-bay-sent-up-and-change-exit.md). */
+  changeExit: (id: number, to: 'clean' | 'erin' | 'mhold' | 'bhold') => Promise<string | null>;
   /** The exit landed but Next up's car could not come in. Said until the next write. */
   nextIssue: string | null;
   /** His note on a finished row (null clears it), and "Same as the … hold" (migration 164). Either answers the saved
    *  row, so an earlier day's list can take it too; today's list takes it here. */
-  editRow: (body: { action: 'bayNote'; id: number; note: string | null } | { action: 'bayLinkHold'; id: number; holdId: string }) =>
+  editRow: (body: { action: 'bayNote'; id: number; note: string | null } | { action: 'bayLinkHold'; id: number; holdId: string }
+    | { action: 'baySentUp'; id: number; sent: boolean }) =>
     Promise<{ error: string } | { row: BayLogRow }>;
 }
 
@@ -119,6 +122,9 @@ export function useBayLog(by = 'FG'): BayLogState {
   // Answers removedId, which `send` takes off the list. Locked like an exit: it settles the same row.
   const remove = useCallback(async (id: number) =>
     (await withSubmitLock(`bay:exit:${id}`, () => send({ action: 'bayRemove', id }))) ?? null, [send]);
+  // Locked like an exit: it settles the same row and moves the count, so a double tap must send once.
+  const changeExit = useCallback(async (id: number, to: 'clean' | 'erin' | 'mhold' | 'bhold') =>
+    (await withSubmitLock(`bay:exit:${id}`, () => send({ action: 'bayChangeExit', id, exit: to }))) ?? null, [send]);
 
   // Never through `send`: that adds whatever row comes back, and a note on an EARLIER day's row must not land on today's
   // list. Here a saved row only replaces one today's list already holds.
@@ -130,5 +136,5 @@ export function useBayLog(by = 'FG'): BayLogState {
     return { row };
   }, [by]);
 
-  return { rows, loaded, error, start, exit, undoExit, bump, add, undoAdd, remove, nextIssue, editRow };
+  return { rows, loaded, error, start, exit, undoExit, bump, add, undoAdd, remove, changeExit, nextIssue, editRow };
 }

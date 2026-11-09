@@ -10,7 +10,7 @@ import { bayChange, heldExitChange, type BayChange, type BayRequest, type BayRow
 import { moveCountSafely } from './lotCount.js';
 import { carLine, linkRefusal, redoOf, removeCountPlan, startOdometer, undoAllowed, type BayExit, type DayRow } from './lotBayLog.js';
 
-export const BAY_LOG_COLS = 'id, vehicle_id, plate, unit_number, car, odometer, started_at, exit, exited_at, took_dirty, redo_of, shift_day, note, hold_id, added';
+export const BAY_LOG_COLS = 'id, vehicle_id, plate, unit_number, car, odometer, started_at, exit, exited_at, took_dirty, redo_of, shift_day, note, hold_id, added, sent_up, was_exit';
 
 /** A refusal the phone shows as it is (409), as opposed to a thrown error (500). */
 export class BayLogRefusal extends Error {}
@@ -168,8 +168,9 @@ export async function undoExit(db: SupabaseClient, id: number, by: string, nowIs
   if (!was || !undoAllowed(was.exited_at, Date.parse(nowIso))) throw new BayLogRefusal('Too late to undo that one.');
   const unpulled = await unpull(db, id, by, nowIso, today);
   const { data: row, error } = await db.from('lot_bay_log')
-    // hold_id goes too: the car is back in, and its next exit may be a different kind.
-    .update({ exit: null, exited_at: null, took_dirty: false, hold_id: null }).eq('id', id).eq('exited_at', was.exited_at)
+    // hold_id goes too: the car is back in, and its next exit may be a different kind. So do a changed line's first exit and
+    // ✈ sent up (migration 167): the car is in the bay again, not on the list.
+    .update({ exit: null, exited_at: null, took_dirty: false, hold_id: null, was_exit: null, sent_up: false }).eq('id', id).eq('exited_at', was.exited_at)
     .select(BAY_LOG_COLS).maybeSingle();
   if (error?.code === '23505') throw new BayLogRefusal('Another car is in the bay now.');
   if (error) throw error;

@@ -114,3 +114,65 @@ export function BayFlagChoices({ choices, onSame, onNew, onClose }: {
     </div>
   );
 }
+
+/** The exits a finished line may become (2026-11-09, docs/ticket-bay-sent-up-and-change-exit.md). Bumped never changes. */
+export type ChangeTo = 'clean' | 'erin' | 'mhold' | 'bhold';
+const CHANGE_LABEL: Record<ChangeTo, string> = { clean: 'Clean', erin: 'Erin', mhold: 'M hold', bhold: 'B hold' };
+
+/** Change, asked in the line: *"Editing a cleaned vehicle to M, B, or Erin afterwards"*. The other three, and Cancel. */
+export function BayChangeChoices({ plate, from, onChange, onClose }: {
+  plate: string;
+  from: ChangeTo;
+  /** Resolves the error text, or null when it changed. */
+  onChange: (to: ChangeTo) => Promise<string | null>;
+  onClose: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const change = async (to: ChangeTo) => {
+    setBusy(true);
+    const e = await onChange(to);
+    setBusy(false);
+    if (e) setErr(e); else onClose();
+  };
+  return (
+    <div role="group" aria-label="Change the exit" className="space-y-1.5 pt-1">
+      <p className="text-xs text-gray-700 dark:text-gray-200">Change {plate} from {CHANGE_LABEL[from]} to:</p>
+      <div className="flex flex-wrap gap-1.5">
+        {(Object.keys(CHANGE_LABEL) as ChangeTo[]).filter(k => k !== from).map(k => (
+          <button key={k} type="button" disabled={busy} onClick={() => void change(k)}
+            className="min-h-9 rounded-lg bg-fg-yellow hover:bg-fg-yellow-hi px-3 text-xs font-bold text-black cursor-pointer touch-manipulation disabled:opacity-40">
+            {CHANGE_LABEL[k]}
+          </button>
+        ))}
+        <button type="button" disabled={busy} onClick={onClose} className={QUIET}>Cancel</button>
+      </div>
+      {err && <p role="alert" className="text-xs font-semibold text-red-700 dark:text-red-400">{err}</p>}
+    </div>
+  );
+}
+
+/** ✈ Sent up on a Clean line, or taken back (migration 167): *"something we cleaned was sent up right away and marking it
+ *  as such"*. No time and no count: a mark. A failed save says so under it. */
+export function BaySentUpToggle({ sent, onToggle }: { sent: boolean; onToggle: (sent: boolean) => Promise<string | null> }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const toggle = async () => {
+    setBusy(true);
+    const e = await onToggle(!sent);
+    setBusy(false);
+    setErr(e);
+  };
+  return (
+    <>
+      <button type="button" aria-pressed={sent} disabled={busy} onClick={() => void toggle()}
+        aria-label={sent ? 'Sent up. Tap to take it back' : 'Mark sent up'}
+        className={sent
+          ? 'mt-0.5 min-h-8 text-xs font-bold text-sky-700 dark:text-sky-300 cursor-pointer touch-manipulation disabled:opacity-40'
+          : `mt-0.5 ${QUIET.replace('min-h-9', 'min-h-8')}`}>
+        ✈ {sent ? 'sent up' : 'Sent up'}
+      </button>
+      {err && <span role="alert" className="block text-[11px] font-semibold text-red-700 dark:text-red-400">{err}</span>}
+    </>
+  );
+}

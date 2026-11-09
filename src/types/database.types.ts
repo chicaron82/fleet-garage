@@ -1144,12 +1144,14 @@ export type Database = {
           plate: string
           pulled_by: number | null
           redo_of: number | null
+          sent_up: boolean
           shift_day: string
           started_at: string
           started_by: string | null
           took_dirty: boolean
           unit_number: string | null
           vehicle_id: string
+          was_exit: string | null
         }
         Insert: {
           added?: boolean
@@ -1163,12 +1165,14 @@ export type Database = {
           plate: string
           pulled_by?: number | null
           redo_of?: number | null
+          sent_up?: boolean
           shift_day: string
           started_at?: string
           started_by?: string | null
           took_dirty?: boolean
           unit_number?: string | null
           vehicle_id: string
+          was_exit?: string | null
         }
         Update: {
           added?: boolean
@@ -1182,12 +1186,14 @@ export type Database = {
           plate?: string
           pulled_by?: number | null
           redo_of?: number | null
+          sent_up?: boolean
           shift_day?: string
           started_at?: string
           started_by?: string | null
           took_dirty?: boolean
           unit_number?: string | null
           vehicle_id?: string
+          was_exit?: string | null
         }
         Relationships: [
           {

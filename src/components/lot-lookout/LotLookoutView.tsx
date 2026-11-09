@@ -89,8 +89,10 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
     onNewHold: flag,
     onSameHold: (id, holdId) => editRow({ action: 'bayLinkHold', id, holdId }),
     onNote: (id, note) => editRow({ action: 'bayNote', id, note }),
-    // His delete (2026-11-06): today's list only. The server refuses an earlier day too.
-    ...(isToday ? { onRemove: bay.remove } : {}),
+    // ✈ Sent up (migration 167): a mark, no count, so an earlier day's list takes it as it takes a note.
+    onSentUp: (id, sent) => editRow({ action: 'baySentUp', id, sent }),
+    // His delete (2026-11-06) and Change (2026-11-09) move the count: today's list only. The server refuses an earlier day too.
+    ...(isToday ? { onRemove: bay.remove, onChangeExit: bay.changeExit } : {}),
   };
 
   /** One exit, said out loud: the note names the car, and Clean / Skip can be taken back for 5 s. */

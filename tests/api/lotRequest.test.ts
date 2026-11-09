@@ -33,6 +33,7 @@ describe('parseLotRequest', () => {
       bayStart: { vehicleId: 'v-1' }, bayExit: { id: 1, exit: 'clean' }, bayExitUndo: { id: 1 }, bayStandbySet: { vehicleId: 'v-1' }, bayStandbyClear: {},
       bayBumpToNextUp: { id: 1 }, bayNote: { id: 1, note: 'x' }, bayLinkHold: { id: 1, holdId: 'h-1' },
       bayAdd: { vehicleId: 'v-1' }, bayAddUndo: { id: 1 }, bayRemove: { id: 1 },
+      bayChangeExit: { id: 1, exit: 'bhold' }, baySentUp: { id: 1, sent: true },
     };
     for (const action of BAY_LOG_ACTIONS) {
       expect(sample[action], `a sample for ${action}`).toBeDefined();

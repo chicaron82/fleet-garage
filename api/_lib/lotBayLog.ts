@@ -29,9 +29,17 @@ export type BayLogRequest =
   | { action: 'bayAdd'; vehicleId: string; by: string }
   | { action: 'bayAddUndo'; id: number; by: string }
   // His delete (2026-11-06, docs/ticket-bay-remove-a-row.md): *"We need a delete option for me"*.
-  | { action: 'bayRemove'; id: number; by: string };
+  | { action: 'bayRemove'; id: number; by: string }
+  // 2026-11-09 (migration 167, docs/ticket-bay-sent-up-and-change-exit.md): *"Editing a cleaned vehicle to M, B, or Erin
+  // afterwards"*, and ✈ Sent up: *"something we cleaned was sent up right away and marking it as such"*.
+  | { action: 'bayChangeExit'; id: number; exit: ChangeableExit; by: string }
+  | { action: 'baySentUp'; id: number; sent: boolean; by: string };
 
-export const BAY_LOG_ACTIONS: readonly BayLogRequest['action'][] = ['bayStart', 'bayExit', 'bayExitUndo', 'bayStandbySet', 'bayStandbyClear', 'bayBumpToNextUp', 'bayNote', 'bayLinkHold', 'bayAdd', 'bayAddUndo', 'bayRemove'];
+export const BAY_LOG_ACTIONS: readonly BayLogRequest['action'][] = ['bayStart', 'bayExit', 'bayExitUndo', 'bayStandbySet', 'bayStandbyClear', 'bayBumpToNextUp', 'bayNote', 'bayLinkHold', 'bayAdd', 'bayAddUndo', 'bayRemove', 'bayChangeExit', 'baySentUp'];
+
+/** The exits a finished line may be changed between. Skip is part of a redo chain and never changes. */
+export type ChangeableExit = Exclude<BayExit, 'skip'>;
+export const CHANGEABLE_EXITS: readonly ChangeableExit[] = ['clean', 'erin', 'mhold', 'bhold'];
 
 /** A note's cap, the same as migration 164's check. */
 export const NOTE_MAX = 140;
@@ -133,6 +141,18 @@ export function parseBayLog(b: Record<string, unknown>, by: string): BayLogReque
       if (id == null) return { error: 'Which car?' };
       return { action: 'bayRemove', id, by };
     }
+    case 'bayChangeExit': {
+      const id = rowId(b.id);
+      if (id == null) return { error: 'Which car?' };
+      if (!(CHANGEABLE_EXITS as readonly unknown[]).includes(b.exit)) return { error: 'Clean, Erin, M hold or B hold?' };
+      return { action: 'bayChangeExit', id, exit: b.exit as ChangeableExit, by };
+    }
+    case 'baySentUp': {
+      const id = rowId(b.id);
+      if (id == null) return { error: 'Which car?' };
+      if (typeof b.sent !== 'boolean') return { error: 'Sent up, or not?' };
+      return { action: 'baySentUp', id, sent: b.sent, by };
+    }
     default:
       return { error: 'Unknown action.' };
   }
@@ -149,6 +169,24 @@ export function parseBayLog(b: Record<string, unknown>, by: string): BayLogReque
 export function removeCountPlan(row: { exit: BayExit; took_dirty: boolean }, since: { cleansSet: boolean; dirtiesSet: boolean }): { cleans: 0 | -1; giveDirty: boolean } {
   if (row.exit === 'skip') return { cleans: 0, giveDirty: false };
   return { cleans: row.exit === 'clean' && !since.cleansSet ? -1 : 0, giveDirty: row.took_dirty && !since.dirtiesSet };
+}
+
+/**
+ * What changing a finished line's exit does to Erin St's cleans (2026-11-09, docs/ticket-bay-sent-up-and-change-exit.md).
+ * Off a Clean: −1, a fix. Onto a Clean: +1, with NO dirty taken (the first exit already took it). Between Erin, M and B:
+ * nothing, every one of them is the same dirty off and no clean. The dirties never move here.
+ * ⭐ Unless he has SET the cleans by hand since the exit: his count already covers the car (removeCountPlan's rule).
+ */
+export function changeExitPlan(from: ChangeableExit, to: ChangeableExit, since: { cleansSet: boolean }): -1 | 0 | 1 {
+  if (since.cleansSet || from === to) return 0;
+  if (from === 'clean') return -1;
+  return to === 'clean' ? 1 : 0;
+}
+
+/** The line's first exit once changed, so it can read "was Clean"; null when the change lands back on the first. */
+export function nextWasExit(was: BayExit | null, from: BayExit, to: BayExit): BayExit | null {
+  const first = was ?? from;
+  return first === to ? null : first;
 }
 
 /** "2026 Toyota Corolla Cross · Gray": the car as it was at Start, kept on the row so the list never re-reads it. */

@@ -37,7 +37,7 @@ describe('BayLogList on the read-only link', () => {
 
 describe('BayLogList in FG: the fold', () => {
   const edit = (flag: number[] = []) => ({ flagIds: new Set(flag), choicesFor: () => [], onNewHold: () => {},
-    onSameHold: async () => null, onNote: async () => null });
+    onSameHold: async () => null, onNote: async () => null, onSentUp: async () => null });
   const plates = () => screen.getAllByText(/^LUR\d$/).map(e => e.textContent);
 
   it('⭐ the last 3 out, then "▾ N earlier", which opens the rest in place', () => {

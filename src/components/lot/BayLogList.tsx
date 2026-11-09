@@ -12,7 +12,7 @@
 import { useState, type ReactNode } from 'react';
 import { bayLines, baySummary, type BayLineKind, type BayLogRow } from '../../lib/lotBayLog';
 import { bayListView, FOLD_KEEP, type BayFilter } from '../../lib/bayListView';
-import { BayFlagChoices, BayNoteEditor, BayRemoveConfirm, type SameHoldChoice } from './BayLineEdit';
+import { BayChangeChoices, BayFlagChoices, BayNoteEditor, BayRemoveConfirm, BaySentUpToggle, type ChangeTo, type SameHoldChoice } from './BayLineEdit';
 
 const TONE: Record<BayLineKind, string> = {
   clean: 'text-green-700 dark:text-green-400',
@@ -37,6 +37,10 @@ export interface BayListEdit {
   onNote: (id: number, note: string | null) => Promise<string | null>;
   /** His delete (2026-11-06): today's list only, so absent on an earlier day. */
   onRemove?: (id: number) => Promise<string | null>;
+  /** Change a finished line's exit (2026-11-09): today's list only, so absent on an earlier day. */
+  onChangeExit?: (id: number, to: ChangeTo) => Promise<string | null>;
+  /** ✈ Sent up on a Clean, or taken back (migration 167). */
+  onSentUp: (id: number, sent: boolean) => Promise<string | null>;
 }
 
 export function BayLogList({ rows, readOnly = false, heading, empty = 'No cars through the bay yet today.', edit }: {
@@ -46,7 +50,7 @@ export function BayLogList({ rows, readOnly = false, heading, empty = 'No cars t
   const s = baySummary(rows);
   const canEdit = !!edit && !readOnly;
   // One line open at a time: a note box, or Flag it's choices.
-  const [open, setOpen] = useState<{ id: number; what: 'note' | 'flag' | 'remove' } | null>(null);
+  const [open, setOpen] = useState<{ id: number; what: 'note' | 'flag' | 'remove' | 'change' } | null>(null);
   const [picked, setPicked] = useState<BayFilter | null>(null);
   const [unfolded, setUnfolded] = useState(false);
   // A filter whose last car was undone falls away with its chip, instead of leaving an empty list behind it.
@@ -79,6 +83,7 @@ export function BayLogList({ rows, readOnly = false, heading, empty = 'No cars t
             {view.shown.map(l => {
               const finished = l.kind !== 'bay';
               const isOpen = open?.id === l.id;
+              const canChange = canEdit && !!edit.onChangeExit && l.kind !== 'skip' && l.kind !== 'bay';
               return (
                 <li key={l.id} className="px-3 py-2.5">
                   <div className="flex items-center gap-3">
@@ -92,11 +97,15 @@ export function BayLogList({ rows, readOnly = false, heading, empty = 'No cars t
                             className="block text-left text-xs text-gray-800 dark:text-gray-100 cursor-pointer">📝 {l.memo}</button>
                         ) : <span className="block text-xs text-gray-800 dark:text-gray-100">📝 {l.memo}</span>
                       )}
-                      {canEdit && finished && !isOpen && (!l.memo || edit.onRemove) && (
-                        <span className="flex gap-4">
+                      {canEdit && finished && !isOpen && (!l.memo || edit.onRemove || canChange) && (
+                        <span className="flex flex-wrap gap-x-4">
                           {!l.memo && (
                             <button type="button" onClick={() => setOpen({ id: l.id, what: 'note' })}
                               className="min-h-8 text-xs font-semibold text-gray-500 dark:text-gray-400 cursor-pointer">+ Note</button>
+                          )}
+                          {canChange && (
+                            <button type="button" onClick={() => setOpen({ id: l.id, what: 'change' })}
+                              className="min-h-8 text-xs font-semibold text-gray-500 dark:text-gray-400 cursor-pointer">Change</button>
                           )}
                           {edit.onRemove && (
                             <button type="button" onClick={() => setOpen({ id: l.id, what: 'remove' })}
@@ -108,6 +117,11 @@ export function BayLogList({ rows, readOnly = false, heading, empty = 'No cars t
                     <span className="shrink-0 text-right">
                       <span className={`block text-sm font-extrabold ${TONE[l.kind]}`}>{l.label}</span>
                       {l.note && finished && <span className="block text-[11px] text-gray-500 dark:text-gray-400">{l.note}</span>}
+                      {l.was && finished && <span className="block text-[11px] text-gray-500 dark:text-gray-400">was {l.was}</span>}
+                      {/* ✈ Sent up (migration 167): FG marks it, the read-only link shows it. A Clean only. */}
+                      {l.kind === 'clean' && (canEdit && !isOpen
+                        ? <BaySentUpToggle sent={l.sentUp} onToggle={sent => edit.onSentUp(l.id, sent)} />
+                        : l.sentUp && <span className="block text-[11px] font-bold text-sky-700 dark:text-sky-300">✈ sent up</span>)}
                       {canEdit && edit.flagIds.has(l.id) && !isOpen && (
                         <button type="button" onClick={() => flag(l.id)} className={SMALL_BTN}>Flag it →</button>
                       )}
@@ -118,6 +132,9 @@ export function BayLogList({ rows, readOnly = false, heading, empty = 'No cars t
                   )}
                   {canEdit && isOpen && open.what === 'remove' && edit.onRemove && (
                     <BayRemoveConfirm what={`${l.plate} · ${l.label} ${l.time}`} onRemove={() => edit.onRemove!(l.id)} onClose={() => setOpen(null)} />
+                  )}
+                  {canEdit && isOpen && open.what === 'change' && edit.onChangeExit && l.kind !== 'skip' && l.kind !== 'bay' && (
+                    <BayChangeChoices plate={l.plate} from={l.kind} onChange={to => edit.onChangeExit!(l.id, to)} onClose={() => setOpen(null)} />
                   )}
                   {canEdit && isOpen && open.what === 'flag' && (
                     <BayFlagChoices choices={edit.choicesFor(l.id)} onSame={holdId => edit.onSameHold(l.id, holdId)}

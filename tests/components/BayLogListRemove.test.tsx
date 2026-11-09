@@ -10,7 +10,7 @@ const row = (id: number, plate: string, exit: BayLogRow['exit'], note: string | 
   shift_day: '2026-11-06', started_at: `2026-11-06T21:3${id}:00.000Z`, exit, exited_at: `2026-11-06T21:4${id}:00.000Z`, note, hold_id: null,
 });
 const edit = (over: Partial<BayListEdit> = {}): BayListEdit => ({
-  flagIds: new Set(), choicesFor: () => [], onNewHold: () => {}, onSameHold: async () => null, onNote: async () => null, ...over,
+  flagIds: new Set(), choicesFor: () => [], onNewHold: () => {}, onSameHold: async () => null, onNote: async () => null, onSentUp: async () => null, ...over,
 });
 
 describe('Remove on today\'s bay list', () => {
