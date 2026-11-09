@@ -32,6 +32,12 @@ export function agoLabel(min: number | null): string {
   if (min < 1) return 'just now';
   if (min < 60) return `${min} min ago`;
   const h = Math.floor(min / 60);
+  // ⭐ Past a day, days and whole hours (Aaron, 2026-11-09, on "47h 6m ago": *"yes :)"*; docs/November/
+  // ticket-ago-reads-in-days.md). The minutes drop: the day-and-time shown beside it is the exact stamp.
+  if (h >= 24) {
+    const d = Math.floor(h / 24);
+    return h % 24 ? `${d}d ${h % 24}h ago` : `${d}d ago`;
+  }
   const m = min % 60;
   return m ? `${h}h ${m}m ago` : `${h}h ago`;
 }

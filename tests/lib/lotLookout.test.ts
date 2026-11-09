@@ -9,6 +9,11 @@ describe('labels', () => {
     expect(agoLabel(null)).toBe('never');
     expect(agoLabel(0)).toBe('just now');
     expect(agoLabel(135)).toBe('2h 15m ago');
+    // Past a day it reads in days and whole hours (Friday 23:23 seen Sunday 22:29 was "47h 6m ago").
+    expect(agoLabel(1439)).toBe('23h 59m ago');
+    expect(agoLabel(1440)).toBe('1d ago');
+    expect(agoLabel(2826)).toBe('1d 23h ago');
+    expect(agoLabel(2880)).toBe('2d ago');
   });
 });
 
