@@ -88,6 +88,7 @@ vi.mock('../../src/context/ActiveSessionsContext', () => ({
   useActiveSessions: () => ({
     trip: null, oth: null, refresh: vi.fn(),
     movementTab: 'movement-log', setMovementTab: vi.fn(),
+    registerEnder: vi.fn(), enderFor: vi.fn(() => null),
   }),
 }));
 

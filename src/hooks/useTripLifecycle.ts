@@ -15,9 +15,9 @@ import { hapticLight, hapticMedium } from '../lib/haptics';
 import { useInProgressRecovery } from './useInProgressRecovery';
 import { useTripTakesClean } from './useTripTakesClean';
 import { initialsOf } from '../lib/lotLookout';
-import { elapsedSince, TRIP_DURATION_THRESHOLDS, buildArrivalUpdate, buildTripStartInsert, parseRecoveredQueue } from '../lib/vsa-trip';
+import { elapsedSince, buildArrivalUpdate, buildTripStartInsert, parseRecoveredQueue } from '../lib/vsa-trip';
 import type { Reason, Authorization, QueueSnapshot, TripState } from '../lib/vsa-trip';
-import { pushNotification } from '../lib/garage-uploads';
+import { notifyLongRun } from '../lib/tripEnd';
 import { detectTeslaByPlate } from '../lib/ev-detection';
 import type { TripRun } from '../data/trips';
 import type { EvAssetStatus } from '../types';
@@ -198,11 +198,12 @@ export function useTripLifecycle({
   };
 
   // oneWay=true → "⬛ End Trip" (one-way, queue nulled); false → "✓ Back at Washbay".
-  const handleArrived = async (oneWay: boolean) => {
+  // `at`: the header pill's tap time (docs/ticket-pill-tap-ends-session.md); the card's buttons are now.
+  const handleArrived = async (oneWay: boolean, at?: string) => {
     if (tripState !== 'in_transit') return;
     await withSubmitLock(`trip-arrive:${pendingTripId ?? 'vsa'}`, async () => {
     hapticMedium();
-    const arrived = new Date().toISOString();
+    const arrived = at ?? new Date().toISOString();
     setCompletedOneWay(oneWay);
 
     if (user && pendingTripId) {
@@ -239,21 +240,7 @@ export function useTripLifecycle({
       });
     }
 
-    if (user && departureTime) {
-      const elapsedMinutes = Math.round(
-        (new Date(arrived).getTime() - new Date(departureTime).getTime()) / 60000
-      );
-      if (elapsedMinutes > TRIP_DURATION_THRESHOLDS.alert) {
-        await pushNotification(
-          user.branchId,
-          ['Branch Manager', 'Operations Manager', 'City Manager', 'Lead VSA'],
-          '🐢',
-          `Long airport run — ${user.name} · Airport Run · ${elapsedMinutes} minutes`,
-          'warning',
-          { userId: user.id, elapsedMinutes },
-        );
-      }
-    }
+    if (user && departureTime) await notifyLongRun(user, departureTime, arrived);
     });
   };
 

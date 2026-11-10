@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { othSessionLabel } from '../lib/activeSessions';
@@ -9,6 +9,11 @@ import type { OffStandardReason, OffStandardPresetReason } from '../types';
 // shell) can select the right tab as controlled state — no consume-and-clear
 // signal, no effect in the view.
 export type FocusTab = 'movement-log' | 'off-standard';
+
+/** Which session a pill is for. */
+export type SessionKind = 'trip' | 'oth';
+/** A mounted card's own End, run by the header pill at the tap's time (docs/ticket-pill-tap-ends-session.md). */
+export type SessionEnder = (atIso: string) => Promise<boolean>;
 
 export interface ActiveSession {
   id:        string;
@@ -47,6 +52,10 @@ interface ActiveSessionsValue {
    *  so a signal fired while he is mid-task is dropped rather than firing late (the same
    *  consume-regardless rule the flip auto-start documents). */
   consumeOpeningDuties: () => void;
+  /** Both movement-log cards stay mounted across its tabs, so the pill ends THROUGH a mounted card (never behind its
+   *  back, which would leave it showing a trip in transit that has ended). A card registers while its session runs. */
+  registerEnder: (kind: SessionKind, fn: SessionEnder | null) => void;
+  enderFor:      (kind: SessionKind) => SessionEnder | null;
 }
 
 const ActiveSessionsContext = createContext<ActiveSessionsValue | null>(null);
@@ -74,6 +83,9 @@ export function ActiveSessionsProvider({ children }: { children: React.ReactNode
   const signalOpeningDuties  = useCallback(() => setOpeningDutiesPending(true), []);
   const consumeOpeningDuties = useCallback(() => setOpeningDutiesPending(false), []);
   const [nowMs, setNowMs]             = useState(() => Date.now());
+  const enders = useRef<Record<SessionKind, SessionEnder | null>>({ trip: null, oth: null });
+  const registerEnder = useCallback((kind: SessionKind, fn: SessionEnder | null) => { enders.current[kind] = fn; }, []);
+  const enderFor = useCallback((kind: SessionKind) => enders.current[kind], []);
 
   // One elapsed-time tick shared across all pill consumers — no duplicate intervals.
   const hasTrip = trip !== null;
@@ -119,7 +131,7 @@ export function ActiveSessionsProvider({ children }: { children: React.ReactNode
 
   return (
     <ActiveSessionsContext.Provider
-      value={{ trip, oth, nowMs, refresh: () => void refresh(), movementTab, setMovementTab, openingDutiesPending, signalOpeningDuties, consumeOpeningDuties }}
+      value={{ trip, oth, nowMs, refresh: () => void refresh(), movementTab, setMovementTab, openingDutiesPending, signalOpeningDuties, consumeOpeningDuties, registerEnder, enderFor }}
     >
       {children}
     </ActiveSessionsContext.Provider>

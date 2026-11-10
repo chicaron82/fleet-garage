@@ -1,5 +1,5 @@
 import { useState, type Dispatch, type SetStateAction } from 'react';
-import { supabase, writeWithRefresh } from '../../lib/supabase';
+import { insertAutoTripEntry } from '../../lib/tripEnd';
 import { localDateStr } from '../../hooks/useFleetBalance';
 import { createOrEnrichRegistry } from '../../lib/vehicleRegistry';
 import { useActiveSessions } from '../../context/ActiveSessionsContext';
@@ -8,7 +8,7 @@ import { OffStandardTimeLog } from '../off-standard/OffStandardTimeLog';
 import { TripList } from './TripList';
 import { ModuleHeader } from '../shared/ModuleHeader';
 import type { TripRun } from '../../data/trips';
-import type { OffStandardEntry, User } from '../../types';
+import type { User } from '../../types';
 
 interface Props {
   user: User;
@@ -37,22 +37,6 @@ export function MovementLogVsaView({ user, today, prefillPlate, prefillNonce, au
 
   const myLiveTrips = liveTrips.filter(t => t.driverId === user.id);
 
-  const addAutoOffStandardEntry = async (entry: OffStandardEntry) => {
-    await writeWithRefresh(() => supabase.from('off_standard_entries').insert({
-      user_id:        user.id,
-      branch_id:      user.branchId,
-      date:           localDateStr(0),
-      start_time:     entry.startTime,
-      stop_time:      entry.stopTime,
-      minutes:        entry.minutes,
-      reason:         entry.reason,
-      explanation:    entry.explanation ?? null,
-      auto_from_trip: true,
-      status:         'complete',
-    }));
-    setOffStandardRefresh(n => n + 1);
-  };
-
   const handleTripStarted = (info: TripStartInfo) => {
     refreshActiveSessions(); // surface the pill the moment a trip starts
     if (info.vehiclePlate) {
@@ -75,21 +59,11 @@ export function MovementLogVsaView({ user, today, prefillPlate, prefillNonce, au
       setActiveTab('off-standard');
     }
 
+    // The run's own off-standard entry, ≥ 5 min (lib/tripEnd, shared with the header pill's end).
     if (trip.isVsaInterruption) {
-      const minutes = Math.round(
-        (new Date(trip.arriveTime).getTime() - new Date(trip.departTime).getTime()) / 60000
-      );
-      if (minutes >= 5) {
-        addAutoOffStandardEntry({
-          id:           `auto-${trip.id}`,
-          startTime:    trip.departTime,
-          stopTime:     trip.arriveTime,
-          minutes,
-          reason:       'OTH',
-          explanation:  'VSA Airport Run',
-          autoFromTrip: true,
-        });
-      }
+      void insertAutoTripEntry(user, trip.departTime, trip.arriveTime, localDateStr(0)).then(wrote => {
+        if (wrote) setOffStandardRefresh(n => n + 1);
+      });
     }
   };
 

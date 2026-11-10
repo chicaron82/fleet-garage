@@ -24,7 +24,10 @@ const mockContext = (overrides: {
   openingDutiesPending: false,
   consumeOpeningDuties: vi.fn(),
   signalOpeningDuties: vi.fn(),
+  registerEnder: vi.fn(),
+  enderFor: vi.fn(() => null),
 });
+vi.mock('../../src/context/AuthContext', () => ({ useAuth: () => ({ user: null }) }));
 
 vi.mock('../../src/context/ActiveSessionsContext', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/context/ActiveSessionsContext')>();

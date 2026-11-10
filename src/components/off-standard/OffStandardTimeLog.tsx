@@ -19,6 +19,7 @@ import { useOffStandardTimer } from '../../hooks/useOffStandardTimer';
 import { OffStdQuickStart } from './OffStdQuickStart';
 import { OffStdRecentHistory } from './OffStdRecentHistory';
 import { EDVNoMatchFields } from './EDVNoMatchFields';
+import { useSessionEnder } from '../../hooks/useSessionEnder';
 
 interface Props {
   user: User;
@@ -81,6 +82,9 @@ export function OffStandardTimeLog({ user, refreshTrigger, autoFlipTrigger }: Pr
     shifts,
     resolveName,
   });
+
+  // The header pill ends the running timer THROUGH this card (docs/ticket-pill-tap-ends-session.md).
+  useSessionEnder('oth', timerState === 'running', at => handleEnd(at));
 
   // Auto-start the flipping timer when a VSA ends an airport run "staying here" (autoFlipTrigger
   // bumps from MovementLogVsaView). One-shot: only a NEW trigger fires (the ref), and only if the
@@ -223,7 +227,7 @@ export function OffStandardTimeLog({ user, refreshTrigger, autoFlipTrigger }: Pr
               )}
               <button
                 type="button"
-                onClick={handleEnd}
+                onClick={() => void handleEnd()}
                 className="w-full py-3 rounded-xl bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-white text-white dark:text-gray-900 text-sm font-semibold transition cursor-pointer"
               >
                 End

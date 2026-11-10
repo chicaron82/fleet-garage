@@ -25,6 +25,7 @@ import { TripInTransit } from './TripInTransit';
 import { TripComplete } from './TripComplete';
 import { Toast } from '../shared/Toast';
 import { useRegisterOnScan } from '../../hooks/useRegisterOnScan';
+import { useSessionEnder } from '../../hooks/useSessionEnder';
 
 export type { TripState };
 export type { TripStartInfo };
@@ -57,6 +58,8 @@ export function TripStartForm({
   const collision = useStartCollisionGuard(oth); // speed-bump: trip-start while an OTH timer runs
 
   const t = useTripLifecycle({ initialPlate, initialPlateNonce, onTripStarted, onTripComplete });
+  // The header pill ends a trip in transit THROUGH this card, Back at Washbay (docs/ticket-pill-tap-ends-session.md).
+  useSessionEnder('trip', t.tripState === 'in_transit', async at => { await t.handleArrived(false, at); return true; });
 
   const flaggedClasses = useMemo(() => {
     const manifest  = generateDayManifest();

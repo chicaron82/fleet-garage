@@ -9,8 +9,7 @@ import { useOffStandardEDV } from './useOffStandardEDV';
 import { useActiveSessions } from '../context/ActiveSessionsContext';
 import { deriveExplanation } from '../lib/offStandardReport';
 import { writeOrEnqueue } from '../lib/offStandardWrite';
-
-const MIN_ENTRY_MINUTES = 5;
+import { OTH_MIN_ENTRY_MINUTES as MIN_ENTRY_MINUTES } from '../lib/activeSessions';
 
 export type TimerState = 'idle' | 'running' | 'complete';
 
@@ -202,10 +201,11 @@ export function useOffStandardSession({
     await handleStartWith(tap.reason, tap.preset);
   };
 
-  const handleEnd = async () => {
+  // `at`: the header pill's tap time (docs/ticket-pill-tap-ends-session.md); the card's End is now.
+  const handleEnd = async (at?: string): Promise<boolean> => {
     hapticLight();
     setEndError(false);
-    const now = new Date().toISOString();
+    const now = at ?? new Date().toISOString();
     const mins = Math.round(
       (new Date(now).getTime() - new Date(startTimestamp).getTime()) / 60000
     );
@@ -214,7 +214,7 @@ export function useOffStandardSession({
     if (mins < MIN_ENTRY_MINUTES) {
       if (inProgressId) await writeOrEnqueue('delete', 'off_standard_entries', {}, 'id', inProgressId);
       handleDiscard();
-      return;
+      return true;
     }
 
     const { ok } = await writeOrEnqueue('update', 'off_standard_entries', {
@@ -232,7 +232,7 @@ export function useOffStandardSession({
     if (!ok) {
       console.error('[handleEnd] update failed');
       setEndError(true);
-      return;
+      return false;
     }
 
     if (selectedPreset === 'edv' && edvLinkedHoldId) await linkEdvHold(edvLinkedHoldId);
@@ -259,6 +259,7 @@ export function useOffStandardSession({
     }]);
     setTimerState('complete');
     refreshActiveSessions(); // timer ended — drop the pill
+    return true;
   };
 
   // Fleeting Cars and Fleeting — Sent Up are the same physical task; whether the

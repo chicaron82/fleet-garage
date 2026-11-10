@@ -5,6 +5,9 @@
 import { OFF_STANDARD_LABELS, OFF_STANDARD_PRESET_LABELS } from '../types';
 import type { OffStandardReason, OffStandardPresetReason } from '../types';
 
+/** An off-standard entry shorter than this is thrown away on End, not logged (the card and the header pill share it). */
+export const OTH_MIN_ENTRY_MINUTES = 5;
+
 /** Human label for a running off-standard session — prefer the preset's name
  *  ("Flipping Returns"), fall back to the reason's full label ("Waiting for work"). */
 export function othSessionLabel(
