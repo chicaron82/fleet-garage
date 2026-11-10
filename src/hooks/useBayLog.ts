@@ -35,6 +35,10 @@ export interface BayLogState {
   nextIssue: string | null;
   /** His note on a finished row (null clears it), and "Same as the … hold" (migration 164). Either answers the saved
    *  row, so an earlier day's list can take it too; today's list takes it here. */
+  /** ✈ Send all up (2026-11-10): every unsent Clean on today's list marked, no count moved. Answers the ids it marked,
+   *  for the note's Undo, which takes back only those. */
+  sendAll: () => Promise<{ error: string } | { ids: number[] }>;
+  undoSendAll: (ids: number[]) => Promise<string | null>;
   editRow: (body: { action: 'bayNote'; id: number; note: string | null } | { action: 'bayLinkHold'; id: number; holdId: string }
     | { action: 'baySentUp'; id: number; sent: boolean }) =>
     Promise<{ error: string } | { row: BayLogRow }>;
@@ -138,5 +142,24 @@ export function useBayLog(by = 'FG'): BayLogState {
     return { row };
   }, [by]);
 
-  return { rows, loaded, error, start, exit, undoExit, bump, add, undoAdd, remove, changeExit, nextIssue, editRow };
+  // Both answer `rows`: the lines they marked or unmarked replace the ones the list holds (never added: a mark only).
+  const markRows = useCallback((saved: BayLogRow[]) => {
+    const byId = new Map(saved.map(x => [x.id, x]));
+    setRows(prev => prev.map(x => byId.get(x.id) ?? x));
+  }, []);
+  const sendAll = useCallback(async () => (await withSubmitLock('bay:sendAll', async () => {
+    const r = await postLotSignedIn({ action: 'baySendAllUp', by });
+    if (!r.ok) return { error: r.error ?? 'Send all did not save. Try again.' };
+    const saved = (r.json.rows ?? []) as BayLogRow[];
+    markRows(saved);
+    return { ids: saved.map(x => x.id) };
+  })) ?? { ids: [] }, [by, markRows]);
+  const undoSendAll = useCallback(async (ids: number[]) => {
+    const r = await postLotSignedIn({ action: 'baySendAllUndo', ids, by });
+    if (!r.ok) return r.error ?? 'The undo did not save. Try again.';
+    markRows((r.json.rows ?? []) as BayLogRow[]);
+    return null;
+  }, [by, markRows]);
+
+  return { rows, loaded, error, start, exit, undoExit, bump, add, undoAdd, remove, changeExit, nextIssue, editRow, sendAll, undoSendAll };
 }

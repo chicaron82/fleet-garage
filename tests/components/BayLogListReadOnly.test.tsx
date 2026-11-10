@@ -17,7 +17,7 @@ describe('BayLogList on the read-only link', () => {
     expect(screen.getByText('Erin')).toBeInTheDocument();
     expect(screen.getByText('1 for Erin St')).toBeInTheDocument();
     // The chips filter here too, and they are the only buttons: no + Note, no Flag it.
-    expect(screen.getAllByRole('button').map(b => b.textContent)).toEqual(['1 for Erin St', '1 held, damage']);
+    expect(screen.getAllByRole('button').map(b => b.textContent)).toEqual(['2 through the bay', '1 for Erin St', '1 held, damage']);
   });
 
   // *"Read-only gets the chips but not the fold. Display in reverse order most recent cleaned at the top"*.

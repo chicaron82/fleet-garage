@@ -13,6 +13,8 @@ export function fakeDb(tables: Record<string, Row[]>): SupabaseClient {
     const filters: [string, unknown][] = [];
     const notNull: string[] = [];
     let deleting = false;
+    // An update chained to `.select(…)` answers the rows it changed, as Supabase does (sendAllUp, 2026-11-10).
+    let returning = false;
     // `.or('shift_day.eq.D,exit.is.null')`, the one or() lotBayLogDb issues (addCleaned's day read). Only a read with an
     // or() answers rows from `then`; the others stay null, as the tests before it were written against.
     let anyOf: [string, unknown][] | null = null;
@@ -30,7 +32,7 @@ export function fakeDb(tables: Record<string, Row[]>): SupabaseClient {
       return hit.map(r => ({ ...r }));
     };
     const q = {
-      select: () => q,
+      select: () => { if (patch) returning = true; return q; },
       update: (p: Row) => { patch = p; return q; },
       insert: (r: Row) => { const row = t === 'lot_bay_log' ? { id: nextId++, exit: null, ...r } : { ...r }; tables[t].push(row); inserted = row; return q; },
       upsert: (r: Row) => { tables[t] = [{ ...r }]; inserted = tables[t][0]; return q; },
@@ -57,7 +59,7 @@ export function fakeDb(tables: Record<string, Row[]>): SupabaseClient {
           return ok({ data: run().sort((a, b) => (String(a[k]) < String(b[k]) ? -1 : String(a[k]) > String(b[k]) ? 1 : 0) * (up ? 1 : -1)), error: null });
         }
         // An update awaited with no select (removeRow clearing a link): it lands.
-        if (patch && !deleting) { run(); return ok({ data: null, error: null }); }
+        if (patch && !deleting) { const hit = run(); return ok({ data: returning ? hit : null, error: null }); }
         if (!deleting) return ok({ data: null, error: null });
         const gone = (tables[t] ?? []).filter(r => filters.every(([k, v]) => r[k] === v));
         tables[t] = (tables[t] ?? []).filter(r => !gone.includes(r));

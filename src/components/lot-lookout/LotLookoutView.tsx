@@ -93,7 +93,7 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
     // ✈ Sent up (migration 167): a mark, no count, so an earlier day's list takes it as it takes a note.
     onSentUp: (id, sent) => editRow({ action: 'baySentUp', id, sent }),
     // His delete (2026-11-06) and Change (2026-11-09) move the count: today's list only. The server refuses an earlier day too.
-    ...(isToday ? { onRemove: bay.remove, onChangeExit: bay.changeExit } : {}),
+    ...(isToday ? { onRemove: bay.remove, onChangeExit: bay.changeExit, onSendAll: () => void sendAllHere() } : {}),
   };
 
   /** One exit, said out loud: the note names the car, and Clean / Skip can be taken back for 5 s. */
@@ -124,6 +124,14 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
     if ('error' in out) { show(out.error); return false; }
     show(`${plate} added as clean`, () => void settle(() => bay.undoAdd(out.id), `${plate} taken off the list`));
     return true;
+  };
+  // ✈ Send all up (2026-11-10, docs/ticket-bay-total-and-send-all-up.md): a mark, no count. Undo takes back only these.
+  const sendAllHere = async () => {
+    const out = await bay.sendAll();
+    if ('error' in out) { show(out.error); return; }
+    const n = out.ids.length;
+    if (!n) return;
+    show(`✈ ${n} sent up · no count moved`, () => void settle(() => bay.undoSendAll(out.ids), `${n} back to not sent up`));
   };
   // No Undo on the note: the car is on deck, and its ▶ Start cleaning brings it straight back.
   const bumpHere = (replace: boolean) => {

@@ -52,7 +52,7 @@ describe('bayLines', () => {
 
 describe('baySummary', () => {
   it('counts the day', () => {
-    expect(baySummary(DAY)).toEqual({ clean: 2, erin: 0, mhold: 1, bhold: 1, stillToDo: 0 });
+    expect(baySummary(DAY)).toEqual({ clean: 2, erin: 0, mhold: 1, bhold: 1, stillToDo: 0, total: 4 });
   });
   it('a bump waits until its restart; bumped twice is still ONE car to do', () => {
     expect(baySummary([row(3, 'X', '14:30', 'skip', '14:48')]).stillToDo).toBe(1);

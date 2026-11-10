@@ -19,8 +19,10 @@ const undoExit = vi.fn(async () => null as string | null);
 const start = vi.fn(async () => null as string | null);
 const bump = vi.fn(async (..._args: unknown[]) => null as string | null);
 const editRow = vi.fn(async (body: { id: number }) => ({ row: { ...rows.find(r => r.id === body.id)! } }) as { error: string } | { row: BayLogRow });
+const sendAll = vi.fn(async () => ({ ids: [5, 7] }) as { error: string } | { ids: number[] });
+const undoSendAll = vi.fn(async (_ids: number[]) => null as string | null);
 vi.mock('../../src/hooks/useBayLog', () => ({
-  useBayLog: () => ({ rows, loaded: true, error: null, start, exit, undoExit, bump, editRow }),
+  useBayLog: () => ({ rows, loaded: true, error: null, start, exit, undoExit, bump, editRow, sendAll, undoSendAll }),
 }));
 // The empty bay's own Find a car (ticket-bay-find-a-car-inline-search): the lookup's network search and its recents.
 const hit = { license_plate: '0GK487', unit_number: '5429550', make: 'Kia', model: 'Seltos', year: 2026, color: 'Gray', is_hybrid: false, is_tesla: false, archived_at: null };
@@ -136,6 +138,17 @@ describe('LotLookoutView — the bay log', () => {
     await waitFor(() => expect(exit).toHaveBeenCalledWith(6, 'clean'));
     fireEvent.click(await screen.findByRole('button', { name: 'Undo' }));
     await waitFor(() => expect(undoExit).toHaveBeenCalledWith(6));
+  });
+
+  // docs/ticket-bay-total-and-send-all-up.md: *"A "send all" to mark whatever isn't already sent as sent"*.
+  it('⭐ ✈ Send all up: one tap, a note that says no count moved, and an Undo of exactly those lines', async () => {
+    rows = [5, 7].map(id => row({ id, vehicle_id: `v${id}`, plate: `P${id}`, exit: 'clean', exited_at: '2026-10-29T17:00:00.000Z', started_at: `2026-10-29T16:5${id}:00.000Z` }));
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: '✈ Send up all 2 Cleans' }));
+    await waitFor(() => expect(sendAll).toHaveBeenCalled());
+    expect(await screen.findByText('✈ 2 sent up · no count moved')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await waitFor(() => expect(undoSendAll).toHaveBeenCalledWith([5, 7]));
   });
 
   // docs/ticket-bay-clean-sent-up-at-exit.md: *"Removes a dirty and doesn't +1 the clean"*.

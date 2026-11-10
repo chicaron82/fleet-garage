@@ -104,14 +104,17 @@ function skipNote(redo: BayLogRow | undefined): string {
   return redo.exit === 'skip' ? 'bumped again' : 'held on redo';
 }
 
-export interface BaySummary { clean: number; erin: number; mhold: number; bhold: number; stillToDo: number }
+/** `total`: every car that came OUT of the bay, once, by how it left (2026-11-10: *"Have total amount of everything that
+ *  came through the bay"*). A bump is not an exit, so a skip-then-clean counts once, on its redo. */
+export interface BaySummary { clean: number; erin: number; mhold: number; bhold: number; stillToDo: number; total: number }
 
 /** The day's chips. A bumped car counts as still to do until its restart has an exit. */
 export function baySummary(rows: readonly BayLogRow[]): BaySummary {
   const redone = new Set(rows.map(r => r.redo_of).filter((x): x is number => x != null));
   const count = (e: BayExit) => rows.filter(r => r.exit === e).length;
+  const done = { clean: count('clean'), erin: count('erin'), mhold: count('mhold'), bhold: count('bhold') };
   return {
-    clean: count('clean'), erin: count('erin'), mhold: count('mhold'), bhold: count('bhold'),
+    ...done, total: done.clean + done.erin + done.mhold + done.bhold,
     // The last skip in a chain is the one still waiting; an earlier one was picked up again.
     stillToDo: rows.filter(r => r.exit === 'skip' && !redone.has(r.id)).length,
   };

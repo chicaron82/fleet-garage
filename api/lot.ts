@@ -13,7 +13,7 @@ import { BAY_ACTIONS, bayChange, type BayRequest } from './_lib/lotBay.js';
 import { moveCountSafely } from './_lib/lotCount.js';
 import { BAY_LOG_ACTIONS, type BayLogRequest } from './_lib/lotBayLog.js';
 import { addCleaned, BayLogRefusal, bumpToNextUp, clearStandby, exitCar, linkHold, removeRow, setNote, setStandby, startCar, undoAdd, undoExit } from './_lib/lotBayLogDb.js';
-import { changeExit, sentUpByTrip, setSentUp } from './_lib/lotBayLogChange.js';
+import { changeExit, sendAllUp, sentUpByTrip, setSentUp, undoSendAll } from './_lib/lotBayLogChange.js';
 import type { LotRequest } from './_lib/lotRequest.js';
 import { shiftBusinessDate } from './_lib/shiftDay.js';
 import { leaveOff, loadCrew } from './_lib/lotCrewDb.js';
@@ -90,6 +90,8 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
           : parsed.action === 'bayChangeExit' ? await changeExit(db, parsed.id, parsed.exit, parsed.by, now, today)
           : parsed.action === 'baySentUp' ? await setSentUp(db, parsed.id, parsed.sent)
           : parsed.action === 'bayTripSentUp' ? await sentUpByTrip(db, parsed.plate, today)
+          : parsed.action === 'baySendAllUp' ? await sendAllUp(db, today)
+          : parsed.action === 'baySendAllUndo' ? await undoSendAll(db, parsed.ids, today)
           // Named, not a catch-all: a new bay-log action with no arm here must fail the type check, never quietly
           // clear his Next up car (2026-11-03, pass two after the "Unknown action." fix).
           : unhandledBayLog(parsed);

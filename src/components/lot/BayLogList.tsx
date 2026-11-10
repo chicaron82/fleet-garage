@@ -41,6 +41,8 @@ export interface BayListEdit {
   onChangeExit?: (id: number, to: ChangeTo) => Promise<string | null>;
   /** ✈ Sent up on a Clean, or taken back (migration 167). */
   onSentUp: (id: number, sent: boolean) => Promise<string | null>;
+  /** ✈ Send all up (2026-11-10): today's list only, so absent on an earlier day. */
+  onSendAll?: () => void;
 }
 
 export function BayLogList({ rows, readOnly = false, heading, empty = 'No cars through the bay yet today.', edit }: {
@@ -49,6 +51,7 @@ export function BayLogList({ rows, readOnly = false, heading, empty = 'No cars t
   const lines = bayLines(rows, { readOnly });
   const s = baySummary(rows);
   const canEdit = !!edit && !readOnly;
+  const unsent = lines.filter(l => l.kind === 'clean' && !l.sentUp).length;
   // One line open at a time: a note box, or Flag it's choices.
   const [open, setOpen] = useState<{ id: number; what: 'note' | 'flag' | 'remove' | 'change' } | null>(null);
   const [picked, setPicked] = useState<BayFilter | null>(null);
@@ -73,12 +76,21 @@ export function BayLogList({ rows, readOnly = false, heading, empty = 'No cars t
         <>
           {/* Zero chips stay hidden: a "0 holds" is noise, and "0 still to do" only matters when it isn't 0. */}
           <div className="flex flex-wrap gap-1.5">
+            {/* The total first, and it is the list's "show all": a tap clears a chip filter (2026-11-10). */}
+            {s.total > 0 && <FilterChip on={false} onTap={() => setPicked(null)} tone="bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100">{s.total} through the bay</FilterChip>}
             <span className={`${CHIP} bg-green-100 text-green-900 dark:bg-green-900/40 dark:text-green-200`}>{s.clean} clean</span>
             {s.erin > 0 && <FilterChip on={filter === 'erin'} onTap={() => toggle('erin')} tone="bg-green-100 text-green-900 dark:bg-green-900/40 dark:text-green-200">{s.erin} for Erin St</FilterChip>}
             {s.bhold > 0 && <FilterChip on={filter === 'bhold'} onTap={() => toggle('bhold')} tone="bg-red-100 text-red-900 dark:bg-red-900/40 dark:text-red-200">{s.bhold} {readOnly ? 'held, damage' : 'B hold'}</FilterChip>}
             {s.mhold > 0 && <FilterChip on={filter === 'mhold'} onTap={() => toggle('mhold')} tone="bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">{s.mhold} {readOnly ? 'held, mechanical' : 'M hold'}</FilterChip>}
             {s.stillToDo > 0 && <span className={`${CHIP} bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-200`}>{s.stillToDo} still to do</span>}
           </div>
+          {/* ✈ Send all up (2026-11-10): the Cleans not yet marked. Erin cars and holds are not Cleans; no count moves. */}
+          {canEdit && edit.onSendAll && unsent > 0 && (
+            <button type="button" onClick={edit.onSendAll}
+              className="w-full min-h-10 rounded-xl border border-sky-300 dark:border-sky-700 bg-sky-50 dark:bg-sky-900/30 px-3 text-sm font-bold text-sky-800 dark:text-sky-200 cursor-pointer touch-manipulation active:scale-[0.98] transition">
+              ✈ Send up {unsent === s.clean ? (unsent === 1 ? 'the Clean' : `all ${unsent} Cleans`) : `the other ${unsent}`}
+            </button>
+          )}
           <ol className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800">
             {view.shown.map(l => {
               const finished = l.kind !== 'bay';

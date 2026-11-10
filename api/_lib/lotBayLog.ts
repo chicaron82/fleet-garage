@@ -37,9 +37,12 @@ export type BayLogRequest =
   | { action: 'baySentUp'; id: number; sent: boolean; by: string }
   // A trip to the airport marks today's Clean for that plate ✈ (2026-11-09, docs/ticket-trip-marks-sent-up.md): *"if I
   // make a trip to the airport and it's a car that was cleaned today, it changes it to sent up"*.
-  | { action: 'bayTripSentUp'; plate: string; by: string };
+  | { action: 'bayTripSentUp'; plate: string; by: string }
+  // ✈ Send all up, and its Undo by the ids it marked (2026-11-10, docs/ticket-bay-total-and-send-all-up.md).
+  | { action: 'baySendAllUp'; by: string }
+  | { action: 'baySendAllUndo'; ids: number[]; by: string };
 
-export const BAY_LOG_ACTIONS: readonly BayLogRequest['action'][] = ['bayStart', 'bayExit', 'bayExitUndo', 'bayStandbySet', 'bayStandbyClear', 'bayBumpToNextUp', 'bayNote', 'bayLinkHold', 'bayAdd', 'bayAddUndo', 'bayRemove', 'bayChangeExit', 'baySentUp', 'bayTripSentUp'];
+export const BAY_LOG_ACTIONS: readonly BayLogRequest['action'][] = ['bayStart', 'bayExit', 'bayExitUndo', 'bayStandbySet', 'bayStandbyClear', 'bayBumpToNextUp', 'bayNote', 'bayLinkHold', 'bayAdd', 'bayAddUndo', 'bayRemove', 'bayChangeExit', 'baySentUp', 'bayTripSentUp', 'baySendAllUp', 'baySendAllUndo'];
 
 /** A trip's plate as the bay log writes it: trips hold "KUR 261", the log never has a space. Null when it is not one. */
 export function tripPlate(v: unknown): string | null {
@@ -171,6 +174,15 @@ export function parseBayLog(b: Record<string, unknown>, by: string): BayLogReque
       const plate = tripPlate(b.plate);
       if (!plate) return { error: 'Which plate?' };
       return { action: 'bayTripSentUp', plate, by };
+    }
+    case 'baySendAllUp':
+      return { action: 'baySendAllUp', by };
+    case 'baySendAllUndo': {
+      // The ids Send all answered: a day's list, so a few dozen at most.
+      if (!Array.isArray(b.ids) || b.ids.length === 0 || b.ids.length > 200) return { error: 'Nothing to undo.' };
+      const ids = b.ids.map(rowId);
+      if (ids.some(x => x == null)) return { error: 'Nothing to undo.' };
+      return { action: 'baySendAllUndo', ids: ids as number[], by };
     }
     default:
       return { error: 'Unknown action.' };

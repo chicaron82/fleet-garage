@@ -56,6 +56,29 @@ export async function setSentUp(db: SupabaseClient, id: number, sent: boolean) {
 }
 
 /**
+ * ✈ Send all up (2026-11-10, docs/ticket-bay-total-and-send-all-up.md): *"Since we're pretty much sending everything up .
+ * A "send all" to mark whatever isn't already sent as sent. Not including vehicles held"*. Every Clean on TODAY's list not
+ * yet marked; an Erin car, a hold and the car in the bay are not Cleans, so they are never touched. A mark, so no count
+ * moves (Drain stays the cleans' button). Answers the rows it marked, so the phone's Undo can name exactly those.
+ */
+export async function sendAllUp(db: SupabaseClient, today: string) {
+  const { data, error } = await db.from('lot_bay_log').update({ sent_up: true })
+    .eq('shift_day', today).eq('exit', 'clean').eq('sent_up', false).select(BAY_LOG_COLS);
+  if (error) throw error;
+  const rows = data ?? [];
+  if (!rows.length) throw new BayLogRefusal('Every Clean on today\'s list is already sent up.');
+  return { rows };
+}
+
+/** Send all's Undo: only the lines it marked, and only while each is still that same unsent-at-exit Clean of today. */
+export async function undoSendAll(db: SupabaseClient, ids: readonly number[], today: string) {
+  const { data, error } = await db.from('lot_bay_log').update({ sent_up: false })
+    .in('id', ids).eq('shift_day', today).eq('exit', 'clean').eq('sent_at_exit', false).select(BAY_LOG_COLS);
+  if (error) throw error;
+  return { rows: data ?? [] };
+}
+
+/**
  * A trip to the airport marks the car's Clean on today's list ✈ (2026-11-09, docs/ticket-trip-marks-sent-up.md): *"if I
  * make a trip to the airport and it's a car that was cleaned today, it changes it to sent up"*. The plate's NEWEST line
  * today, only when it is a Clean not yet marked. Anything else is quiet (`row: null`, never a refusal): most trips are
