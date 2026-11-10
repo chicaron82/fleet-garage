@@ -1420,6 +1420,53 @@ export type Database = {
         }
         Relationships: []
       }
+      odometer_readings: {
+        Row: {
+          entered_at: string
+          entered_by: string | null
+          id: number
+          km: number
+          read_at: string
+          replaced_at: string | null
+          replaced_km: number | null
+          source: string
+          vehicle_id: string
+          voided_at: string | null
+        }
+        Insert: {
+          entered_at?: string
+          entered_by?: string | null
+          id?: number
+          km: number
+          read_at: string
+          replaced_at?: string | null
+          replaced_km?: number | null
+          source?: string
+          vehicle_id: string
+          voided_at?: string | null
+        }
+        Update: {
+          entered_at?: string
+          entered_by?: string | null
+          id?: number
+          km?: number
+          read_at?: string
+          replaced_at?: string | null
+          replaced_km?: number | null
+          source?: string
+          vehicle_id?: string
+          voided_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "odometer_readings_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       off_standard_entries: {
         Row: {
           auto_from_trip: boolean
@@ -2652,6 +2699,20 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      record_sheet_odometer: {
+        Args: {
+          p_branch: string
+          p_by_id: string
+          p_by_name: string
+          p_day_end: string
+          p_day_start: string
+          p_force?: boolean
+          p_km: number
+          p_read_at: string
+          p_vehicle: string
+        }
+        Returns: Json
+      }
       swap_shift_content: {
         Args: { p_a_id: string; p_b_id: string; p_note?: string }
         Returns: {
@@ -2680,6 +2741,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      undo_sheet_odometer: {
+        Args: { p_reading: number; p_sighting?: number }
+        Returns: Json
       }
     }
     Enums: {

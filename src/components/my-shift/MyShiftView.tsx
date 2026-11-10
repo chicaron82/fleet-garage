@@ -14,6 +14,7 @@ import { ShiftRatesCard } from '../analytics/ShiftRatesCard';
 import { ShiftReportExport } from '../analytics/ShiftReportExport';
 import { PayEstimateCard } from './PayEstimateCard';
 import { FuelPumpReadings } from './FuelPumpReadings';
+import { PastGasSheet } from './PastGasSheet';
 import { AirportFlipSection } from './AirportFlipSection';
 import { PendingWritesSection } from '../pending/PendingWritesSection';
 import { EffieAuditSection } from '../pending/EffieAuditSection';
@@ -256,6 +257,8 @@ export function MyShiftView({ onOpenVehicle }: {
             <WashbayClosingLog />
           </StepSection>
           <FuelPumpReadings user={user!} />
+          {/* An older sheet's odos, on the day it was written (migration 168) */}
+          <PastGasSheet />
         </>
       )}
 
