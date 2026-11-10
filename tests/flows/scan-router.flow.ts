@@ -117,11 +117,13 @@ test('scan → Flag/hold opens the flag form on the scanned vehicle', async ({ p
   await expect(page.getByText(`Plate: ${FIXTURE.plate}`)).toBeVisible();
 });
 
-test('scan → View opens the scanned vehicle (and its geotab hold reads Repaired)', async ({ page }) => {
+test('scan → View opens the scanned vehicle (and its geotab hold reads Done)', async ({ page }) => {
   await injectScreen(page, { name: 'vehicle', vehicleId: FIXTURE.vehicleId });
   await expect(page.getByText(`Plate: ${FIXTURE.plate}`)).toBeVisible();
   await expect(page.getByText('Geotab not installed')).toBeVisible();
-  await expect(page.getByText('Repaired', { exact: true })).toBeVisible(); // cleared, off the install list
+  // Cleared, off the install list. A mechanical hold finishes Done, not Repaired (2026-11-10,
+  // docs/ticket-repair-outcome-windshield-only.md): an install is a service, not a damage repair.
+  await expect(page.getByText('Done', { exact: true })).toBeVisible();
 });
 
 test('scan → Start trip auto-fires a Routine run to the live timer — twice (repeat scan)', async ({ page }) => {

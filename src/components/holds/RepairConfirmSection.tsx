@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { hapticLight } from '../../lib/haptics';
 import { REPAIR_OUTCOME_LABELS } from '../../types';
+import { onWindshield } from '../../lib/holdKinds';
 import type { Hold, RepairOutcome } from '../../types';
 import type { RepairLanding } from '../../lib/repairChains';
 import type { HoldDerivedStatus } from '../../lib/vehicle-status';
@@ -106,7 +107,9 @@ export function RepairConfirmSection({
           className="w-full px-3.5 py-2.5 rounded-lg border border-green-300 dark:border-green-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition resize-none"
         />
       </div>
-      <div className="space-y-1.5">
+      {/* Only glass leaves a scar worth asking about (docs/ticket-repair-outcome-windshield-only.md). Hidden, the
+          outcome stays the hook's 'clean' default, and the footer names a service or detail by its type anyway. */}
+      {holds.some(onWindshield) && <div className="space-y-1.5">
         <p className="text-xs font-medium text-green-800 dark:text-green-300 uppercase tracking-wide">
           Repair outcome
         </p>
@@ -131,7 +134,7 @@ export function RepairConfirmSection({
             </button>
           ))}
         </div>
-      </div>
+      </div>}
       {error && (
         <p className="text-xs font-medium text-red-600 dark:text-red-400">
           Couldn't save — please try again.

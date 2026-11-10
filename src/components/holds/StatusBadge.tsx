@@ -25,11 +25,14 @@ const HOLD_CONFIG: Record<HoldStatus, { label: string; className: string }> = {
   VOIDED:   { label: 'Voided',     className: 'bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-800/40 dark:text-slate-500 dark:border-slate-700/50' },
 };
 
-export function StatusBadge({ status, holdTypes, mechanicalSubType, disposition }: { status: VehicleStatus | HoldStatus; holdTypes?: HoldType[]; mechanicalSubType?: MechanicalSubType | null; disposition?: Disposition | null }) {
-  const config =
+/** `serviceOnly`: a finished hold with no damage or hail on it reads Done, not Repaired — a PM is serviced, not
+ *  repaired (Aaron, 2026-11-10, on 542 2159; docs/ticket-repair-outcome-windshield-only.md). */
+export function StatusBadge({ status, holdTypes, mechanicalSubType, disposition, serviceOnly }: { status: VehicleStatus | HoldStatus; holdTypes?: HoldType[]; mechanicalSubType?: MechanicalSubType | null; disposition?: Disposition | null; serviceOnly?: boolean }) {
+  const base =
     status in VEHICLE_CONFIG
       ? VEHICLE_CONFIG[status as VehicleStatus]
       : HOLD_CONFIG[status as HoldStatus];
+  const config = status === 'REPAIRED' && serviceOnly ? { ...base, label: 'Done' } : base;
 
   // ⚠️ SALE_CAR's entry above is computed ONCE at module load, so it can never see a per-car value.
   // A turnback and a buy-back therefore rendered identically to a sale for as long as the sub-type has

@@ -14,6 +14,7 @@ import { HoldGeotabInstalled } from './HoldGeotabInstalled';
 import { EvExceptionNow } from './EvExceptionNow';
 import type { Hold, Vehicle } from '../../types';
 import { formatUnitNumber } from '../../lib/formatUnitNumber';
+import { repairsDamage } from '../../lib/holdKinds';
 
 const MAX_PHOTOS = 4;
 
@@ -199,7 +200,7 @@ export function HoldRecordCard({
             )}
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <StatusBadge status={hold.status} holdTypes={unresolvedTypes} mechanicalSubType={hold.mechanicalSubType} disposition={hold.disposition} />
+            <StatusBadge status={hold.status} holdTypes={unresolvedTypes} mechanicalSubType={hold.mechanicalSubType} disposition={hold.disposition} serviceOnly={!repairsDamage(hold)} />
             <button
               type="button"
               onClick={() => (editing ? exitEdit() : startEdit())}

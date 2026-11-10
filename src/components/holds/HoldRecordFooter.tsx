@@ -1,4 +1,5 @@
 import type { Hold } from '../../types';
+import { repairDoneLabel } from '../../lib/holdKinds';
 
 interface Props {
   hold: Hold;
@@ -117,11 +118,11 @@ export function HoldRecordFooter({ hold, getName, getRole, getEmpId, fmt, fmtDat
       {hold.repair && (
         <div className="p-4 border-t bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-900/40">
           <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${
-            hold.repair.outcome === 'scar-remains'
+            repairDoneLabel(hold, hold.repair.outcome) === 'Repaired — Scar Remains'
               ? 'text-amber-700 dark:text-amber-400'
               : 'text-green-800 dark:text-green-300'
           }`}>
-            ✓ {hold.repair.outcome === 'scar-remains' ? 'Repaired — Scar Remains' : 'Damage Repaired'}
+            ✓ {repairDoneLabel(hold, hold.repair.outcome)}
           </p>
           <p className="text-xs text-green-900 dark:text-green-200">
             Confirmed by <span className="font-semibold">{getName(hold.repair.repairedById)}</span>

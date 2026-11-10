@@ -110,6 +110,32 @@ export function kindPills(vehicles: Vehicle[], holds: Hold[], active: HoldKind |
     .sort((a, b) => b.count - a.count || order.indexOf(a.kind) - order.indexOf(b.kind));
 }
 
+/**
+ * Is the windshield on this hold? The Windshield pill's reading, but for ANY status and with resolved types
+ * counted: it asks what the hold WAS, so it still answers at the moment of repair and on a finished record.
+ * Aaron, 2026-11-10: *"Repaired clean and scar remains only showing for windshield damages"* — a scar is what
+ * a chip repair leaves in the glass. docs/ticket-repair-outcome-windshield-only.md
+ */
+export function onWindshield(h: Hold): boolean {
+  const glassType = h.holdTypes.includes('damage') || h.holdTypes.includes('hail');
+  return glassType && ((h.damageZones ?? []).includes('windshield') || WINDSHIELD_WORDS.test(h.damageDescription ?? ''));
+}
+
+/** Damage or hail: the holds whose finish is a REPAIR. A PM, a recall, a detail is done, not repaired. */
+export function repairsDamage(h: Pick<Hold, 'holdTypes'>): boolean {
+  return h.holdTypes.includes('damage') || h.holdTypes.includes('hail');
+}
+
+/** What a finished hold's record says was done. Damage and hail are Repaired; a service or a detail is done. */
+export function repairDoneLabel(h: Hold, outcome: 'clean' | 'scar-remains'): string {
+  if (repairsDamage(h)) {
+    return outcome === 'scar-remains' ? 'Repaired — Scar Remains' : 'Damage Repaired';
+  }
+  if (h.holdTypes.includes('mechanical')) return 'Service done';
+  if (h.holdTypes.includes('detail')) return 'Detail done';
+  return 'Done';
+}
+
 /** Does this car carry the kind? */
 export function vehicleHasKind(vehicleId: string, holds: Hold[], kind: HoldKind): boolean {
   return holds.some(h => h.vehicleId === vehicleId && kindsOfHold(h).includes(kind));
