@@ -1145,6 +1145,7 @@ export type Database = {
           pulled_by: number | null
           redo_of: number | null
           sent_up: boolean
+          sent_at_exit: boolean
           shift_day: string
           started_at: string
           started_by: string | null
@@ -1166,6 +1167,7 @@ export type Database = {
           pulled_by?: number | null
           redo_of?: number | null
           sent_up?: boolean
+          sent_at_exit?: boolean
           shift_day: string
           started_at?: string
           started_by?: string | null
@@ -1187,6 +1189,7 @@ export type Database = {
           pulled_by?: number | null
           redo_of?: number | null
           sent_up?: boolean
+          sent_at_exit?: boolean
           shift_day?: string
           started_at?: string
           started_by?: string | null

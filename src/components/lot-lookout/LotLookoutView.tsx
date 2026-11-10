@@ -9,7 +9,7 @@
 // today's list and its + Add a car already cleaned (2026-11-05), the crew, the links.
 import { useCallback, useState } from 'react';
 import { initialsOf } from '../../lib/lotLookout';
-import { inTheBay, sameHoldChoices, sameHoldLabel, unflaggedHoldIds, type BayExit, type BayLogRow, type HoldExit } from '../../lib/lotBayLog';
+import { inTheBay, sameHoldChoices, sameHoldLabel, unflaggedHoldIds, type BayLeave, type BayLogRow, type HoldExit } from '../../lib/lotBayLog';
 import type { BayListEdit } from '../lot/BayLogList';
 import { shiftDateStr, shiftDayLabel } from '../../lib/shiftDay';
 import { useBayLog } from '../../hooks/useBayLog';
@@ -36,8 +36,9 @@ import type { Screen } from '../../types';
 
 const SECTION_HEAD = 'px-0.5 text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400';
 /** What the note says when a car leaves. A hold is a mark on the list until it's flagged (2026-11-03, one tap). */
-const EXIT_NOTE: Record<BayExit, (plate: string) => string> = {
+const EXIT_NOTE: Record<BayLeave, (plate: string) => string> = {
   clean: p => `${p} clean`,
+  sent: p => `${p} clean · ✈ sent up · off the dirties`,
   erin: p => `${p} clean for Erin St · off the dirties`,
   skip: p => `${p} bumped, still to do`,
   mhold: p => `${p} M hold · flag it from the list`,
@@ -105,7 +106,7 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
     return true;
   }, [show]);
 
-  const exitHere = (kind: BayExit, odometer?: number, pull?: false) => {
+  const exitHere = (kind: BayLeave, odometer?: number, pull?: false) => {
     if (!open) return;
     const { id, plate } = open;
     const odoNote = odometer != null ? ` · odo ${odometer.toLocaleString('en-CA')}` : '';

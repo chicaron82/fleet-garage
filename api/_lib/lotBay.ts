@@ -27,7 +27,8 @@ export interface BayRow {
   used_on: string | null;
 }
 
-export type BayTapKind = 'ready' | 'used' | 'fix' | 'dirties' | 'set' | 'drain' | 'fill' | 'undo' | 'held' | 'erin';
+// sent: a dirty off because a bay car left as ✈ Clean · sent up (migration 169), never onto the cleans.
+export type BayTapKind = 'ready' | 'used' | 'fix' | 'dirties' | 'set' | 'drain' | 'fill' | 'undo' | 'held' | 'erin' | 'sent';
 
 /** What a quick tap's Undo puts back: the row as the phone saw it before the tap. */
 export interface BaySnapshot { cleans: number; dirties: number | null; used: number; usedOn: string | null }
@@ -136,7 +137,7 @@ export function bayChange(row: BayRow, req: BayRequest, nowIso: string, today: s
  * `as`: 'erin' for the Erin exit (2026-11-04, migration 164): *"cleaning them goes to their row to be rented at Erin St
  * and not going up for the airport"*, ruled it *"takes one off the dirties"*. Same move, its own line on Today's list.
  */
-export function heldExitChange(row: BayRow, dir: 'take' | 'give', by: string, nowIso: string, as: 'held' | 'erin' = 'held'): BayChange | null {
+export function heldExitChange(row: BayRow, dir: 'take' | 'give', by: string, nowIso: string, as: 'held' | 'erin' | 'sent' = 'held'): BayChange | null {
   const before = row.dirties ?? 0;
   if (dir === 'take' && before === 0) return null;
   const dirties = dir === 'take' ? before - 1 : Math.min(COUNT_MAX, before + 1);

@@ -6,7 +6,7 @@ import { bayListView } from '../../src/lib/bayListView';
 import type { BayLine, BayLineKind } from '../../src/lib/lotBayLog';
 
 const line = (id: number, kind: BayLineKind = 'clean'): BayLine =>
-  ({ id, time: '', plate: `P${id}`, car: '', kind, label: '', note: '', memo: '', sentUp: false, was: '' });
+  ({ id, time: '', plate: `P${id}`, car: '', kind, label: '', note: '', memo: '', sentUp: false, sentAtExit: false, was: '' });
 /** The day in the order the cars went in, the way bayLines hands it over. */
 const day = (...kinds: BayLineKind[]) => kinds.map((k, i) => line(i + 1, k));
 const ids = (ls: BayLine[]) => ls.map(l => l.id);

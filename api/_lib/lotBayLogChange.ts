@@ -16,7 +16,7 @@ const SAID: Record<BayExit, string> = { clean: 'a Clean', erin: 'an Erin car', m
  * goes (it fitted the old exit), and so does ✈ sent up once it is no longer a Clean.
  */
 export async function changeExit(db: SupabaseClient, id: number, to: ChangeableExit, by: string, nowIso: string, today: string) {
-  const { data: was, error: readErr } = await db.from('lot_bay_log').select('plate, exit, exited_at, shift_day, was_exit').eq('id', id).maybeSingle();
+  const { data: was, error: readErr } = await db.from('lot_bay_log').select('plate, exit, exited_at, shift_day, was_exit, sent_at_exit').eq('id', id).maybeSingle();
   if (readErr) throw readErr;
   if (!was) throw new BayLogRefusal('That car is off the list now.');
   if (!was.exit || !was.exited_at) throw new BayLogRefusal(`${was.plate} is still in the bay. Give it an exit first.`);
@@ -26,9 +26,10 @@ export async function changeExit(db: SupabaseClient, id: number, to: ChangeableE
   // His hand count since the exit: a typed cleans SET already covers this car.
   const { data: taps, error: tapErr } = await db.from('lot_bay_taps').select('kind').gt('tapped_at', was.exited_at).in('kind', ['set']);
   if (tapErr) throw tapErr;
-  const delta = changeExitPlan(was.exit as ChangeableExit, to, { cleansSet: (taps ?? []).length > 0 });
+  const delta = changeExitPlan(was.exit as ChangeableExit, to, { cleansSet: (taps ?? []).length > 0, sentAtExit: was.sent_at_exit === true });
+  // Off a ✈ Clean · sent up it is no longer one (migration 169); onto a Clean from M/B/Erin it is a plain Clean, +1.
   const { data: row, error } = await db.from('lot_bay_log')
-    .update({ exit: to, was_exit: nextWasExit(was.was_exit as BayExit | null, was.exit as BayExit, to), hold_id: null, ...(to === 'clean' ? {} : { sent_up: false }) })
+    .update({ exit: to, was_exit: nextWasExit(was.was_exit as BayExit | null, was.exit as BayExit, to), hold_id: null, sent_at_exit: false, ...(to === 'clean' ? {} : { sent_up: false }) })
     .eq('id', id).eq('exit', was.exit).eq('exited_at', was.exited_at)
     .select(BAY_LOG_COLS).maybeSingle();
   if (error) throw error;
@@ -43,12 +44,14 @@ export async function changeExit(db: SupabaseClient, id: number, to: ChangeableE
   return { row, bay };
 }
 
-/** ✈ Sent up, or taken back. A Clean only; no time of its own, and no count moves. Any day's list, as a note is. */
+/** ✈ Sent up, or taken back. A Clean only; no time of its own, and no count moves. Any day's list, as a note is.
+ *  ⚠️ A Clean that LEFT as ✈ Clean · sent up (migration 169) keeps its mark: un-marking it would leave a car on the
+ *  clean board with no clean ever counted. Its fixes are the Undo, Remove or Change. */
 export async function setSentUp(db: SupabaseClient, id: number, sent: boolean) {
   const { data: row, error } = await db.from('lot_bay_log').update({ sent_up: sent }).eq('id', id).eq('exit', 'clean')
-    .select(BAY_LOG_COLS).maybeSingle();
+    .eq('sent_at_exit', false).select(BAY_LOG_COLS).maybeSingle();
   if (error) throw error;
-  if (!row) throw new BayLogRefusal('Only a Clean goes up from the list.');
+  if (!row) throw new BayLogRefusal('Only a Clean goes up from the list, and one sent up as it left the bay stays sent up.');
   return { row };
 }
 

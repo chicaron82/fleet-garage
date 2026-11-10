@@ -119,7 +119,8 @@ export function BayLogList({ rows, readOnly = false, heading, empty = 'No cars t
                       {l.note && finished && <span className="block text-[11px] text-gray-500 dark:text-gray-400">{l.note}</span>}
                       {l.was && finished && <span className="block text-[11px] text-gray-500 dark:text-gray-400">was {l.was}</span>}
                       {/* ✈ Sent up (migration 167): FG marks it, the read-only link shows it. A Clean only. */}
-                      {l.kind === 'clean' && (canEdit && !isOpen
+                      {/* Sent up AS it left the bay (migration 169): the mark is fixed, the server refuses un-marking it. */}
+                      {l.kind === 'clean' && (canEdit && !isOpen && !l.sentAtExit
                         ? <BaySentUpToggle sent={l.sentUp} onToggle={sent => edit.onSentUp(l.id, sent)} />
                         : l.sentUp && <span className="block text-[11px] font-bold text-sky-700 dark:text-sky-300">✈ sent up</span>)}
                       {canEdit && edit.flagIds.has(l.id) && !isOpen && (

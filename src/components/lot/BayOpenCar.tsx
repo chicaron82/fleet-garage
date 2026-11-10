@@ -33,7 +33,7 @@ import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import type { BayStandbyState } from '../../hooks/useBayStandby';
 import { hapticMedium } from '../../lib/haptics';
 import { whenOf } from '../../lib/lotBay';
-import { bayOdoEntry, bayOdoLetsExit, type BayExit, type BayLogRow } from '../../lib/lotBayLog';
+import { bayOdoEntry, bayOdoLetsExit, type BayLeave, type BayLogRow } from '../../lib/lotBayLog';
 import { odometerUnitFor } from '../../lib/odometer';
 import { businessDateOf } from '../../lib/shiftDay';
 import { BayCarHeader } from './BayCarHeader';
@@ -52,7 +52,7 @@ export interface BayOpenCarProps {
   busy: boolean;
   /** Any exit, settled right here. `odometer`: the reading to keep on the row, when there is one. `pull: false`:
    *  Clean only, the car on deck waits. */
-  onExit: (kind: BayExit, odometer?: number, pull?: false) => void;
+  onExit: (kind: BayLeave, odometer?: number, pull?: false) => void;
   /** ↩ Back to Next up. `replace`: he said yes to bumping the car on the slot. */
   onBump: (replace: boolean) => void;
   /** The hold already saved: close the car as held without a second hold. */
@@ -98,7 +98,7 @@ export function BayOpenCar({ open, next, onStart, busy, onExit, onBump, onCloseH
     }
     go();
   };
-  const leave = (kind: BayExit, pull?: false) => void thenExit(() => onExit(kind, open.odometer == null ? typed ?? carToday ?? undefined : undefined, pull));
+  const leave = (kind: BayLeave, pull?: false) => void thenExit(() => onExit(kind, open.odometer == null ? typed ?? carToday ?? undefined : undefined, pull));
   /** A typed reading is still logged on the car first; the row itself goes, so it keeps none. */
   const bump = (replace: boolean) => void thenExit(() => onBump(replace));
   const correct = async (km: number) => {
@@ -141,6 +141,12 @@ export function BayOpenCar({ open, next, onStart, busy, onExit, onBump, onCloseH
             className="w-full min-h-16 rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi grid justify-items-center content-center gap-0.5 text-black cursor-pointer touch-manipulation active:scale-[0.98] transition disabled:opacity-50">
             <span className="text-lg font-extrabold">✓ Clean{entry.kind === 'log' ? ` · log ${entry.km.toLocaleString('en-CA')} ${odometerUnitFor(car?.isUs)}` : ''}</span>
             <span className="text-xs font-semibold text-gray-800">Onto the list · +1 Erin St cleans{waiting ? ` · ${waiting.plate} comes in` : ''}</span>
+          </button>
+          {/* ✈ Clean · sent up (2026-11-10, migration 169): caught up, so the drivers take it the moment it's clean.
+              *"Removes a dirty and doesn't +1 the clean so I don't have to -1 when they take it"*. Not a fifth tile:
+              the four fill his 412 px. docs/ticket-bay-clean-sent-up-at-exit.md */}
+          <button type="button" disabled={blocked} onClick={tap(() => leave('sent'))} className={QUIET_BTN}>
+            ✈ Clean · sent up <span className="font-normal text-gray-500 dark:text-gray-400">· −1 dirty, no clean</span>
           </button>
           {waiting && (
             <button type="button" disabled={blocked} onClick={tap(() => leave('clean', false))} className={QUIET_BTN}>

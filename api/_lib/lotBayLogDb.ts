@@ -10,7 +10,7 @@ import { bayChange, heldExitChange, type BayChange, type BayRequest, type BayRow
 import { moveCountSafely } from './lotCount.js';
 import { carLine, linkRefusal, redoOf, removeCountPlan, startOdometer, undoAllowed, type BayExit, type DayRow } from './lotBayLog.js';
 
-export const BAY_LOG_COLS = 'id, vehicle_id, plate, unit_number, car, odometer, started_at, exit, exited_at, took_dirty, redo_of, shift_day, note, hold_id, added, sent_up, was_exit';
+export const BAY_LOG_COLS = 'id, vehicle_id, plate, unit_number, car, odometer, started_at, exit, exited_at, took_dirty, redo_of, shift_day, note, hold_id, added, sent_up, was_exit, sent_at_exit';
 
 /** A refusal the phone shows as it is (409), as opposed to a thrown error (500). */
 export class BayLogRefusal extends Error {}
@@ -119,20 +119,25 @@ async function unpull(db: SupabaseClient, exitedId: number, by: string, nowIso: 
   return { removedId: pulled.id as number, standby };
 }
 
-/** `pull`: false for "Clean only, X waits" — the exit lands and Next up's car stays loaded for later. */
-export async function exitCar(db: SupabaseClient, id: number, exit: BayExit, by: string, nowIso: string, today: string, odometer?: number, pull = true) {
+/** `pull`: false for "Clean only, X waits" — the exit lands and Next up's car stays loaded for later.
+ *  `sent`: ✈ Clean · sent up (migration 169, docs/ticket-bay-clean-sent-up-at-exit.md): the car went straight up, so a
+ *  dirty off and NO clean (*"Removes a dirty and doesn't +1 the clean so I don't have to -1 when they take it"*). */
+export async function exitCar(db: SupabaseClient, id: number, exit: BayExit, by: string, nowIso: string, today: string, odometer?: number, pull = true, sent = false) {
   let bay: unknown = null;
   let tookDirty = false;
+  const addsClean = exit === 'clean' && !sent;
+  const takes = exit === 'clean' ? (sent ? 'sent' : null) : dirtyOnly(exit);
   // The count first: a Clean that cannot move the count must not land on the list as if it had.
-  if (exit === 'clean') ({ saved: bay, tookDirty } = await moveCount(db, { action: 'cleans', delta: 1, fix: false, by }, nowIso, today));
-  else if (dirtyOnly(exit)) ({ saved: bay, tookDirty } = await moveCount(db, r => heldExitChange(r, 'take', by, nowIso, dirtyOnly(exit)!), nowIso, today));
+  if (addsClean) ({ saved: bay, tookDirty } = await moveCount(db, { action: 'cleans', delta: 1, fix: false, by }, nowIso, today));
+  else if (takes) ({ saved: bay, tookDirty } = await moveCount(db, r => heldExitChange(r, 'take', by, nowIso, takes), nowIso, today));
+  const sentUp = exit === 'clean' && sent ? { sent_up: true, sent_at_exit: true } : {};
   const { data: row, error } = await db.from('lot_bay_log')
-    .update({ exit, exited_at: nowIso, took_dirty: tookDirty, ...(odometer ? { odometer } : {}) }).eq('id', id).is('exit', null)
+    .update({ exit, exited_at: nowIso, took_dirty: tookDirty, ...sentUp, ...(odometer ? { odometer } : {}) }).eq('id', id).is('exit', null)
     .select(BAY_LOG_COLS).maybeSingle();
   if (error) throw error;
   if (!row) {
     // Already out (another tap, another phone). Put the count back if this tap moved it.
-    if (exit === 'clean') ({ saved: bay } = await moveCount(db, { action: 'cleans', delta: -1, fix: true, giveDirty: tookDirty, by }, nowIso, today));
+    if (addsClean) ({ saved: bay } = await moveCount(db, { action: 'cleans', delta: -1, fix: true, giveDirty: tookDirty, by }, nowIso, today));
     else if (tookDirty) await moveCount(db, r => heldExitChange(r, 'give', by, nowIso), nowIso, today);
     throw new BayLogRefusal('That car already left the bay.');
   }
@@ -163,27 +168,27 @@ export async function bumpToNextUp(db: SupabaseClient, id: number, by: string, n
 }
 
 export async function undoExit(db: SupabaseClient, id: number, by: string, nowIso: string, today: string) {
-  const { data: was, error: readErr } = await db.from('lot_bay_log').select('exit, exited_at, took_dirty').eq('id', id).maybeSingle();
+  const { data: was, error: readErr } = await db.from('lot_bay_log').select('exit, exited_at, took_dirty, sent_at_exit').eq('id', id).maybeSingle();
   if (readErr) throw readErr;
   if (!was || !undoAllowed(was.exited_at, Date.parse(nowIso))) throw new BayLogRefusal('Too late to undo that one.');
   const unpulled = await unpull(db, id, by, nowIso, today);
   const { data: row, error } = await db.from('lot_bay_log')
     // hold_id goes too: the car is back in, and its next exit may be a different kind. So do a changed line's first exit and
-    // ✈ sent up (migration 167): the car is in the bay again, not on the list.
-    .update({ exit: null, exited_at: null, took_dirty: false, hold_id: null, was_exit: null, sent_up: false }).eq('id', id).eq('exited_at', was.exited_at)
+    // ✈ sent up (migrations 167, 169): the car is in the bay again, not on the list.
+    .update({ exit: null, exited_at: null, took_dirty: false, hold_id: null, was_exit: null, sent_up: false, sent_at_exit: false }).eq('id', id).eq('exited_at', was.exited_at)
     .select(BAY_LOG_COLS).maybeSingle();
   if (error?.code === '23505') throw new BayLogRefusal('Another car is in the bay now.');
   if (error) throw error;
   if (!row) throw new BayLogRefusal('That car already changed.');
   let bay: unknown = null;
-  if (was.exit === 'clean') {
+  if (was.exit === 'clean' && !was.sent_at_exit) {
     try {
       ({ saved: bay } = await moveCount(db, { action: 'cleans', delta: -1, fix: true, giveDirty: was.took_dirty, by }, nowIso, today));
     } catch (e) {
       // The clean already went up (a drain at 0 cleans). The car is back in the bay; the count stays as the lot is.
       if (!(e instanceof BayLogRefusal)) throw e;
     }
-  } else if (dirtyOnly(was.exit) && was.took_dirty) {
+  } else if ((dirtyOnly(was.exit) || was.sent_at_exit) && was.took_dirty) {
     ({ saved: bay } = await moveCount(db, r => heldExitChange(r, 'give', by, nowIso), nowIso, today));
   }
   return { row, bay, ...unpulled };
@@ -243,7 +248,7 @@ export async function undoAdd(db: SupabaseClient, id: number, by: string, nowIso
  * because both columns reference this row (migrations 161, 163) and would refuse the delete.
  */
 export async function removeRow(db: SupabaseClient, id: number, by: string, nowIso: string, today: string) {
-  const { data: was, error: readErr } = await db.from('lot_bay_log').select('plate, exit, exited_at, took_dirty, shift_day').eq('id', id).maybeSingle();
+  const { data: was, error: readErr } = await db.from('lot_bay_log').select('plate, exit, exited_at, took_dirty, shift_day, sent_at_exit').eq('id', id).maybeSingle();
   if (readErr) throw readErr;
   if (!was) throw new BayLogRefusal('That car is already off the list.');
   if (!was.exit || !was.exited_at) throw new BayLogRefusal(`${was.plate} is still in the bay. Give it an exit first.`);
@@ -251,7 +256,7 @@ export async function removeRow(db: SupabaseClient, id: number, by: string, nowI
   // His hand counts since the exit: a typed cleans SET, a dirties set or step.
   const { data: taps, error: tapErr } = await db.from('lot_bay_taps').select('kind').gt('tapped_at', was.exited_at).in('kind', ['set', 'dirties']);
   if (tapErr) throw tapErr;
-  const plan = removeCountPlan(was as { exit: BayExit; took_dirty: boolean },
+  const plan = removeCountPlan(was as { exit: BayExit; took_dirty: boolean; sent_at_exit: boolean },
     { cleansSet: (taps ?? []).some(t => t.kind === 'set'), dirtiesSet: (taps ?? []).some(t => t.kind === 'dirties') });
   for (const col of ['pulled_by', 'redo_of'] as const) {
     const { error } = await db.from('lot_bay_log').update({ [col]: null }).eq(col, id);

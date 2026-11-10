@@ -39,4 +39,14 @@ describe('useBayLog', () => {
     await act(async () => { await result.current.exit(7, 'clean'); });
     expect(posted.map(p => p.by)).toEqual(['AS', 'AS']);
   });
+
+  // docs/ticket-bay-clean-sent-up-at-exit.md: the card's ✈ Clean · sent up goes out as a Clean that says `sent`.
+  it('⭐ ✈ Clean · sent up posts a Clean with sent: true; a plain Clean carries no sent', async () => {
+    const { result } = renderHook(() => useBayLog('AS'));
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    await act(async () => { await result.current.exit(7, 'sent'); });
+    await act(async () => { await result.current.exit(7, 'clean'); });
+    expect(posted[0]).toMatchObject({ action: 'bayExit', id: 7, exit: 'clean', sent: true });
+    expect(posted[1]).not.toHaveProperty('sent');
+  });
 });

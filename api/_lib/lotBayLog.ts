@@ -13,7 +13,8 @@ export const BAY_EXITS: readonly BayExit[] = ['clean', 'mhold', 'bhold', 'skip',
 export type BayLogRequest =
   | { action: 'bayStart'; vehicleId: string; by: string }
   // `pull: false` = "Clean only, X waits": the exit lands and Next up's car stays loaded (2026-11-03, his run to the airport).
-  | { action: 'bayExit'; id: number; exit: BayExit; by: string; odometer?: number; pull?: false }
+  // `sent: true` = ✈ Clean · sent up (migration 169): a Clean whose car went straight up, so a dirty off and no clean.
+  | { action: 'bayExit'; id: number; exit: BayExit; by: string; odometer?: number; pull?: false; sent?: true }
   | { action: 'bayExitUndo'; id: number; by: string }
   | { action: 'bayStandbySet'; vehicleId: string; by: string }
   | { action: 'bayStandbyClear'; by: string }
@@ -105,10 +106,13 @@ export function parseBayLog(b: Record<string, unknown>, by: string): BayLogReque
       if (!(BAY_EXITS as readonly unknown[]).includes(b.exit)) return { error: 'Clean, M hold, B hold, Erin or Skip?' };
       if (b.pull !== undefined && typeof b.pull !== 'boolean') return { error: 'Bring the next car in, or not?' };
       const pull = b.pull === false ? { pull: false as const } : {};
+      if (b.sent !== undefined && typeof b.sent !== 'boolean') return { error: 'Sent up, or not?' };
+      if (b.sent === true && b.exit !== 'clean') return { error: 'Only a Clean goes up as it leaves the bay.' };
+      const sent = b.sent === true ? { sent: true as const } : {};
       // The reading he logged from the bay card as this car left (docs/ticket-bay-odo-in-card-and-next-up.md). Optional.
-      if (b.odometer === undefined) return { action: 'bayExit', id, exit: b.exit as BayExit, by, ...pull };
+      if (b.odometer === undefined) return { action: 'bayExit', id, exit: b.exit as BayExit, by, ...pull, ...sent };
       if (typeof b.odometer !== 'number' || !Number.isInteger(b.odometer) || b.odometer <= 0 || b.odometer > 9_999_999) return { error: 'That odo is not a reading.' };
-      return { action: 'bayExit', id, exit: b.exit as BayExit, by, odometer: b.odometer, ...pull };
+      return { action: 'bayExit', id, exit: b.exit as BayExit, by, odometer: b.odometer, ...pull, ...sent };
     }
     case 'bayExitUndo': {
       const id = rowId(b.id);
@@ -181,9 +185,11 @@ export function parseBayLog(b: Record<string, unknown>, by: string): BayLogReque
  * ⭐ Unless he has SET that count by hand since the exit: then his count already covers the car, and moving it again would
  * throw it off. LUR367, the same day: Clean 16:40, his dirties recount 16:45, so its dirty stayed where he put it.
  */
-export function removeCountPlan(row: { exit: BayExit; took_dirty: boolean }, since: { cleansSet: boolean; dirtiesSet: boolean }): { cleans: 0 | -1; giveDirty: boolean } {
+export function removeCountPlan(row: { exit: BayExit; took_dirty: boolean; sent_at_exit?: boolean }, since: { cleansSet: boolean; dirtiesSet: boolean }): { cleans: 0 | -1; giveDirty: boolean } {
   if (row.exit === 'skip') return { cleans: 0, giveDirty: false };
-  return { cleans: row.exit === 'clean' && !since.cleansSet ? -1 : 0, giveDirty: row.took_dirty && !since.dirtiesSet };
+  // ✈ Clean · sent up (migration 169) never added a clean, so there is none to take off: only its dirty comes back.
+  const addedClean = row.exit === 'clean' && !row.sent_at_exit;
+  return { cleans: addedClean && !since.cleansSet ? -1 : 0, giveDirty: row.took_dirty && !since.dirtiesSet };
 }
 
 /**
@@ -192,9 +198,10 @@ export function removeCountPlan(row: { exit: BayExit; took_dirty: boolean }, sin
  * nothing, every one of them is the same dirty off and no clean. The dirties never move here.
  * ⭐ Unless he has SET the cleans by hand since the exit: his count already covers the car (removeCountPlan's rule).
  */
-export function changeExitPlan(from: ChangeableExit, to: ChangeableExit, since: { cleansSet: boolean }): -1 | 0 | 1 {
+export function changeExitPlan(from: ChangeableExit, to: ChangeableExit, since: { cleansSet: boolean; sentAtExit?: boolean }): -1 | 0 | 1 {
   if (since.cleansSet || from === to) return 0;
-  if (from === 'clean') return -1;
+  // ✈ Clean · sent up (migration 169) never added a clean: off it is the same dirty off and no clean, like Erin.
+  if (from === 'clean') return since.sentAtExit ? 0 : -1;
   return to === 'clean' ? 1 : 0;
 }
 

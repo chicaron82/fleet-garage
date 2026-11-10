@@ -6,7 +6,7 @@
 // landed, and the list only changes from what the server saved.
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { BAY_LOG_COLUMNS, type BayExit, type BayLogRow } from '../lib/lotBayLog';
+import { BAY_LOG_COLUMNS, type BayLeave, type BayLogRow } from '../lib/lotBayLog';
 import { businessDateOf } from '../lib/shiftDay';
 import { withSubmitLock } from '../lib/submitLock';
 import { postLotSignedIn } from './useLotPin';
@@ -17,7 +17,7 @@ export interface BayLogState {
   error: string | null;
   start: (vehicleId: string) => Promise<string | null>;
   /** `odometer`: the reading logged from the bay card as the car left. `pull: false`: Clean only, Next up's car waits. */
-  exit: (id: number, exit: BayExit, odometer?: number, pull?: false) => Promise<string | null>;
+  exit: (id: number, exit: BayLeave, odometer?: number, pull?: false) => Promise<string | null>;
   undoExit: (id: number) => Promise<string | null>;
   /** ↩ Back to Next up: the car in the bay goes back in line, no exit logged. `replace`: he said yes to bumping the car
    *  that was there. (docs/ticket-bay-clean-only-and-back-to-next-up.md) */
@@ -102,8 +102,10 @@ export function useBayLog(by = 'FG'): BayLogState {
   // A locked-out second tap resolves undefined: nothing to say, the first tap is already on its way.
   const start = useCallback(async (vehicleId: string) =>
     (await withSubmitLock('bay:start', () => send({ action: 'bayStart', vehicleId }))) ?? null, [send]);
-  const exit = useCallback(async (id: number, kind: BayExit, odometer?: number, pull?: false) =>
-    (await withSubmitLock(`bay:exit:${id}`, () => send({ action: 'bayExit', id, exit: kind, ...(odometer ? { odometer } : {}), ...(pull === false ? { pull } : {}) }))) ?? null, [send]);
+  // ✈ Clean · sent up goes out as a Clean with `sent` (migration 169): one dirty off, no clean.
+  const exit = useCallback(async (id: number, kind: BayLeave, odometer?: number, pull?: false) =>
+    (await withSubmitLock(`bay:exit:${id}`, () => send({ action: 'bayExit', id, exit: kind === 'sent' ? 'clean' : kind, ...(kind === 'sent' ? { sent: true } : {}),
+      ...(odometer ? { odometer } : {}), ...(pull === false ? { pull } : {}) }))) ?? null, [send]);
   const undoExit = useCallback((id: number) => send({ action: 'bayExitUndo', id }), [send]);
   // Same lock as the exits: it settles the same row, so an exit and a bump in one frame must not both go.
   const bump = useCallback(async (id: number, replace: boolean) =>

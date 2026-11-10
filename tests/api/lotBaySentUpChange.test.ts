@@ -25,7 +25,7 @@ function lot(log: Row[], taps: Row[] = [], cleans = 7, dirties = 3) {
 }
 const finished = (id: number, exit: string, extra: Row = {}): Row => ({
   id, vehicle_id: `v${id}`, plate: 'LUR437', exit, exited_at: OUT, took_dirty: true, shift_day: TODAY, started_at: OUT,
-  redo_of: null, pulled_by: null, hold_id: null, was_exit: null, sent_up: false, ...extra,
+  redo_of: null, pulled_by: null, hold_id: null, was_exit: null, sent_up: false, sent_at_exit: false, ...extra,
 });
 
 describe('changeExitPlan: only the cleans move, and only across Clean', () => {

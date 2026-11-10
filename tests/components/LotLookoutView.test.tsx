@@ -132,10 +132,20 @@ describe('LotLookoutView — the bay log', () => {
     const card = screen.getByRole('region', { name: 'In the bay' });
     expect(card).toHaveTextContent('LZM536');
     expect(card).toHaveTextContent('Since 11:20');
-    fireEvent.click(screen.getByRole('button', { name: /Clean/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Onto the list/ }));
     await waitFor(() => expect(exit).toHaveBeenCalledWith(6, 'clean'));
     fireEvent.click(await screen.findByRole('button', { name: 'Undo' }));
     await waitFor(() => expect(undoExit).toHaveBeenCalledWith(6));
+  });
+
+  // docs/ticket-bay-clean-sent-up-at-exit.md: *"Removes a dirty and doesn't +1 the clean"*.
+  it('⭐ ✈ Clean · sent up: one tap, its own note, with an Undo', async () => {
+    rows = [row({})];
+    render(<LotLookoutView onNavigate={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /Clean · sent up/ }));
+    await waitFor(() => expect(exit).toHaveBeenCalledWith(6, 'sent'));
+    expect(await screen.findByText(/LZM536 clean · ✈ sent up · off the dirties/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeTruthy();
   });
 
   // ⭐ Aaron, 2026-11-03: *"Choosing M or B from the exit options after cleaning just marks them as M or B on the list.

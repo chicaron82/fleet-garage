@@ -16,6 +16,8 @@ import { agoLabel, minutesAgo } from './lotLookout';
 // 'erin' (2026-11-04, migration 164): *"cleaning them goes to their row to be rented at Erin St and not going up for the
 // airport"*. A clean, off the dirties, never +1 on the cleans. Ticket: docs/ticket-bay-erin-exit-notes-existing-hold.md.
 export type BayExit = 'clean' | 'mhold' | 'bhold' | 'skip' | 'erin';
+/** What the bay card can tap: an exit, or ✈ Clean · sent up, which goes out as a Clean with `sent` (migration 169). */
+export type BayLeave = BayExit | 'sent';
 
 export interface BayLogRow {
   id: number;
@@ -41,18 +43,21 @@ export interface BayLogRow {
   sent_up?: boolean;
   /** A changed line's FIRST exit (migration 167), so it reads "was Clean"; null when unchanged. */
   was_exit?: BayExit | null;
+  /** ✈ Clean · sent up (migration 169): this Clean left the bay straight up, a dirty off and no clean counted. */
+  sent_at_exit?: boolean;
 }
 
 /** A note's cap: migration 164's check, and the server's NOTE_MAX. */
 export const NOTE_MAX_CHARS = 140;
 
-export const BAY_LOG_COLUMNS = 'id, vehicle_id, plate, unit_number, car, odometer, started_at, exit, exited_at, took_dirty, redo_of, shift_day, note, hold_id, added, sent_up, was_exit';
+export const BAY_LOG_COLUMNS = 'id, vehicle_id, plate, unit_number, car, odometer, started_at, exit, exited_at, took_dirty, redo_of, shift_day, note, hold_id, added, sent_up, was_exit, sent_at_exit';
 
 /** What one line of the list says. `kind` 'bay' is the car in the bay now. */
 export type BayLineKind = BayExit | 'bay';
 /** `note` is the list's own word (mechanical, still to do); `memo` is what HE wrote, '' for none. */
-/** `sentUp`: ✈ marked (a Clean only). `was`: the first exit's label once the exit was changed, '' when it wasn't. */
-export interface BayLine { id: number; time: string; plate: string; car: string; kind: BayLineKind; label: string; note: string; memo: string; sentUp: boolean; was: string }
+/** `sentUp`: ✈ marked (a Clean only). `sentAtExit`: it LEFT as ✈ Clean · sent up, so its mark is fixed (migration 169).
+ *  `was`: the first exit's label once the exit was changed, '' when it wasn't. */
+export interface BayLine { id: number; time: string; plate: string; car: string; kind: BayLineKind; label: string; note: string; memo: string; sentUp: boolean; sentAtExit: boolean; was: string }
 
 const LABEL: Record<BayLineKind, string> = { clean: 'Clean', mhold: 'M hold', bhold: 'B hold', skip: 'Bumped', erin: 'Erin', bay: 'In the bay' };
 /** On the read-only link a hold is "Held"; which kind is the note, and the hold itself stays in FG. */
@@ -85,7 +90,8 @@ export function bayLines(rows: readonly BayLogRow[], { readOnly = false }: { rea
     // Migration 167: the mark, and what a changed line was first, so the list never quietly rewrites what was seen.
     const sentUp = kind === 'clean' && r.sent_up === true;
     const was = r.was_exit && r.was_exit !== kind ? labels[r.was_exit] : '';
-    return { id: r.id, time, plate: r.plate, car: r.car ?? '', kind, label: labels[kind], note, memo: r.note ?? '', sentUp, was };
+    const sentAtExit = kind === 'clean' && r.sent_at_exit === true;
+    return { id: r.id, time, plate: r.plate, car: r.car ?? '', kind, label: labels[kind], note, memo: r.note ?? '', sentUp, sentAtExit, was };
   });
 }
 
