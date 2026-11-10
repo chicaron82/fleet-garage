@@ -33,10 +33,19 @@ export function VehicleNote({ vehicleId, note, noteAt }: {
   const { setVehicleNote } = useVehicleHoldContext();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
+  const [fixing, setFixing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(false);
 
-  const open = () => { hapticLight(); setDraft(note ?? ''); setErr(false); setEditing(true); };
+  // ⭐ A NEW NOTE STARTS EMPTY (2026-11-10, docs/ticket-vehicle-note-fresh-and-fold.md). Aaron: *"adding a note when
+  // one already exists is clearing the previous note first then adding the new one"*. The box used to open holding
+  // the old words, so the common case (something new happened to the car: off to auction, back from Speedy) began
+  // with deleting. Now it opens empty, the current note shows above it, and ✏️ Fix this one is the typo path.
+  const open = () => { hapticLight(); setDraft(''); setFixing(false); setErr(false); setEditing(true); };
+  const fix = () => { setDraft(note ?? ''); setFixing(true); };
+  // ⚠️ An empty Save on a noted car would quietly CLEAR the note (setVehicleNote treats blank as null). Clearing has
+  // its own button; Save never does it by accident.
+  const empty = !draft.trim();
 
   const save = async (value: string | null) => {
     setBusy(true); setErr(false);
@@ -48,19 +57,38 @@ export function VehicleNote({ vehicleId, note, noteAt }: {
   if (editing) {
     return (
       <div className="mt-2 rounded-lg border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/20 p-2.5 space-y-2">
+        {note && !fixing && (
+          <div className="text-xs">
+            <p className="text-amber-900 dark:text-amber-200 break-words">
+              <span className="font-semibold">Now:</span> {note}
+            </p>
+            <p className="mt-0.5 text-[11px] text-amber-700/80 dark:text-amber-400/80">
+              It moves to Past notes when you save.{' '}
+              <button
+                type="button"
+                disabled={busy}
+                onClick={fix}
+                className="font-semibold underline underline-offset-2 cursor-pointer disabled:opacity-50"
+              >
+                ✏️ Fix this one instead
+              </button>
+            </p>
+          </div>
+        )}
         <textarea
           autoFocus
           value={draft}
           maxLength={MAX}
           onChange={e => setDraft(e.target.value)}
-          placeholder="e.g. sent to Speedy for windshield replacement"
+          placeholder={note && !fixing ? 'The new note' : 'e.g. sent to Speedy for windshield replacement'}
+          aria-label={note && !fixing ? 'The new note' : 'Note'}
           rows={2}
           className="w-full rounded-lg border border-amber-200 dark:border-amber-800/60 bg-white dark:bg-gray-900 px-2.5 py-2 text-sm text-gray-800 dark:text-gray-100 placeholder:text-gray-400 outline-none resize-none"
         />
         <div className="flex items-center gap-2">
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || empty}
             onClick={() => void save(draft)}
             className="flex-1 rounded-lg bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-50 py-2 text-xs font-semibold text-black cursor-pointer"
           >

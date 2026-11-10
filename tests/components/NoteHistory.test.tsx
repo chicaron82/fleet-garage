@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { NoteHistory } from '../../src/components/vehicle/NoteHistory';
 import type { VehicleChangeRow } from '../../src/lib/vehicleChanges';
 
@@ -12,6 +12,7 @@ const noteRow = (changedAt: string, from: string | null, to: string | null): Veh
   ({ changedAt, op: 'UPDATE', changed: { note: { from, to } } });
 
 beforeEach(() => { rows.current = []; });
+const openFold = () => fireEvent.click(screen.getByRole('button', { name: /Past notes/ }));
 
 describe('NoteHistory', () => {
   // ⭐ LZM533's real shape: the note is GONE from the car, which is exactly why he wanted the record.
@@ -21,8 +22,23 @@ describe('NoteHistory', () => {
       noteRow('2026-08-21T18:56:41Z', null, 'Assigned to car star Fife'),
     ];
     render(<NoteHistory vehicleId="geotab-veh-LZM533" />);
+    openFold();
     expect(screen.getByText(/Assigned to car star Fife/)).toBeInTheDocument();
-    expect(screen.getByText('Past notes')).toBeInTheDocument();
+  });
+
+  // ⭐ His ruling, 2026-11-10: *"just the current note needs to show, older ones remain hidden"*. Folded until tapped.
+  it('starts folded: the count shows, the old note does not, and a tap opens it', () => {
+    rows.current = [
+      noteRow('2026-08-27T00:01:25Z', 'Assigned to car star Fife', null),
+      noteRow('2026-08-21T18:56:41Z', null, 'Assigned to car star Fife'),
+    ];
+    render(<NoteHistory vehicleId="geotab-veh-LZM533" />);
+    const fold = screen.getByRole('button', { name: /Past notes \(1\)/ });
+    expect(fold).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText(/Assigned to car star Fife/)).toBeNull();
+    fireEvent.click(fold);
+    expect(fold).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText(/Assigned to car star Fife/)).toBeInTheDocument();
   });
 
   // ⚠️ Almost every car has never had a note. A heading with nothing under it on 700 records teaches
@@ -42,6 +58,7 @@ describe('NoteHistory', () => {
   it('says "cleared" when the start fell outside the change window', () => {
     rows.current = [noteRow('2026-08-26T00:00:00Z', 'Older note', null)];
     render(<NoteHistory vehicleId="v1" />);
+    openFold();
     expect(screen.getByText(/cleared/)).toBeInTheDocument();
   });
 
@@ -53,6 +70,8 @@ describe('NoteHistory', () => {
       noteRow('2026-08-01T00:00:00Z', null, 'First'),
     ];
     render(<NoteHistory vehicleId="v1" />);
+    expect(screen.getByRole('button', { name: /Past notes \(2\)/ })).toBeInTheDocument();
+    openFold();
     expect(screen.getByText(/Second/)).toBeInTheDocument();
     expect(screen.getByText(/First/)).toBeInTheDocument();
   });

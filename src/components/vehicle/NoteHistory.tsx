@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { pastNoteEpisodes, type NoteEpisode } from '../../lib/noteHistory';
 import { useVehicleChanges } from '../../hooks/useVehicleChanges';
 import { fmtRelativeDate } from '../../lib/lostFoundDate';
@@ -13,17 +14,27 @@ import { fmtRelativeDate } from '../../lib/lostFoundDate';
 // Quiet by construction: nothing renders at all when there is no past note, which is almost every
 // car. Same reasoning as VehicleNote's empty state — a loud empty row on every record teaches him
 // to scroll past the one car that has something.
+//
+// ⭐ FOLDED (2026-11-10, docs/ticket-vehicle-note-fresh-and-fold.md). His ruling: *"just the current note needs to
+// show, older ones remain hidden"*, picking a quiet "Past notes (N) ›" that opens on a tap. The record reads as the
+// car's ONE live note; the history is a tap away, never gone.
 export function NoteHistory({ vehicleId }: { vehicleId: string }) {
   const changes = useVehicleChanges(vehicleId);
   const past = pastNoteEpisodes(changes);
+  const [open, setOpen] = useState(false);
   if (past.length === 0) return null;
 
   return (
     <div className="mt-1.5 space-y-1">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
-        Past notes
-      </p>
-      {past.map((ep, i) => <PastNote key={`${ep.clearedAt}-${i}`} episode={ep} />)}
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen(o => !o)}
+        className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
+      >
+        Past notes ({past.length}) {open ? '▾' : '›'}
+      </button>
+      {open && past.map((ep, i) => <PastNote key={`${ep.clearedAt}-${i}`} episode={ep} />)}
     </div>
   );
 }
