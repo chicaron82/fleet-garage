@@ -24,6 +24,7 @@ import { useScanRouter } from '../../context/scanRouter';
 import { ModuleHeader } from '../shared/ModuleHeader';
 import { LotCrewLine } from '../lot/LotCrewLine';
 import { BayInTheBay } from '../lot/BayInTheBay';
+import { BayFind } from '../lot/BayFind';
 import { BayLogList } from '../lot/BayLogList';
 import { BayAddCleaned } from '../lot/BayAddCleaned';
 import { BayDayHeader } from '../lot/BayDayHeader';
@@ -171,6 +172,8 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
         </section>
       )}
 
+      {/* 🔍 Find a car in the log (2026-11-10): the whole log here; a result opens its day. docs/ticket-bay-log-find-a-car.md */}
+      <BayFind onOpenDay={setBack} />
       {isToday ? (
         <div className="space-y-2">
           <BayLogList rows={bay.rows} heading="The bay log" edit={edit} />

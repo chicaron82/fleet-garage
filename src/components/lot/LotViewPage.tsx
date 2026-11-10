@@ -25,6 +25,7 @@ import { isCountKept, isOnBreak, lastActivity, lastHand } from '../../lib/countK
 import { whenOf } from '../../lib/lotBay';
 import { inTheBay } from '../../lib/lotBayLog';
 import { shiftDayLabel } from '../../lib/shiftDay';
+import { BayFind } from './BayFind';
 import { BayLogList } from './BayLogList';
 import { LotBayStrip } from './LotBayStrip';
 import { LotCrewLine } from './LotCrewLine';
@@ -82,6 +83,8 @@ export function LotViewPage() {
             {erin.bay ? <LotBayStrip bay={erin.bay} nowMs={erin.nowMs} />
               : <p className="text-sm text-red-700 dark:text-red-400">Erin St's count could not load.</p>}
             {bay.error && <p className="text-sm text-red-700 dark:text-red-400">{bay.error}</p>}
+            {/* Find a car (2026-11-10): the last 14 days here, his ruling. docs/ticket-bay-log-find-a-car.md */}
+            <BayFind readOnly />
             <BayLogList rows={bay.rows} readOnly heading={`Today · ${shiftDayLabel()}`} />
             {crew && <LotCrewLine summary={crew.summary} />}
           </div>
