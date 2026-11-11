@@ -100,13 +100,18 @@ export function PastGasSheetBody({ sheet }: { sheet: ReturnType<typeof usePastGa
         ) : (
           <SheetCarCard car={car} near={near} odo={odo} onChange={() => { setCar(null); setLookupKey(k => k + 1); }} />
         )}
-        <input value={odoText} onChange={e => setOdoText(e.target.value)} placeholder="Odo" aria-label="Odo" autoFocus={car != null}
-          key={car?.id ?? 'no-car'} inputMode="numeric" enterKeyHint="done" autoComplete="off" className={`${INPUT} font-mono tabular-nums`} />
+        {/* Odo and Save on one row, like plate + Look up (Aaron, 2026-11-11: *"entering odos isn't that lengthy, we
+            could have the odo and save on the same line"*). The day stays ON the button: it is the guard against a
+            row filed to the wrong sheet. */}
+        <div className="flex items-center gap-2">
+          <input value={odoText} onChange={e => setOdoText(e.target.value)} placeholder="Odo" aria-label="Odo" autoFocus={car != null}
+            key={car?.id ?? 'no-car'} inputMode="numeric" enterKeyHint="done" autoComplete="off" className={`${INPUT} min-w-0 flex-1 font-mono tabular-nums`} />
+          <button type="submit" disabled={!ready || misfit}
+            className="shrink-0 whitespace-nowrap px-4 py-2.5 rounded-lg bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-40 text-black text-sm font-semibold cursor-pointer disabled:cursor-not-allowed">
+            Save to {dayOk ? dayLabel(day) : 'the sheet day'}
+          </button>
+        </div>
         {odoText && odo == null && <p className="text-xs text-amber-700 dark:text-amber-400">That odo isn&apos;t a number.</p>}
-        <button type="submit" disabled={!ready || misfit}
-          className="w-full py-2.5 rounded-lg bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-40 text-black text-sm font-semibold cursor-pointer disabled:cursor-not-allowed">
-          Save to {dayOk ? dayLabel(day) : 'the sheet day'}
-        </button>
         {ready && misfit && (
           <button type="button" onClick={() => submit(true)}
             className="w-full py-2 rounded-lg border border-amber-400 text-amber-800 dark:text-amber-300 text-xs font-semibold cursor-pointer">

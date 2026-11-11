@@ -227,3 +227,58 @@ describe('⭐ the list stays above the keyboard', () => {
     expect(scroll).not.toHaveBeenCalled();
   });
 });
+
+// Aaron, 2026-11-11, entering a past gas sheet at the computer: *"when searching and multiple come up, i'd like to use
+// the arrows to select the one i'm wanting"*. The arrows add a way to pick; Enter with nothing arrowed is unchanged.
+describe('⭐ the arrow keys pick a car', () => {
+  const CAR2 = { ...CAR, license_plate: 'LUR513', unit_number: '5426953', model: 'XC40' };
+  const CAR3 = { ...CAR, license_plate: 'LUR514', unit_number: '5426954', model: 'XC90' };
+  beforeEach(() => searchVehicles.mockResolvedValue({ matches: [CAR, CAR2, CAR3], failed: false }));
+  const field = () => screen.getByLabelText(/Look up a vehicle/);
+  const key = (k: string) => fireEvent.keyDown(field(), { key: k });
+  const shown = async () => { type('LUR'); await waitFor(() => screen.getByText('LUR514')); };
+
+  it('⭐ ↓ ↓ Enter picks the SECOND car', async () => {
+    const onPick = vi.fn();
+    render(<VehicleLookup onPick={onPick} />);
+    await shown();
+    key('ArrowDown'); key('ArrowDown');
+    expect(screen.getByText('LUR513').closest('button')).toHaveAttribute('data-active');
+    key('Enter');
+    expect(onPick).toHaveBeenCalledWith({ vehicle: CAR2 });
+  });
+
+  it('↓ stops at the last row; ↑ above the first hands Enter back to the typed text', async () => {
+    const onPick = vi.fn();
+    render(<VehicleLookup onPick={onPick} />);
+    await shown();
+    for (let i = 0; i < 5; i++) key('ArrowDown');
+    expect(screen.getByText('LUR514').closest('button')).toHaveAttribute('data-active');
+    for (let i = 0; i < 5; i++) key('ArrowUp');
+    expect(document.querySelector('[data-active]')).toBeNull();
+    key('Enter');
+    expect(onPick).toHaveBeenCalledWith({ typed: 'LUR' });
+  });
+
+  it('typing again drops the highlight, so a new search never carries an old pick', async () => {
+    const onPick = vi.fn();
+    render(<VehicleLookup onPick={onPick} />);
+    await shown();
+    key('ArrowDown'); key('ArrowDown');
+    type('LUR5');
+    expect(document.querySelector('[data-active]')).toBeNull();
+    key('Enter');
+    expect(onPick).toHaveBeenCalledWith({ typed: 'LUR5' });
+  });
+
+  // jsdom never submits a form from a key event, so a spy on onSubmit would pass either way. What stops a real
+  // browser's implicit submit is Enter's default being prevented; fireEvent returns false when it was.
+  it('Enter in a host form picks the car and stops the form from also submitting', async () => {
+    const onPick = vi.fn();
+    render(<form><VehicleLookup onPick={onPick} /></form>);
+    await shown();
+    key('ArrowDown');
+    expect(fireEvent.keyDown(field(), { key: 'Enter' })).toBe(false);
+    expect(onPick).toHaveBeenCalledWith({ vehicle: CAR });
+  });
+});

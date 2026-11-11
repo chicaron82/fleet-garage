@@ -20,7 +20,7 @@
 // *"how bout a fall back to enter plate if the scanner goes down too."* A fallback that only appears
 // AFTER a failure is one he has to fail first to discover, and on a slow read he would sit waiting
 // instead of typing. It costs one line of screen and removes a whole failure mode.
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 import { searchVehicles, type VehicleSearchResult } from '../../lib/ev-detection';
 import { foldOZero } from '../../lib/plateFold';
 import { VehicleName } from './VehicleName';
@@ -54,6 +54,9 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
   // Focused and not yet committed to anything — the only moment the recents belong on screen. A pick
   // disarms it, so the list does not spring back over the car card he just opened.
   const [armed, setArmed] = useState(false);
+  // ⭐ The row the arrow keys are on, -1 = none (Aaron, 2026-11-11, entering a gas sheet at the computer: *"when
+  // searching and multiple come up, i'd like to use the arrows to select the one i'm wanting"*).
+  const [active, setActive] = useState(-1);
   // ⚠️ Guards against a slow early request landing after a fast later one and repainting the list
   // with results for a query he has already typed past.
   const seq = useRef(0);
@@ -89,16 +92,35 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
     // ⚠️ TYPED, THEREFORE NEVER CORRECTED — the misread corrector belongs under a camera, not under
     // his thumbs. Same rule the airport flip states.
     onPick({ typed: raw });
-    setQuery(''); setResults([]); setFailed(false); setOpen(false); setArmed(false);
+    setQuery(''); setResults([]); setFailed(false); setOpen(false); setArmed(false); setActive(-1);
   };
 
   const pickVehicle = (v: VehicleSearchResult) => {
-    onPick({ vehicle: v }); setQuery(''); setResults([]); setFailed(false); setOpen(false); setArmed(false);
+    onPick({ vehicle: v }); setQuery(''); setResults([]); setFailed(false); setOpen(false); setArmed(false); setActive(-1);
   };
+  /** Every edit to the text drops the highlight: a new search never carries an old pick. */
+  const edit = (q: string) => { setQuery(q); setActive(-1); };
 
   const showRecents = armed && !query.trim() && (recents?.length ?? 0) > 0;
   const listShown = showRecents || showFailed || (open && !failed && visible.length > 0);
   useKeepListAboveKeyboard(wrapRef, listShown, visible.length);
+  // The rows the arrows walk: whichever list is on screen.
+  const rows: readonly VehicleSearchResult[] = showRecents ? recents! : open && !failed ? visible : [];
+  const hi = active < rows.length ? active : -1;
+
+  // ⚠️ Enter with NOTHING highlighted commits the typed text exactly as it always has: the arrows add a way to pick,
+  // they never change what Enter did before. ↑ above the first row hands the keys back to the field.
+  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      if (!rows.length && !(e.key === 'ArrowDown' && visible.length)) return;
+      e.preventDefault();
+      if (!rows.length) { setOpen(true); setActive(0); return; } // Esc'd list: ↓ brings it back
+      setActive(e.key === 'ArrowDown' ? Math.min(hi + 1, rows.length - 1) : Math.max(hi - 1, -1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault(); // a host <form> (the past gas sheet) must not also submit on this key
+      if (hi >= 0) pickVehicle(rows[hi]); else commitTyped();
+    } else if (e.key === 'Escape') { setOpen(false); setActive(-1); }
+  };
   // ⭐ max-h + scroll: a look-up shows up to SEARCH_SHOW_LIMIT (12) since 2026-10-15, and the
   // half-row cut at the bottom is what tells him the list goes on.
   const listClass = `${inlineResults ? '' : 'absolute z-20 '}mt-1 w-full max-h-72 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg`;
@@ -114,11 +136,11 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
         <div className="relative flex-1">
         <input
           value={query}
-          onChange={e => setQuery(e.target.value.toUpperCase())}
+          onChange={e => edit(e.target.value.toUpperCase())}
           onFocus={() => { setArmed(true); if (visible.length) setOpen(true); }}
           // ⚠️ Delayed so a tap on a suggestion lands before the list closes under the thumb.
           onBlur={() => setTimeout(() => { setOpen(false); setArmed(false); }, 200)}
-          onKeyDown={e => { if (e.key === 'Enter') commitTyped(); if (e.key === 'Escape') setOpen(false); }}
+          onKeyDown={onKey}
           placeholder={placeholder}
           aria-label="Look up a vehicle by plate or unit number"
           autoFocus={autoFocus}
@@ -131,7 +153,7 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
         {query && (
           <button
             type="button"
-            onMouseDown={e => { e.preventDefault(); setQuery(''); }}
+            onMouseDown={e => { e.preventDefault(); edit(''); }}
             className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-base leading-none cursor-pointer"
             aria-label="Clear search"
           >
@@ -150,8 +172,8 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
         <div data-lookup-list className={listClass}>
           <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Recent</p>
           <ul>
-            {recents!.map(v => (
-              <li key={`${v.license_plate}·${v.unit_number ?? ''}`}><LookupRow v={v} query="" onChoose={pickVehicle} /></li>
+            {recents!.map((v, i) => (
+              <li key={`${v.license_plate}·${v.unit_number ?? ''}`}><LookupRow v={v} query="" onChoose={pickVehicle} active={i === hi} /></li>
             ))}
           </ul>
         </div>
@@ -170,11 +192,11 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
 
       {open && !failed && visible.length > 0 && (
         <ul data-lookup-list className={listClass}>
-          {visible.map(v => (
+          {visible.map((v, i) => (
             // ⚠️ KEY ON PLATE + UNIT. Two rows can share a plate — a mock beside the real car
             // (2026-09-17), or a re-plate that made a duplicate record — and `key={plate}` gave
             // React duplicate keys for exactly the case the list most needs to render correctly.
-            <li key={`${v.license_plate}·${v.unit_number ?? ''}`}><LookupRow v={v} query={query.trim()} onChoose={pickVehicle} /></li>
+            <li key={`${v.license_plate}·${v.unit_number ?? ''}`}><LookupRow v={v} query={query.trim()} onChoose={pickVehicle} active={i === hi} /></li>
           ))}
         </ul>
       )}
@@ -232,7 +254,10 @@ function stickyCover(): number {
 }
 
 /** One car in either list — a typed match or a recent. One row so the two can never drift apart. */
-function LookupRow({ v, query, onChoose }: { v: VehicleSearchResult; query: string; onChoose: (v: VehicleSearchResult) => void }) {
+function LookupRow({ v, query, onChoose, active }: { v: VehicleSearchResult; query: string; onChoose: (v: VehicleSearchResult) => void; active: boolean }) {
+  // The arrowed row stays in view as the keys walk past the list's scroll edge.
+  const ref = useRef<HTMLButtonElement>(null);
+  useEffect(() => { if (active) ref.current?.scrollIntoView?.({ block: 'nearest' }); }, [active]);
   // ⭐ SAY WHICH KEY MATCHED. FG never resolves on a weaker key without saying so — the rule the
   // scan card already follows with `matchedByUnit`. If the plate does not start with what he typed,
   // the unit is what found this car, and he should see that. (A recent passes an empty query, which
@@ -240,9 +265,9 @@ function LookupRow({ v, query, onChoose }: { v: VehicleSearchResult; query: stri
   // Folded, so OGK487 typed for 0GK487 is a plate match, not a unit one.
   const byUnit = !foldOZero(v.license_plate).startsWith(foldOZero(query));
   return (
-    <button type="button" onMouseDown={e => e.preventDefault()}
-      onClick={() => onChoose(v)}
-      className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition">
+    <button ref={ref} type="button" onMouseDown={e => e.preventDefault()}
+      onClick={() => onChoose(v)} aria-current={active || undefined} data-active={active || undefined}
+      className={`flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left cursor-pointer transition ${active ? 'bg-fg-yellow/25 dark:bg-fg-yellow/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
       <span className="flex items-center gap-1.5 font-bold text-sm text-gray-900 dark:text-gray-100">
         {v.license_plate}
         {/* Archived cars stay findable — a typed plate is evidence the archive was wrong
