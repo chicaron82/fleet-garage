@@ -6,7 +6,8 @@
 # failure a network drop. The rule was already in memory (feedback_read_the_gate_verdict); I didn't apply it under
 # pressure. This script does the reading: LANDED needs push exit 0, the verdict line, AND origin at HEAD.
 #
-#   bash scripts/push.sh            # push master
+#   bash scripts/push.sh            # push master, then wait for Vercel to build it (scripts/vercel-check.sh)
+# Exit: 0 landed + Vercel building/built · 1 not landed · 3 landed, NO Vercel build · 4 landed, Vercel build failed
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 2
 log=$(mktemp -t fg-push.XXXXXX.log)
@@ -18,7 +19,10 @@ verdict=$(grep -E "── gate: all green" "$log" | tail -1)
 
 if [ $rc -eq 0 ] && [ "$head" = "$origin" ] && [ -n "$verdict" ]; then
   echo "✅ LANDED $head on origin · gate: all green"
-  exit 0
+  # ⭐ LANDED is not DEPLOYED (2026-11-11): bde45e55 landed green and Vercel never built it; he found it from the
+  # footer at 05:50. Wait for Vercel's own status on the commit (VERCEL_WAIT=0 skips the wait, still checks once).
+  bash scripts/vercel-check.sh HEAD
+  exit $?
 fi
 echo "❌ NOT LANDED  (push exit $rc · HEAD $head · origin $origin)"
 if [ -z "$verdict" ]; then
