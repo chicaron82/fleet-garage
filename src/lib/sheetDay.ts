@@ -62,6 +62,23 @@ export function isSheetDay(day: string, nowMs: number): boolean {
 }
 
 export type SheetCar = Pick<Vehicle, 'id' | 'licensePlate' | 'unitNumber' | 'make' | 'model' | 'year' | 'archivedAt'> & Partial<Pick<Vehicle, 'isHybrid' | 'isTesla'>>;
+/** A reading either side of the sheet day, from the car's history. */
+export interface Neighbour { km: number; at: string }
+
+/**
+ * How a typed odo sits between the car's readings either side of the sheet day (Aaron, 2026-11-10: *"show the odo
+ * reading before the date i'm entering for ... this way i can determine if the odo is plausible and guard against an
+ * odo that's higher than the later date"*). Odometers only go forward: lower than the reading before, or higher than
+ * the one after, means one of them is a misread. `since` = km from the reading before, for judging the jump.
+ */
+export function odoFit(odo: number, before: Neighbour | null, after: Neighbour | null):
+  { kind: 'ok' | 'low' | 'high'; since: number | null } {
+  const since = before ? odo - before.km : null;
+  if (before && odo < before.km) return { kind: 'low', since };
+  if (after && odo > after.km) return { kind: 'high', since };
+  return { kind: 'ok', since };
+}
+
 /** A typed odo: whole km, 1 to 9,999,999, commas and spaces allowed. */
 export function parseOdo(typed: string): number | null {
   const s = typed.replace(/[\s,]/g, '');

@@ -8,7 +8,18 @@ import { sheetDayBounds, winnipegDay } from '../../src/lib/sheetDay';
 const { rpc } = vi.hoisted(() => ({
   rpc: vi.fn(async (_fn: string, _args: Record<string, unknown>) => ({ data: { status: 'saved', reading_id: 11, sighting_id: 22, current: false, kept: { km: 48350, at: '2026-11-09T19:00:00Z' } } as unknown, error: null as unknown })),
 }));
-vi.mock('../../src/lib/supabase', () => ({ supabase: { rpc: (fn: string, a: Record<string, unknown>) => rpc(fn, a) } }));
+// The car's readings either side of the sheet day: `lt` asks for the one before, `gte` for the one after.
+const near = vi.hoisted(() => ({ before: null as null | { km: number; read_at: string }, after: null as null | { km: number; read_at: string } }));
+const readings = () => {
+  let side: 'before' | 'after' = 'before';
+  const q = {
+    select: () => q, eq: () => q, is: () => q, order: () => q,
+    lt: () => { side = 'before'; return q; }, gte: () => { side = 'after'; return q; },
+    limit: async () => ({ data: near[side] ? [near[side]] : [], error: null }),
+  };
+  return q;
+};
+vi.mock('../../src/lib/supabase', () => ({ supabase: { rpc: (fn: string, a: Record<string, unknown>) => rpc(fn, a), from: () => readings() } }));
 // FG's one typed lookup searches the fleet; it answers with the cars he can pick.
 const { searchVehicles } = vi.hoisted(() => ({ searchVehicles: vi.fn() }));
 vi.mock('../../src/lib/ev-detection', () => ({ searchVehicles }));
@@ -23,6 +34,7 @@ import { PastGasSheet } from '../../src/components/my-shift/PastGasSheet';
 
 const hit = (plate: string, unit: string) => ({ license_plate: plate, unit_number: unit, make: 'Nissan', model: 'Versa', year: 2025, color: 'Grey', is_hybrid: false, is_tesla: false });
 beforeEach(() => {
+  near.before = null; near.after = null;
   rpc.mockClear();
   searchVehicles.mockReset();
   searchVehicles.mockImplementation(async (q: string) => ({
@@ -89,6 +101,36 @@ describe('⭐ Past gas sheet', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/read 49,000, higher than this/);
     fireEvent.click(screen.getByRole('button', { name: 'Save anyway' }));
     await waitFor(() => expect(rpc).toHaveBeenLastCalledWith('record_sheet_odometer', expect.objectContaining({ p_km: 4810, p_force: true })));
+  });
+
+  it('⭐ the picked car shows its readings either side of the sheet day, and how the odo fits', async () => {
+    near.before = { km: 48000, read_at: '2026-11-05T18:00:00Z' };
+    near.after = { km: 48350, read_at: '2026-11-09T18:00:00Z' };
+    open();
+    await typeRow('LUR24', 'LUR247', '48,100');
+    const n = await screen.findByTestId('sheet-neighbours');
+    expect(n).toHaveTextContent('48,000');
+    expect(n).toHaveTextContent('48,350');
+    expect(screen.getByTestId('sheet-fit')).toHaveTextContent('Fits: +100 km');
+    expect(screen.getByRole('button', { name: /^Save to/ })).toBeEnabled();
+  });
+
+  it('⭐ his guard: higher than the later reading holds Save, and "save anyway" sends it forced', async () => {
+    near.after = { km: 11245, read_at: '2026-11-09T18:00:00Z' };
+    open();
+    await typeRow('LUR24', 'LUR247', '54387');
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Higher than .*11,245/);
+    expect(screen.getByRole('button', { name: /^Save to/ })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: /save anyway/ }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith('record_sheet_odometer', expect.objectContaining({ p_km: 54387, p_force: true })));
+  });
+
+  it('lower than the reading before is held too', async () => {
+    near.before = { km: 26425, read_at: '2026-10-25T18:00:00Z' };
+    open();
+    await typeRow('LUR24', 'LUR247', '20128');
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Lower than .*26,425/);
+    expect(screen.getByRole('button', { name: /^Save to/ })).toBeDisabled();
   });
 
   it('⭐ a unit number finds the car too', async () => {

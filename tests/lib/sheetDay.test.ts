@@ -2,7 +2,7 @@
 // enter would write to that date"*. ⚠️ No typed Winnipeg clock here: every time is read back through the app's own
 // formatters (feedback: Manitoba kept UTC−5 from 2026-11-01, and tz tables disagree across machines).
 import { describe, it, expect } from 'vitest';
-import { dayLabel, isSheetDay, parseOdo, sheetDayBounds, sheetRowWords, winnipegDay } from '../../src/lib/sheetDay';
+import { dayLabel, isSheetDay, odoFit, parseOdo, sheetDayBounds, sheetRowWords, winnipegDay } from '../../src/lib/sheetDay';
 import { clockOf } from '../../src/lib/lotBay';
 
 describe('sheetDayBounds: the day, in Winnipeg', () => {
@@ -26,6 +26,26 @@ describe('isSheetDay', () => {
     expect(isSheetDay(winnipegDay(now - 2 * 86_400_000), now)).toBe(true);
     expect(isSheetDay(winnipegDay(now + 2 * 86_400_000), now)).toBe(false);
     expect(isSheetDay('', now)).toBe(false);
+  });
+});
+
+describe('⭐ odoFit: between the readings either side (his guard, 2026-11-10)', () => {
+  const before = { km: 45000, at: '2026-11-05T18:00:00Z' };
+  const after = { km: 45600, at: '2026-11-09T18:00:00Z' };
+  it('in between fits, and says how far since the reading before', () => {
+    expect(odoFit(45244, before, after)).toEqual({ kind: 'ok', since: 244 });
+    expect(odoFit(45000, before, after)).toEqual({ kind: 'ok', since: 0 });
+    expect(odoFit(45600, before, after)).toEqual({ kind: 'ok', since: 600 });
+  });
+  it('⭐ higher than the LATER reading: one of them is wrong', () => {
+    expect(odoFit(45601, before, after).kind).toBe('high');
+    expect(odoFit(54387, null, { km: 11245, at: after.at }).kind).toBe('high');
+  });
+  it('lower than the reading before', () => {
+    expect(odoFit(44999, before, after).kind).toBe('low');
+  });
+  it('with no readings on file anything fits', () => {
+    expect(odoFit(12, null, null)).toEqual({ kind: 'ok', since: null });
   });
 });
 

@@ -31,11 +31,11 @@ export function usePastGasSheet() {
     patch(key, { state: 'done', result: data as unknown as SheetResult });
   }, [user]);
 
-  /** A new row: newest on top. */
-  const add = useCallback((car: SheetCar, odo: number, day: string) => {
+  /** A new row, newest on top. `force`: he saw it doesn't fit its neighbours and saves it anyway. */
+  const add = useCallback((car: SheetCar, odo: number, day: string, force = false) => {
     const key = nextKey++;
     setRows(rs => [{ key, car, odo, day, state: 'saving' }, ...rs]);
-    void send(key, car, odo, day, false);
+    void send(key, car, odo, day, force);
   }, [send]);
 
   /** A doesn't-fit row, saved because he says the sheet is right. */

@@ -8,10 +8,11 @@
 import { useMemo, useState } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { usePastGasSheet } from '../../hooks/usePastGasSheet';
-import { dayLabel, isSheetDay, parseOdo, winnipegDay, type SheetCar } from '../../lib/sheetDay';
+import { dayLabel, isSheetDay, odoFit, parseOdo, winnipegDay, type SheetCar } from '../../lib/sheetDay';
+import { useSheetNeighbours } from '../../hooks/useSheetNeighbours';
+import { SheetCarCard } from './SheetCarCard';
 import { vehicleForPick } from '../../lib/lotBayLog';
 import { VehicleLookup } from '../shared/VehicleLookup';
-import { VehicleName } from '../shared/VehicleName';
 import { SheetPhotoPin } from './SheetPhotoPin';
 import { SheetRowsList } from './SheetRowsList';
 
@@ -47,11 +48,14 @@ export function PastGasSheetScreen({ onClose }: { onClose: () => void }) {
 
   const odo = parseOdo(odoText);
   const dayOk = isSheetDay(day, openedAt);
+  const near = useSheetNeighbours(car?.id ?? null, day);
+  // ⭐ His guard: an odo that doesn't fit the readings either side holds Save until he says save anyway.
+  const misfit = odo != null && near.state === 'ready' && odoFit(odo, near.before, near.after).kind !== 'ok';
   const ready = dayOk && car != null && odo != null;
 
-  const submit = () => {
-    if (!ready || !car || odo == null) return;
-    sheet.add(car, odo, day);
+  const submit = (force = false) => {
+    if (!ready || !car || odo == null || (misfit && !force)) return;
+    sheet.add(car, odo, day, force);
     setCar(null);
     setOdoText('');
     setLookupKey(k => k + 1);
@@ -89,24 +93,21 @@ export function PastGasSheetScreen({ onClose }: { onClose: () => void }) {
               {missed && <p className="text-xs text-amber-700 dark:text-amber-400"><span className="font-semibold">{missed}</span> isn&apos;t a car in FG. Skip it, or register it from 🔍 Find a car.</p>}
             </>
           ) : (
-            <div className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2" data-testid="sheet-car">
-              <div className="min-w-0 flex-1">
-                <p className="font-mono text-base font-bold text-gray-900 dark:text-gray-100">
-                  {car.licensePlate}{car.unitNumber && <span className="ml-2 text-xs font-semibold text-gray-500 dark:text-gray-400">Unit {car.unitNumber}</span>}
-                </p>
-                <p className="text-xs text-gray-600 dark:text-gray-300 truncate"><VehicleName vehicle={car} />{car.archivedAt ? ' · archived' : ''}</p>
-              </div>
-              <button type="button" onClick={() => { setCar(null); setLookupKey(k => k + 1); }}
-                className="shrink-0 px-2.5 py-1 rounded-md text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 cursor-pointer">Change</button>
-            </div>
+            <SheetCarCard car={car} near={near} odo={odo} onChange={() => { setCar(null); setLookupKey(k => k + 1); }} />
           )}
           <input value={odoText} onChange={e => setOdoText(e.target.value)} placeholder="Odo" aria-label="Odo" autoFocus={car != null}
             key={car?.id ?? 'no-car'} inputMode="numeric" enterKeyHint="done" autoComplete="off" className={`${INPUT} font-mono tabular-nums`} />
           {odoText && odo == null && <p className="text-xs text-amber-700 dark:text-amber-400">That odo isn&apos;t a number.</p>}
-          <button type="submit" disabled={!ready}
+          <button type="submit" disabled={!ready || misfit}
             className="w-full py-2.5 rounded-lg bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-40 text-black text-sm font-semibold cursor-pointer disabled:cursor-not-allowed">
             Save to {dayOk ? dayLabel(day) : 'the sheet day'}
           </button>
+          {ready && misfit && (
+            <button type="button" onClick={() => submit(true)}
+              className="w-full py-2 rounded-lg border border-amber-400 text-amber-800 dark:text-amber-300 text-xs font-semibold cursor-pointer">
+              The sheet is right: save anyway
+            </button>
+          )}
         </form>
 
         <SheetRowsList rows={sheet.rows} onUndo={r => void sheet.undo(r)} onSaveAnyway={sheet.saveAnyway} onRetry={sheet.retry} />
