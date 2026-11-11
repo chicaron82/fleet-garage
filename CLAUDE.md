@@ -374,6 +374,11 @@ hope, and it fails at exactly the moment you feel confident.
 | Unit number, owning area | `DigitsInput` (alias `UnitNumberInput`) | a raw input + `inputMode` |
 | Keys on the ring (1–4) | `KeyCountSelector` | four hand-written 44px buttons |
 | **Scan a key tag** | **`ScanButton`** (`shared/ScanButton.tsx`) | a hand-rolled `<input type="file">` + yellow `<button>` + 📷 |
+| **Which car? (type a plate or unit to FIND one)** | **`VehicleLookup`** (`shared/VehicleLookup.tsx`) + `vehicleForPick` | an `<input>` + an exact `===` / a matcher of your own |
+
+⚠️ The last row was learned twice: born 2026-09-04 (*"its just applied differently"*), then broken by me on 2026-11-10
+in the past gas sheet, found on its first real use: *"the field doesn't behave like the other searches so no matching
+results coming up"* (`0b3bf104`). Before writing ANY plate or unit box: `grep -rn "<VehicleLookup" src`.
 
 ⚠️ **`autoCapitalize="characters"` is not uppercasing.** It steers a *soft* keyboard and does
 nothing on a hardware one — and Aaron audits tags from couch command (PC into the TV). Only a
