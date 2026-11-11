@@ -204,12 +204,31 @@ function useKeepListAboveKeyboard(wrapRef: RefObject<HTMLDivElement | null>, lis
       const list = wrap?.querySelector('[data-lookup-list]');
       if (!wrap || !list) return;
       const visibleBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
-      if (list.getBoundingClientRect().bottom > visibleBottom) wrap.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+      if (list.getBoundingClientRect().bottom <= visibleBottom) return;
+      wrap.style.scrollMarginTop = `${stickyCover()}px`;
+      wrap.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
     };
     check();
     vv?.addEventListener('resize', check);
     return () => vv?.removeEventListener('resize', check);
   }, [wrapRef, listShown, rows]);
+}
+
+/**
+ * How far down the screen the things pinned to the top reach once they stick, so the field lands BELOW them. FG's
+ * header is the floor (80px, the wrapper's `scroll-mt-20`); a host pins more with `data-sticky-cover`.
+ *
+ * Aaron, 2026-11-11, typing a plate under the past gas sheet's pinned photo: *"the results shows up but then
+ * immeditately disappears"*. They didn't: the list ran off the bottom, this scroll lifted the field to clear the header,
+ * and the photo (sticky, up to 42vh) sat over the field and the whole list.
+ */
+function stickyCover(): number {
+  let cover = 80;
+  document.querySelectorAll<HTMLElement>('[data-sticky-cover]').forEach(el => {
+    const stuckTop = parseFloat(getComputedStyle(el).top) || 0;
+    cover = Math.max(cover, stuckTop + el.getBoundingClientRect().height + 8);
+  });
+  return cover;
 }
 
 /** One car in either list — a typed match or a recent. One row so the two can never drift apart. */

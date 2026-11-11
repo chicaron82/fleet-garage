@@ -199,6 +199,26 @@ describe('⭐ the list stays above the keyboard', () => {
     await waitFor(() => expect(scroll).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' }));
   });
 
+  // Aaron, 2026-11-11, under the past gas sheet's pinned photo: *"the results shows up but then immeditately
+  // disappears"*. The field scrolled up to clear the header only, and the sticky photo covered it and the list.
+  it('⭐ something pinned to the top (the gas sheet photo) → the field lands BELOW it, not under it', async () => {
+    const scroll = setup(700, 450);
+    render(<><div data-sticky-cover="" style={{ top: '56px' }} /><VehicleLookup onPick={vi.fn()} /></>);
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({ bottom: 700, height: 300 } as DOMRect);
+    type('0GY');
+    await waitFor(() => expect(scroll).toHaveBeenCalled());
+    const wrap = screen.getByLabelText(/Look up a vehicle/).closest('.scroll-mt-20') as HTMLElement;
+    expect(wrap.style.scrollMarginTop).toBe('364px'); // stuck at 56 + 300 tall + 8 of air
+  });
+
+  it('nothing pinned → the header floor (80px), as before', async () => {
+    const scroll = setup(700, 450);
+    render(<VehicleLookup onPick={vi.fn()} />);
+    type('0GY');
+    await waitFor(() => expect(scroll).toHaveBeenCalled());
+    expect((screen.getByLabelText(/Look up a vehicle/).closest('.scroll-mt-20') as HTMLElement).style.scrollMarginTop).toBe('80px');
+  });
+
   it('the list fits above the keyboard → nothing moves', async () => {
     const scroll = setup(400, 450);
     render(<VehicleLookup onPick={vi.fn()} />);
