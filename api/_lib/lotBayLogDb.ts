@@ -8,7 +8,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { bayChange, heldExitChange, type BayChange, type BayRequest, type BayRow } from './lotBay.js';
 import { moveCountSafely } from './lotCount.js';
-import { carLine, linkRefusal, redoOf, removeCountPlan, startOdometer, undoAllowed, type BayExit, type DayRow } from './lotBayLog.js';
+import { CAR_LINE_COLS, carLine, linkRefusal, redoOf, removeCountPlan, startOdometer, undoAllowed, type BayExit, type DayRow } from './lotBayLog.js';
 
 export const BAY_LOG_COLS = 'id, vehicle_id, plate, unit_number, car, odometer, started_at, exit, exited_at, took_dirty, redo_of, shift_day, note, hold_id, added, sent_up, was_exit, sent_at_exit';
 
@@ -37,7 +37,7 @@ export async function startCar(db: SupabaseClient, vehicleId: string, by: string
   if (openErr) throw openErr;
   if (open) throw new BayLogRefusal(`${open.plate} is still in the bay. Give it an exit first.`);
   const { data: v, error: vErr } = await db.from('vehicles')
-    .select('id, license_plate, unit_number, year, make, model, color, odometer, odometer_at').eq('id', vehicleId).maybeSingle();
+    .select(`id, license_plate, unit_number, ${CAR_LINE_COLS}, odometer, odometer_at`).eq('id', vehicleId).maybeSingle();
   if (vErr) throw vErr;
   if (!v) throw new BayLogRefusal('That car is not in FG.');
   const { data: day, error: dayErr } = await db.from('lot_bay_log')
@@ -86,7 +86,7 @@ export async function setStandby(db: SupabaseClient, vehicleId: string, by: stri
   // car's key in hand, nobody free to clean it. The empty bay card offers its Start.
   if (open?.vehicle_id === vehicleId) throw new BayLogRefusal('That car is in the bay now.');
   const { data: v, error: vErr } = await db.from('vehicles')
-    .select('id, license_plate, unit_number, year, make, model, color').eq('id', vehicleId).maybeSingle();
+    .select(`id, license_plate, unit_number, ${CAR_LINE_COLS}`).eq('id', vehicleId).maybeSingle();
   if (vErr) throw vErr;
   if (!v) throw new BayLogRefusal('That car is not in FG.');
   const { data: standby, error } = await db.from('lot_bay_standby').upsert({
@@ -202,7 +202,7 @@ export async function undoExit(db: SupabaseClient, id: number, by: string, nowIs
  */
 export async function addCleaned(db: SupabaseClient, vehicleId: string, by: string, nowIso: string, today: string) {
   const { data: v, error: vErr } = await db.from('vehicles')
-    .select('id, license_plate, unit_number, year, make, model, color, odometer, odometer_at').eq('id', vehicleId).maybeSingle();
+    .select(`id, license_plate, unit_number, ${CAR_LINE_COLS}, odometer, odometer_at`).eq('id', vehicleId).maybeSingle();
   if (vErr) throw vErr;
   if (!v) throw new BayLogRefusal('That car is not in FG.');
   const { data: day, error: dayErr } = await db.from('lot_bay_log')

@@ -5,6 +5,7 @@
 // four exits, and a skipped car is a bump, not a verdict (*"skip to do later"*), so its restart points back at it.
 
 import { shiftBusinessDate } from './shiftDay.js';
+import { isEvModel } from './vehicleClassCodex.js';
 
 // 'erin' (2026-11-04, migration 164): cleaned for Erin St's own row, so off the dirties and never onto the cleans.
 export type BayExit = 'clean' | 'mhold' | 'bhold' | 'skip' | 'erin';
@@ -223,11 +224,22 @@ export function nextWasExit(was: BayExit | null, from: BayExit, to: BayExit): Ba
   return first === to ? null : first;
 }
 
-/** "2026 Toyota Corolla Cross · Gray": the car as it was at Start, kept on the row so the list never re-reads it. */
-export function carLine(v: { year?: number | null; make?: string | null; model?: string | null; color?: string | null }): string {
+/** The columns carLine reads, for every vehicles select that feeds it. */
+export const CAR_LINE_COLS = 'year, make, model, color, is_hybrid, is_tesla, winter_tires';
+
+/** "2026 Toyota RAV4 🔋 · Gray · Winter tires": the car as it was at Start, kept on the row so the list never re-reads it.
+ *  ⭐ 2026-11-11, Aaron: *"will the read-only link show if a vehicle is hybrid and if it has winter tires?"* It didn't.
+ *  The mark is FG's one rule (src/lib/vehicleName.ts powertrainBadge: ⚡ Tesla or a codex EV, 🔋 hybrid), applied here
+ *  because api/ can't import src/. Winter tires print only when FG has them as fitted: false and unknown both stay
+ *  quiet, since a blank can't tell all-seasons from nobody-checked. `car` is display only (nothing matches on it). */
+export function carLine(v: {
+  year?: number | null; make?: string | null; model?: string | null; color?: string | null;
+  is_hybrid?: boolean | null; is_tesla?: boolean | null; winter_tires?: boolean | null;
+}): string {
   const name = [v.year, v.make, v.model].filter(x => x != null && String(x).trim() !== '').join(' ');
+  const badge = v.is_tesla || isEvModel(v.model) ? '⚡' : v.is_hybrid ? '🔋' : '';
   const color = (v.color ?? '').trim();
-  return [name, color].filter(Boolean).join(' · ');
+  return [[name, badge].filter(Boolean).join(' '), color, v.winter_tires === true ? 'Winter tires' : ''].filter(Boolean).join(' · ');
 }
 
 /** The odo a Start writes on the bay row: the car's reading only when it was taken on this shift-day, else null.

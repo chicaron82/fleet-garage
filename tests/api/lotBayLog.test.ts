@@ -38,6 +38,19 @@ describe('carLine', () => {
     expect(carLine({ color: 'Blue' })).toBe('Blue');
     expect(carLine({})).toBe('');
   });
+  // 2026-11-11: the read-only link never said hybrid or winter tires (docs/ticket-bay-car-line-hybrid-winter.md).
+  it('marks a hybrid 🔋 and an EV ⚡ beside the name, the way every FG screen does', () => {
+    expect(carLine({ year: 2025, make: 'Toyota', model: 'RAV4', color: 'Grey', is_hybrid: true })).toBe('2025 Toyota RAV4 🔋 · Grey');
+    expect(carLine({ year: 2025, make: 'Tesla', model: 'Model 3', color: 'White', is_tesla: true })).toBe('2025 Tesla Model 3 ⚡ · White');
+    expect(carLine({ year: 2025, make: 'Kia', model: 'Niro EV', color: 'Blue' })).toBe('2025 Kia Niro EV ⚡ · Blue');
+    expect(carLine({ year: 2025, make: 'Kia', model: 'Seltos', color: 'Blue', is_hybrid: false })).toBe('2025 Kia Seltos · Blue');
+  });
+  it('says Winter tires only when FG has them fitted: false and unknown stay quiet', () => {
+    expect(carLine({ year: 2025, make: 'Kia', model: 'Seltos', color: 'Blue', winter_tires: true })).toBe('2025 Kia Seltos · Blue · Winter tires');
+    expect(carLine({ year: 2025, make: 'Kia', model: 'Seltos', color: 'Blue', winter_tires: false })).toBe('2025 Kia Seltos · Blue');
+    expect(carLine({ year: 2025, make: 'Kia', model: 'Seltos', color: 'Blue', winter_tires: null })).toBe('2025 Kia Seltos · Blue');
+    expect(carLine({ make: 'Toyota', model: 'RAV4', is_hybrid: true, winter_tires: true })).toBe('Toyota RAV4 🔋 · Winter tires');
+  });
 });
 
 describe('undoAllowed', () => {
