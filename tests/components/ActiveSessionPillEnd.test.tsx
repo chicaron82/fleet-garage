@@ -4,7 +4,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import type { ActiveSession, SessionEnder } from '../../src/context/ActiveSessionsContext';
 
-const { rows, endTrip, endOth, ctx } = vi.hoisted(() => ({
+const { rows, endTrip, endOth, ctx, hold } = vi.hoisted(() => ({
+  hold: { ms: 30 },
   rows: {} as Record<string, Record<string, unknown> | null>,
   endTrip: vi.fn(async (..._a: unknown[]) => true),
   endOth: vi.fn(async (..._a: unknown[]) => true),
@@ -21,8 +22,14 @@ vi.mock('../../src/lib/sessionEndHeadless', async (orig) => ({
   endTripHeadless: (...a: unknown[]) => endTrip(...a),
   endOthHeadless: (...a: unknown[]) => endOth(...a),
 }));
-// The hold, shortened so the test waits on the real timer path.
-vi.mock('../../src/lib/pillEnd', async (orig) => ({ ...(await orig<typeof import('../../src/lib/pillEnd')>()), PILL_UNDO_MS: 30 }));
+// The hold, set per test on the real timer path. ⚠️ A test that LOOKS AT the held chip must hold long: CI #1144
+// (2026-11-11) failed when a slow runner let a 30 ms hold run out before findByRole saw "✓ 12m" (it read "✓ Saved").
+// So: a long hold to see the chip or tap Undo, a short one only to see what the end writes.
+vi.mock('../../src/lib/pillEnd', async (orig) => ({
+  ...(await orig<typeof import('../../src/lib/pillEnd')>()),
+  get PILL_UNDO_MS() { return hold.ms; },
+}));
+const LONG = 60_000;
 vi.mock('../../src/lib/haptics', () => ({ hapticLight: vi.fn() }));
 vi.mock('../../src/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u1', name: 'Aaron Sauddin', branchId: 'YWG' } }) }));
 
@@ -43,7 +50,7 @@ import { ActiveSessionPill } from '../../src/components/layout/ActiveSessionPill
 beforeEach(() => {
   for (const k of Object.keys(rows)) delete rows[k];
   endTrip.mockClear(); endOth.mockClear(); ctx.refresh.mockClear(); ctx.setMovementTab.mockClear();
-  ctx.ender = null; trip = null; oth = null;
+  ctx.ender = null; trip = null; oth = null; hold.ms = 30;
 });
 
 const tripRow = (m: number, auth: string | null = 'PERSONAL') => ({
@@ -52,16 +59,24 @@ const tripRow = (m: number, auth: string | null = 'PERSONAL') => ({
 });
 
 describe('⭐ the trip pill', () => {
-  it('a tap holds "✓ 12m · Undo", then ends Back at Washbay at the TAP\'s time (headless: no card mounted)', async () => {
+  it('a tap holds "✓ 12m · Undo" and writes nothing yet', async () => {
+    hold.ms = LONG;
+    trip = { id: 't1', startedAt: ago(12), label: 'In Transit', emoji: '🚗' };
+    rows.t1 = tripRow(12);
+    render(<ActiveSessionPill activeModule="lot-lookout" onNavigate={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /End In Transit/ }));
+    const undo = await screen.findByRole('button', { name: /Trip ended, back at Washbay, 12 minutes\. Undo/ });
+    expect(undo).toHaveTextContent('✓ 12m');
+    expect(endTrip).not.toHaveBeenCalled();
+  });
+
+  it('when the hold runs out it ends Back at Washbay at the TAP\'s time (headless: no card mounted)', async () => {
     trip = { id: 't1', startedAt: ago(12), label: 'In Transit', emoji: '🚗' };
     rows.t1 = tripRow(12);
     const nav = vi.fn();
     render(<ActiveSessionPill activeModule="lot-lookout" onNavigate={nav} />);
     const tapped = Date.now();
     fireEvent.click(screen.getByRole('button', { name: /End In Transit/ }));
-    const undo = await screen.findByRole('button', { name: /Trip ended, back at Washbay, 12 minutes\. Undo/ });
-    expect(undo).toHaveTextContent('✓ 12m');
-    expect(endTrip).not.toHaveBeenCalled();
     await waitFor(() => expect(endTrip).toHaveBeenCalledTimes(1));
     const atIso = endTrip.mock.calls[0][1] as string;
     expect(Math.abs(Date.parse(atIso) - tapped)).toBeLessThan(1000);
@@ -70,12 +85,16 @@ describe('⭐ the trip pill', () => {
   });
 
   it('⭐ Undo writes NOTHING (no arrival, no off-standard entry, no manager alert)', async () => {
+    hold.ms = LONG;
+    const cleared = vi.spyOn(globalThis, 'clearTimeout');
     trip = { id: 't1', startedAt: ago(12), label: 'In Transit', emoji: '🚗' };
     rows.t1 = tripRow(12);
     render(<ActiveSessionPill activeModule="lot-lookout" onNavigate={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /End In Transit/ }));
     fireEvent.click(await screen.findByRole('button', { name: /Undo/ }));
     await act(() => new Promise(r => setTimeout(r, 80)));
+    expect(cleared).toHaveBeenCalled(); // the held end's timer is gone, not just waiting out a long hold
+    cleared.mockRestore();
     expect(endTrip).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: /End In Transit/ })).toBeInTheDocument();
   });
@@ -127,12 +146,21 @@ describe('⭐ the trip pill', () => {
 });
 
 describe('⭐ the off-standard pill', () => {
-  it('ends in place; under 5 min the chip says it will not be logged', async () => {
+  it('under 5 min the held chip says it will not be logged', async () => {
+    hold.ms = LONG;
     oth = { id: 'o1', startedAt: ago(3), label: 'Fleeting Cars', emoji: '⏱' };
     rows.o1 = { id: 'o1', start_time: ago(3), preset_reason: 'fleeting_cars', status: 'in_progress' };
     render(<ActiveSessionPill activeModule="lot-lookout" onNavigate={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /End Fleeting Cars/ }));
     expect(await screen.findByRole('button', { name: /not logged\. Undo/ })).toHaveTextContent('✕ 3m');
+    expect(endOth).not.toHaveBeenCalled();
+  });
+
+  it('then ends in place and says Not logged', async () => {
+    oth = { id: 'o1', startedAt: ago(3), label: 'Fleeting Cars', emoji: '⏱' };
+    rows.o1 = { id: 'o1', start_time: ago(3), preset_reason: 'fleeting_cars', status: 'in_progress' };
+    render(<ActiveSessionPill activeModule="lot-lookout" onNavigate={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /End Fleeting Cars/ }));
     await waitFor(() => expect(endOth).toHaveBeenCalledTimes(1));
     expect(await screen.findByText('Not logged')).toBeInTheDocument();
   });
