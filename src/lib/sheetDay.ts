@@ -1,10 +1,9 @@
 // A past gas sheet, written to ITS day (migration 168, docs/ticket-odometer-history-and-past-gas-sheet.md). Aaron,
 // 2026-11-09: *"I select a date and whatever I enter would write to that date"*.
-// Pure: the sheet day's instants, which car a typed plate or unit is, and what each row says back.
+// Pure: the sheet day's instants, and what each row says back. (The car is found with FG's shared VehicleLookup.)
 //
 // ⚠️ The day's instants are computed HERE, in the browser, through Intl's America/Winnipeg rules, and handed to the
 // database: FG's Postgres has old tz tables (Manitoba kept UTC−5 from 2026-11-01) and would put the day an hour off.
-import { normalizePlate } from './vehicleByPlate';
 import type { Vehicle } from '../types';
 
 const ZONE = 'America/Winnipeg';
@@ -63,25 +62,6 @@ export function isSheetDay(day: string, nowMs: number): boolean {
 }
 
 export type SheetCar = Pick<Vehicle, 'id' | 'licensePlate' | 'unitNumber' | 'make' | 'model' | 'year' | 'archivedAt'> & Partial<Pick<Vehicle, 'isHybrid' | 'isTesla'>>;
-export type SheetMatch = { kind: 'one'; car: SheetCar } | { kind: 'none' } | { kind: 'many'; cars: SheetCar[] };
-
-/**
- * The car a sheet row names: its plate, or its unit number (the sheet's first column), typed any way ("lur 247",
- * "5427752", "542 7752"). An archived car still counts (archived is an inference, and the sheet just saw it), but an
- * active car with the same plate wins.
- */
-export function matchSheetCar(typed: string, cars: readonly SheetCar[]): SheetMatch {
-  const t = normalizePlate(typed);
-  if (t.length < 3) return { kind: 'none' };
-  const digits = t.replace(/\D/g, '');
-  const hits = cars.filter(c => normalizePlate(c.licensePlate) === t
-    || (c.unitNumber != null && (normalizePlate(c.unitNumber) === t || (digits.length >= 5 && digits === t && c.unitNumber.replace(/\D/g, '') === digits))));
-  const live = hits.filter(c => !c.archivedAt);
-  const pick = live.length ? live : hits;
-  if (pick.length === 1) return { kind: 'one', car: pick[0]! };
-  return pick.length ? { kind: 'many', cars: pick } : { kind: 'none' };
-}
-
 /** A typed odo: whole km, 1 to 9,999,999, commas and spaces allowed. */
 export function parseOdo(typed: string): number | null {
   const s = typed.replace(/[\s,]/g, '');

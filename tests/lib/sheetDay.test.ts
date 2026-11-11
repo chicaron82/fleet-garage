@@ -2,7 +2,7 @@
 // enter would write to that date"*. ⚠️ No typed Winnipeg clock here: every time is read back through the app's own
 // formatters (feedback: Manitoba kept UTC−5 from 2026-11-01, and tz tables disagree across machines).
 import { describe, it, expect } from 'vitest';
-import { dayLabel, isSheetDay, matchSheetCar, parseOdo, sheetDayBounds, sheetRowWords, winnipegDay, type SheetCar } from '../../src/lib/sheetDay';
+import { dayLabel, isSheetDay, parseOdo, sheetDayBounds, sheetRowWords, winnipegDay } from '../../src/lib/sheetDay';
 import { clockOf } from '../../src/lib/lotBay';
 
 describe('sheetDayBounds: the day, in Winnipeg', () => {
@@ -26,32 +26,6 @@ describe('isSheetDay', () => {
     expect(isSheetDay(winnipegDay(now - 2 * 86_400_000), now)).toBe(true);
     expect(isSheetDay(winnipegDay(now + 2 * 86_400_000), now)).toBe(false);
     expect(isSheetDay('', now)).toBe(false);
-  });
-});
-
-const car = (over: Partial<SheetCar>): SheetCar => ({
-  id: 'v1', licensePlate: 'LUR247', unitNumber: '5427752', make: 'Nissan', model: 'Versa', year: 2025, archivedAt: undefined, ...over,
-});
-
-describe('⭐ matchSheetCar: the plate or the unit, typed any way', () => {
-  const cars = [car({}), car({ id: 'v2', licensePlate: 'LUR273', unitNumber: '5427760' }), car({ id: 'v3', licensePlate: 'KUR 261', unitNumber: 'HRZ-4821' })];
-  it('a plate in any case or spacing', () => {
-    expect(matchSheetCar('lur 247', cars)).toMatchObject({ kind: 'one', car: { id: 'v1' } });
-    expect(matchSheetCar('kur261', cars)).toMatchObject({ kind: 'one', car: { id: 'v3' } });
-  });
-  it('the unit number, as the sheet\'s first column has it', () => {
-    expect(matchSheetCar('542 7760', cars)).toMatchObject({ kind: 'one', car: { id: 'v2' } });
-    expect(matchSheetCar('hrz-4821', cars)).toMatchObject({ kind: 'one', car: { id: 'v3' } });
-  });
-  it('⭐ an active car wins over an archived one with the same plate; an archived one alone still counts', () => {
-    const both = [car({ id: 'old', archivedAt: '2026-10-01T00:00:00Z' }), car({ id: 'live' })];
-    expect(matchSheetCar('LUR247', both)).toMatchObject({ kind: 'one', car: { id: 'live' } });
-    expect(matchSheetCar('LUR247', [car({ archivedAt: '2026-10-01T00:00:00Z' })])).toMatchObject({ kind: 'one' });
-  });
-  it('none, too short, and two live cars on one plate', () => {
-    expect(matchSheetCar('ZZZ999', cars)).toEqual({ kind: 'none' });
-    expect(matchSheetCar('LU', cars)).toEqual({ kind: 'none' });
-    expect(matchSheetCar('LUR247', [car({}), car({ id: 'v9' })])).toMatchObject({ kind: 'many' });
   });
 });
 

@@ -2,11 +2,16 @@
 // 2026-11-09: *"I select a date and whatever I enter would write to that date"*; the car's odo stays the newest
 // reading (*"keep the todays reading as the current"*); and the sheet's photo pinned above the rows.
 // The card on My Shift opens a full screen: the day, the photo, then plate / unit → odo → Enter, row after row.
-import { useMemo, useRef, useState } from 'react';
+// ⭐ The car is found with FG's ONE typed lookup (VehicleLookup: suggestions as he types, plate or unit, O/0 folded).
+// It shipped with an exact-match box of its own, and on its first real use he typed a plate and got nothing: *"the
+// field doesn't behave like the other searches so no matching results coming up"* (2026-11-10).
+import { useMemo, useState } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { usePastGasSheet } from '../../hooks/usePastGasSheet';
-import { dayLabel, isSheetDay, matchSheetCar, parseOdo, winnipegDay } from '../../lib/sheetDay';
-import { vehicleNameText } from '../../lib/vehicleName';
+import { dayLabel, isSheetDay, parseOdo, winnipegDay, type SheetCar } from '../../lib/sheetDay';
+import { vehicleForPick } from '../../lib/lotBayLog';
+import { VehicleLookup } from '../shared/VehicleLookup';
+import { VehicleName } from '../shared/VehicleName';
 import { SheetPhotoPin } from './SheetPhotoPin';
 import { SheetRowsList } from './SheetRowsList';
 
@@ -34,21 +39,22 @@ export function PastGasSheetScreen({ onClose }: { onClose: () => void }) {
   const [openedAt] = useState(() => Date.now());
   const today = winnipegDay(openedAt);
   const [day, setDay] = useState(() => winnipegDay(openedAt - 86_400_000));
-  const [typed, setTyped] = useState('');
+  const [car, setCar] = useState<SheetCar | null>(null);
+  const [missed, setMissed] = useState<string | null>(null);
+  // A fresh lookup after each saved row: remounted, so its typed text clears and it takes the focus back.
+  const [lookupKey, setLookupKey] = useState(0);
   const [odoText, setOdoText] = useState('');
-  const plateRef = useRef<HTMLInputElement>(null);
 
-  const match = typed.trim() ? matchSheetCar(typed, cars) : null;
   const odo = parseOdo(odoText);
   const dayOk = isSheetDay(day, openedAt);
-  const ready = dayOk && match?.kind === 'one' && odo != null;
+  const ready = dayOk && car != null && odo != null;
 
   const submit = () => {
-    if (!ready || match?.kind !== 'one' || odo == null) return;
-    sheet.add(match.car, odo, day);
-    setTyped('');
+    if (!ready || !car || odo == null) return;
+    sheet.add(car, odo, day);
+    setCar(null);
     setOdoText('');
-    plateRef.current?.focus();
+    setLookupKey(k => k + 1);
   };
 
   return (
@@ -72,18 +78,31 @@ export function PastGasSheetScreen({ onClose }: { onClose: () => void }) {
         <SheetPhotoPin />
 
         <form onSubmit={e => { e.preventDefault(); submit(); }} className="space-y-1.5">
-          <div className="flex gap-2">
-            <input ref={plateRef} value={typed} onChange={e => setTyped(e.target.value)} placeholder="Plate or unit"
-              aria-label="Plate or unit" autoCapitalize="characters" autoComplete="off" className={`${INPUT} flex-[3]`} />
-            <input value={odoText} onChange={e => setOdoText(e.target.value)} placeholder="Odo" aria-label="Odo"
-              inputMode="numeric" autoComplete="off" className={`${INPUT} flex-[2] font-mono tabular-nums`} />
-          </div>
-          <p className="text-xs min-h-4 text-gray-500 dark:text-gray-400" aria-live="polite">
-            {match?.kind === 'one' && `${vehicleNameText(match.car)} · ${match.car.licensePlate}${match.car.archivedAt ? ' · archived' : ''}`}
-            {match?.kind === 'many' && `${match.cars.length} cars match. Type the full plate.`}
-            {match?.kind === 'none' && typed.trim().length >= 3 && 'FG has no car by that plate or unit.'}
-            {odoText && odo == null && ' That odo isn’t a number.'}
-          </p>
+          {!car ? (
+            <>
+              <VehicleLookup key={lookupKey} inlineResults autoFocus={lookupKey > 0} placeholder="Plate or unit"
+                onPick={c => {
+                  const found = vehicleForPick(cars, 'vehicle' in c ? { plate: c.vehicle.license_plate, unit: c.vehicle.unit_number } : c);
+                  setMissed(found ? null : 'typed' in c ? c.typed : c.vehicle.license_plate);
+                  setCar(found);
+                }} />
+              {missed && <p className="text-xs text-amber-700 dark:text-amber-400"><span className="font-semibold">{missed}</span> isn&apos;t a car in FG. Skip it, or register it from 🔍 Find a car.</p>}
+            </>
+          ) : (
+            <div className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2" data-testid="sheet-car">
+              <div className="min-w-0 flex-1">
+                <p className="font-mono text-base font-bold text-gray-900 dark:text-gray-100">
+                  {car.licensePlate}{car.unitNumber && <span className="ml-2 text-xs font-semibold text-gray-500 dark:text-gray-400">Unit {car.unitNumber}</span>}
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-300 truncate"><VehicleName vehicle={car} />{car.archivedAt ? ' · archived' : ''}</p>
+              </div>
+              <button type="button" onClick={() => { setCar(null); setLookupKey(k => k + 1); }}
+                className="shrink-0 px-2.5 py-1 rounded-md text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 cursor-pointer">Change</button>
+            </div>
+          )}
+          <input value={odoText} onChange={e => setOdoText(e.target.value)} placeholder="Odo" aria-label="Odo" autoFocus={car != null}
+            key={car?.id ?? 'no-car'} inputMode="numeric" enterKeyHint="done" autoComplete="off" className={`${INPUT} font-mono tabular-nums`} />
+          {odoText && odo == null && <p className="text-xs text-amber-700 dark:text-amber-400">That odo isn&apos;t a number.</p>}
           <button type="submit" disabled={!ready}
             className="w-full py-2.5 rounded-lg bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-40 text-black text-sm font-semibold cursor-pointer disabled:cursor-not-allowed">
             Save to {dayOk ? dayLabel(day) : 'the sheet day'}
