@@ -23,7 +23,7 @@ describe('BayDayHeader', () => {
     const onForward = vi.fn(), onToday = vi.fn();
     render(<BayDayHeader {...base} isToday={false} canForward label="Saturday, October 31" nowMs={at('12:00')}
       onForward={onForward} onToday={onToday} mine={{ working: false, window: null }} />);
-    expect(screen.getByText('Not a logging day: you were off.')).toBeTruthy();
+    expect(screen.getByText('You were off this day.')).toBeTruthy();
     fireEvent.click(screen.getByLabelText('The day after')); fireEvent.click(screen.getByText('Today'));
     expect(onForward).toHaveBeenCalledOnce(); expect(onToday).toHaveBeenCalledOnce();
   });

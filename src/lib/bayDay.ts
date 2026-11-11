@@ -61,10 +61,12 @@ export function myBayDay(shifts: readonly Shift[], me: string): MyBayDay {
 }
 
 /** What the day says about itself, or null when there's nothing to add. `now` is the wall clock, "HH:MM". A day he
- *  wasn't on has no record; today, once his window has closed, the log says when it ended. */
+ *  wasn't on says only that: the bay log under it is Erin St's, not his shift's, so it is there either way (it used to
+ *  say "no bay log" above a 42-car one; ZeeRah's line-check, 2026-11-10). Today, once his window has closed, the log
+ *  says when it ended. */
 export function dayStatus(day: MyBayDay | null, isToday: boolean, now: string): string | null {
   if (!day) return null;
-  if (!day.working) return isToday ? "You're not on today: no bay log." : 'Not a logging day: you were off.';
+  if (!day.working) return isToday ? "You're not on today." : 'You were off this day.';
   if (isToday && day.window && dayMinute(now) >= dayMinute(day.window.end)) return `Bay log ended ${day.window.end}`;
   return null;
 }

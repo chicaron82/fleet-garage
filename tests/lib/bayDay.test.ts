@@ -52,8 +52,11 @@ describe('dayStatus', () => {
     expect(dayStatus({ ...on, window: { start: '16:30', end: '01:00' } }, true, '23:30')).toBeNull();
     expect(dayStatus({ ...on, window: { start: '16:30', end: '01:00' } }, true, '01:05')).toBe('Bay log ended 01:00');
   });
-  it('a day he was off says so', () => {
-    expect(dayStatus({ working: false, window: null }, false, '12:00')).toBe('Not a logging day: you were off.');
+  it('a day he was off says so, and never that there is no log (the log is Erin St\'s, shown either way)', () => {
+    const off = { working: false, window: null };
+    expect(dayStatus(off, true, '12:00')).toBe("You're not on today.");
+    expect(dayStatus(off, false, '12:00')).toBe('You were off this day.');
+    for (const today of [true, false]) expect(dayStatus(off, today, '12:00')).not.toMatch(/no bay log|not a logging day/i);
     expect(dayStatus(null, true, '12:00')).toBeNull();
   });
 });
