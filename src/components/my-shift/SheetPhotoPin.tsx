@@ -1,5 +1,6 @@
 // The sheet's photo, pinned above the rows while he types (2026-11-09: *"that sounds bougie AF!!"*). It never leaves
-// the phone: an object URL for this screen only, dropped when it closes. Tap the photo to zoom; drag to pan.
+// the phone: an object URL for this page only, dropped when it closes. Tap the photo to zoom; drag to pan.
+// Pinned just under FG's top bar (sticky top-14, under its z-40) while the rows scroll beneath it.
 import { useEffect, useRef, useState } from 'react';
 
 export function SheetPhotoPin() {
@@ -17,7 +18,7 @@ export function SheetPhotoPin() {
   };
 
   return (
-    <div className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-950 pb-2">
+    <div className={url ? 'sticky top-14 z-30 bg-white dark:bg-gray-900 pb-2' : undefined}>
       <input ref={input} type="file" accept="image/*" className="hidden" aria-label="Sheet photo"
         onChange={e => { pick(e.target.files?.[0]); e.target.value = ''; }} />
       {!url ? (

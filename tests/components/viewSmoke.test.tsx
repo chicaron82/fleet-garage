@@ -73,7 +73,7 @@ vi.mock('../../src/context/IssueContext', () => ({
 
 vi.mock('../../src/context/VehicleHoldContext', () => ({
   useVehicleHoldContext: () => ({
-    vehicles: [], allVehicles: [], holds: [], staleHolds: [],
+    vehicles: [], allVehicles: [], archivedVehicles: [], holds: [], staleHolds: [],
     getActiveHold: () => null, getActiveHolds: () => [], getHoldsForVehicle: () => [],
     addHold: vi.fn(), addVehicle: vi.fn(), releaseStreak: 0,
     saveKeytagAudit: vi.fn(), flagKeytagUnreadable: vi.fn(),

@@ -225,6 +225,10 @@ export function MyShiftView({ onOpenVehicle }: {
       {/* Read the tags FG couldn't — one car at a time, between cars, no API spend */}
       <KeytagAuditSection onOpenVehicle={onOpenVehicle} />
 
+      {/* An older sheet's odos, on the day it was written (migration 168). In place, like the key audit beside it:
+          *"i feel like it's something that should be integrated in. like the key audit"* (2026-11-10). */}
+      <PastGasSheet />
+
       {/* Cars the fleet's own data says are hybrids that nobody flagged — found without him having
           handled the car. Self-hides when empty. */}
       <HybridGapsSection onOpenVehicle={onOpenVehicle} />
@@ -257,8 +261,6 @@ export function MyShiftView({ onOpenVehicle }: {
             <WashbayClosingLog />
           </StepSection>
           <FuelPumpReadings user={user!} />
-          {/* An older sheet's odos, on the day it was written (migration 168) */}
-          <PastGasSheet />
         </>
       )}
 

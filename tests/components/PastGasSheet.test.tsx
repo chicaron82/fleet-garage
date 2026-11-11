@@ -57,6 +57,22 @@ async function typeRow(partial: string, plate: string, odo: string) {
 }
 
 describe('⭐ Past gas sheet', () => {
+  it('⭐ a section of My Shift that opens in place, like the key audit, and keeps its rows when folded', async () => {
+    render(<PastGasSheet />);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    const head = screen.getByTestId('past-gas-sheet-card');
+    expect(head).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(head);
+    expect(head).toHaveAttribute('aria-expanded', 'true');
+    await typeRow('LUR24', 'LUR247', '48100');
+    fireEvent.click(screen.getByRole('button', { name: /^Save to/ }));
+    await screen.findByText(/Kept the newer/);
+    expect(head).toHaveTextContent('1 saved');
+    fireEvent.click(head);
+    fireEvent.click(head);
+    expect(screen.getByText(/Kept the newer/)).toBeInTheDocument();
+  });
+
   it('opens on yesterday, and today is the latest day it takes', () => {
     open();
     const date = screen.getByLabelText(/Sheet date/i, { selector: 'input' }) as HTMLInputElement;

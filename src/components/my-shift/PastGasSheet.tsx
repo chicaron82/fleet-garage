@@ -18,25 +18,37 @@ import { SheetRowsList } from './SheetRowsList';
 
 const INPUT = 'w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-base';
 
+/**
+ * ⭐ A SECTION of My Shift, opened in place like the key-tag audit, never a screen of its own. Aaron, 2026-11-10: *"why
+ * does it open like its separate from FG. i feel like it's something that should be integrated in. like the key audit"*.
+ * Collapsing it only hides it: the day, the picked car and the rows entered so far all stay.
+ */
 export function PastGasSheet() {
   const [open, setOpen] = useState(false);
+  const sheet = usePastGasSheet();
+  const saved = sheet.rows.filter(r => r.state === 'done' && r.result?.status === 'saved').length;
   return (
-    <>
-      <button type="button" onClick={() => setOpen(true)} data-testid="past-gas-sheet-card"
-        className="w-full text-left px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 cursor-pointer">
-        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">⛽ Past gas sheet</p>
-        <p className="text-xs text-gray-500 dark:text-gray-400">Enter an older sheet's odos on the day it was written</p>
+    <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 transition-colors" data-testid="past-gas-sheet">
+      <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} data-testid="past-gas-sheet-card"
+        className="w-full flex items-center justify-between px-4 py-3 cursor-pointer">
+        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+          ⛽ Past gas sheet
+          {saved > 0 && <span className="ml-2 font-semibold text-gray-400 tabular-nums">{saved} saved</span>}
+        </span>
+        <span className="text-xs text-gray-400">{open ? '▲' : '▼'}</span>
       </button>
-      {open && <PastGasSheetScreen onClose={() => setOpen(false)} />}
-    </>
+      <div className={open ? 'border-t border-gray-100 dark:border-gray-800 px-4 py-3 space-y-3' : 'hidden'}>
+        <p className="text-xs text-gray-500 dark:text-gray-400">An older sheet&apos;s odos, filed on the day it was written. The car&apos;s odo only moves if the sheet is its newest reading.</p>
+        <PastGasSheetBody sheet={sheet} />
+      </div>
+    </div>
   );
 }
 
-export function PastGasSheetScreen({ onClose }: { onClose: () => void }) {
+export function PastGasSheetBody({ sheet }: { sheet: ReturnType<typeof usePastGasSheet> }) {
   const { vehicles, archivedVehicles } = useVehicleHoldContext();
   const cars = useMemo(() => [...vehicles, ...archivedVehicles], [vehicles, archivedVehicles]);
-  const sheet = usePastGasSheet();
-  // The screen's own "now", taken once as it opens (a sheet session lasts minutes, never past a day).
+  // The section's own "now", taken once as My Shift opens (a sheet session lasts minutes, never past a day).
   const [openedAt] = useState(() => Date.now());
   const today = winnipegDay(openedAt);
   const [day, setDay] = useState(() => winnipegDay(openedAt - 86_400_000));
@@ -62,56 +74,48 @@ export function PastGasSheetScreen({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-gray-50 dark:bg-gray-950" role="dialog" aria-label="Past gas sheet">
-      <div className="max-w-lg mx-auto px-4 pb-10 space-y-3">
-        <div className="flex items-center justify-between pt-4 pb-1">
-          <button type="button" onClick={onClose} className="text-sm font-semibold text-gray-600 dark:text-gray-300 cursor-pointer">← Done</button>
-          <p className="text-sm font-bold text-gray-900 dark:text-gray-100">⛽ Past gas sheet</p>
-          <span className="w-12" />
+    <>
+      <label className="block">
+        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Sheet date</span>
+        <div className="flex items-center gap-3">
+          <input type="date" value={day} max={today} onChange={e => setDay(e.target.value)} className={`${INPUT} flex-1 dark:[color-scheme:dark]`} />
+          {dayOk && <span className="text-sm font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">{dayLabel(day)}</span>}
         </div>
+        {!dayOk && day && <span className="text-xs text-amber-700 dark:text-amber-400">Today or an earlier day.</span>}
+      </label>
 
-        <label className="block">
-          <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Sheet date</span>
-          <div className="flex items-center gap-3">
-            <input type="date" value={day} max={today} onChange={e => setDay(e.target.value)} className={`${INPUT} flex-1 dark:[color-scheme:dark]`} />
-            {dayOk && <span className="text-sm font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">{dayLabel(day)}</span>}
-          </div>
-          {!dayOk && day && <span className="text-xs text-amber-700 dark:text-amber-400">Today or an earlier day.</span>}
-        </label>
+      <SheetPhotoPin />
 
-        <SheetPhotoPin />
-
-        <form onSubmit={e => { e.preventDefault(); submit(); }} className="space-y-1.5">
-          {!car ? (
-            <>
-              <VehicleLookup key={lookupKey} inlineResults autoFocus={lookupKey > 0} placeholder="Plate or unit"
-                onPick={c => {
-                  const found = vehicleForPick(cars, 'vehicle' in c ? { plate: c.vehicle.license_plate, unit: c.vehicle.unit_number } : c);
-                  setMissed(found ? null : 'typed' in c ? c.typed : c.vehicle.license_plate);
-                  setCar(found);
-                }} />
-              {missed && <p className="text-xs text-amber-700 dark:text-amber-400"><span className="font-semibold">{missed}</span> isn&apos;t a car in FG. Skip it, or register it from 🔍 Find a car.</p>}
-            </>
-          ) : (
-            <SheetCarCard car={car} near={near} odo={odo} onChange={() => { setCar(null); setLookupKey(k => k + 1); }} />
-          )}
-          <input value={odoText} onChange={e => setOdoText(e.target.value)} placeholder="Odo" aria-label="Odo" autoFocus={car != null}
-            key={car?.id ?? 'no-car'} inputMode="numeric" enterKeyHint="done" autoComplete="off" className={`${INPUT} font-mono tabular-nums`} />
-          {odoText && odo == null && <p className="text-xs text-amber-700 dark:text-amber-400">That odo isn&apos;t a number.</p>}
-          <button type="submit" disabled={!ready || misfit}
-            className="w-full py-2.5 rounded-lg bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-40 text-black text-sm font-semibold cursor-pointer disabled:cursor-not-allowed">
-            Save to {dayOk ? dayLabel(day) : 'the sheet day'}
+      <form onSubmit={e => { e.preventDefault(); submit(); }} className="space-y-1.5">
+        {!car ? (
+          <>
+            <VehicleLookup key={lookupKey} inlineResults autoFocus={lookupKey > 0} placeholder="Plate or unit"
+              onPick={c => {
+                const found = vehicleForPick(cars, 'vehicle' in c ? { plate: c.vehicle.license_plate, unit: c.vehicle.unit_number } : c);
+                setMissed(found ? null : 'typed' in c ? c.typed : c.vehicle.license_plate);
+                setCar(found);
+              }} />
+            {missed && <p className="text-xs text-amber-700 dark:text-amber-400"><span className="font-semibold">{missed}</span> isn&apos;t a car in FG. Skip it, or register it from 🔍 Find a car.</p>}
+          </>
+        ) : (
+          <SheetCarCard car={car} near={near} odo={odo} onChange={() => { setCar(null); setLookupKey(k => k + 1); }} />
+        )}
+        <input value={odoText} onChange={e => setOdoText(e.target.value)} placeholder="Odo" aria-label="Odo" autoFocus={car != null}
+          key={car?.id ?? 'no-car'} inputMode="numeric" enterKeyHint="done" autoComplete="off" className={`${INPUT} font-mono tabular-nums`} />
+        {odoText && odo == null && <p className="text-xs text-amber-700 dark:text-amber-400">That odo isn&apos;t a number.</p>}
+        <button type="submit" disabled={!ready || misfit}
+          className="w-full py-2.5 rounded-lg bg-fg-yellow hover:bg-fg-yellow-hi disabled:opacity-40 text-black text-sm font-semibold cursor-pointer disabled:cursor-not-allowed">
+          Save to {dayOk ? dayLabel(day) : 'the sheet day'}
+        </button>
+        {ready && misfit && (
+          <button type="button" onClick={() => submit(true)}
+            className="w-full py-2 rounded-lg border border-amber-400 text-amber-800 dark:text-amber-300 text-xs font-semibold cursor-pointer">
+            The sheet is right: save anyway
           </button>
-          {ready && misfit && (
-            <button type="button" onClick={() => submit(true)}
-              className="w-full py-2 rounded-lg border border-amber-400 text-amber-800 dark:text-amber-300 text-xs font-semibold cursor-pointer">
-              The sheet is right: save anyway
-            </button>
-          )}
-        </form>
+        )}
+      </form>
 
-        <SheetRowsList rows={sheet.rows} onUndo={r => void sheet.undo(r)} onSaveAnyway={sheet.saveAnyway} onRetry={sheet.retry} />
-      </div>
-    </div>
+      <SheetRowsList rows={sheet.rows} onUndo={r => void sheet.undo(r)} onSaveAnyway={sheet.saveAnyway} onRetry={sheet.retry} />
+    </>
   );
 }
