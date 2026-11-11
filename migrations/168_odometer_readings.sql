@@ -126,7 +126,8 @@ begin
     returning id into sid;
   end if;
 
-  if (cur.odometer_at is null or cur.odometer_at < p_read_at) and (cur.odometer is null or cur.odometer <= p_km) then
+  -- `<=`, not `<`: a car twice on one sheet (both rows read at the day's noon) takes the higher second reading.
+  if (cur.odometer_at is null or cur.odometer_at <= p_read_at) and (cur.odometer is null or cur.odometer <= p_km) then
     update public.odometer_readings set replaced_km = cur.odometer, replaced_at = cur.odometer_at where id = rid;
     update public.vehicles set odometer = p_km, odometer_at = p_read_at where id = p_vehicle;
     is_current := true;
