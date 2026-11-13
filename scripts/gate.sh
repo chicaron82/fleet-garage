@@ -24,6 +24,13 @@ npx eslint .
 echo "── typecheck ──────────────────────────────────"
 npx tsc -b
 
+echo "── typecheck api/ as Vercel does (non-strict) ─"
+# Vercel's function builder type-checks api/ with its OWN options, non-strict, and ignores
+# tsconfig.api.json's `strict`. Code that only narrows under strict (a boolean discriminant,
+# `x && typeof x === 'object'`) passes `tsc -b` above and prints errors in every build log —
+# three sat there for days, unseen, until /reflect 92 (66e233df). Both views must pass.
+npx tsc --noEmit -p tsconfig.api.json --strict false
+
 echo "── tests ──────────────────────────────────────"
 # Worker cap: default-parallel vitest gets starved into 30s timeouts when the
 # browser is heavy (46 Chrome procs did exactly this, 2026-07-01 — and tempted

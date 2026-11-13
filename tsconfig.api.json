@@ -7,7 +7,8 @@
     // ⚠️ Vercel's function builder does NOT read this file's strictness: it type-checks api/ NON-strict (same TS 6.0.2;
     // its own options). So api code must type-check both ways: narrow with `in` or a type guard, never a boolean
     // discriminant or `x && typeof x === 'object'`, which only narrow under strict. Check: `npx tsc --noEmit -p
-    // tsconfig.api.json --strict false` (2026-11-12, /reflect 92: three such errors had sat in every build log).
+    // tsconfig.api.json --strict false` (2026-11-12, /reflect 92: three such errors had sat in every build log). The
+    // gate runs that check too, right after `tsc -b` (scripts/gate.sh, 2026-11-13).
     "strict": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.api.tsbuildinfo",
     "target": "es2023",
