@@ -9,8 +9,7 @@
   // ambient files. The cost is src/api getting type-checked twice (once here, once under their
   // own project); accepted for correctness over a cleverer, more fragile transitive-only setup.
   "compilerOptions": {
-    // Stated, not inherited: TS 6 defaults strict on, but anything reading this config with another default
-    // (Vercel's function checker did, 2026-11-12) must see the same rules the gate does.
+    // Stated, not inherited: the gate's strictness must not hang on a TypeScript version default (TS 6 made it one).
     "strict": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
     "target": "es2023",

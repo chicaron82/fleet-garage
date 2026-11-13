@@ -69,6 +69,12 @@ export function cleanNote(v: unknown): string | null | { error: string } {
   return s;
 }
 
+/** cleanNote's refusal. A guard, not `note && typeof note === 'object'`: that only narrows under strict, and Vercel
+ *  type-checks api/ non-strict (tsconfig.api.json). */
+export function isNoteRefusal(v: string | null | { error: string }): v is { error: string } {
+  return typeof v === 'object' && v !== null;
+}
+
 /** Which holds an M / B row may be linked to: M is mechanical; B is damage, and hail is damage too. */
 export function holdFitsExit(exit: BayExit | null, holdTypes: readonly string[]): boolean {
   if (exit === 'mhold') return holdTypes.includes('mechanical');
@@ -137,7 +143,7 @@ export function parseBayLog(b: Record<string, unknown>, by: string): BayLogReque
       const id = rowId(b.id);
       if (id == null) return { error: 'Which car?' };
       const note = cleanNote(b.note);
-      if (note && typeof note === 'object') return note;
+      if (isNoteRefusal(note)) return note;
       return { action: 'bayNote', id, note, by };
     }
     case 'bayLinkHold': {

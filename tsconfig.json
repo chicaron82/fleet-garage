@@ -4,11 +4,6 @@
   // ZERO files and exits clean even when app code is broken. The real check is
   // `tsc -b` (a.k.a. `npm run typecheck`), which follows the references graph.
   // Pre-push + CI both run `tsc -b`. Don't trust a bare `--noEmit` green.
-  //
-  // ⚠️ Vercel's api function checker reads THIS file, not tsconfig.api.json, and with no options here it checked
-  // non-strict while the gate (TS 6, strict by default) checked strict: three errors in every build log that tsc -b
-  // never showed (2026-11-12, /reflect 92). So strict is stated here too.
-  "compilerOptions": { "strict": true },
   "files": [],
   "references": [
     { "path": "./tsconfig.app.json" },

@@ -4,7 +4,7 @@
 // row whose car is already held may be tied to that hold from the list.
 import { describe, it, expect } from 'vitest';
 import { exitCar, linkHold, setNote, undoExit } from '../../api/_lib/lotBayLogDb';
-import { cleanNote, holdFitsExit, linkRefusal, parseBayLog, NOTE_MAX } from '../../api/_lib/lotBayLog';
+import { cleanNote, holdFitsExit, isNoteRefusal, linkRefusal, parseBayLog, NOTE_MAX } from '../../api/_lib/lotBayLog';
 import { fakeDb, type Row } from './_fakeLotDb';
 
 const NOW = '2026-11-04T17:06:00.000Z';
@@ -81,6 +81,13 @@ describe('📝 his note on a row', () => {
     expect(cleanNote('x'.repeat(NOTE_MAX + 1))).toEqual({ error: `Keep the note to ${NOTE_MAX} characters.` });
     expect(parseBayLog({ action: 'bayNote', id: 7, note: 'x'.repeat(NOTE_MAX + 1) }, 'AS')).toHaveProperty('error');
     expect(parseBayLog({ action: 'bayNote', id: 7, note: ' ok ' }, 'AS')).toEqual({ action: 'bayNote', id: 7, note: 'ok', by: 'AS' });
+  });
+
+  it('a refusal is the object, never a blank note (null is typeof "object" too)', () => {
+    expect(isNoteRefusal({ error: 'x' })).toBe(true);
+    expect(isNoteRefusal(null)).toBe(false);
+    expect(isNoteRefusal('ok')).toBe(false);
+    expect(parseBayLog({ action: 'bayNote', id: 7, note: '   ' }, 'AS')).toEqual({ action: 'bayNote', id: 7, note: null, by: 'AS' });
   });
 });
 

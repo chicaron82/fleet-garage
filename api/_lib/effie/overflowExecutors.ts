@@ -229,10 +229,12 @@ export async function executeProposeUnsend(
   if (time) candidates = candidates.filter((c) => c.time === time);
 
   const target = pickUnsendTarget(candidates);
-  if (!target.ok && target.why === 'none') {
+  // Narrowed with `in`, not `!target.ok`: Vercel type-checks api/ non-strict, where a boolean discriminant doesn't
+  // narrow (tsconfig.api.json). `in` narrows under both.
+  if ('why' in target && target.why === 'none') {
     return { proposal: null, toolResult: JSON.stringify({ ok: false, reason: `No logged send on record for ${plate} matching that. It may already have been removed, or it was logged under a different plate.` }) };
   }
-  if (!target.ok) {
+  if ('candidates' in target) {
     return {
       proposal: null,
       toolResult: JSON.stringify({
