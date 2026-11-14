@@ -1,5 +1,5 @@
 // What each past-sheet row did, newest on top, with its Undo (and a doesn't-fit row's Save anyway).
-import { km, sheetRowWords } from '../../lib/sheetDay';
+import { dayOfInstant, km, sheetRowWords } from '../../lib/sheetDay';
 import type { SheetRow } from '../../hooks/usePastGasSheet';
 
 const TONE = {
@@ -9,10 +9,12 @@ const TONE = {
 } as const;
 const BTN = 'shrink-0 px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer';
 
-export function SheetRowsList({ rows, onUndo, onSaveAnyway, onRetry }: {
+export function SheetRowsList({ rows, onUndo, onSaveAnyway, onTakeBack, onRetry }: {
   rows: SheetRow[];
   onUndo: (r: SheetRow) => void;
   onSaveAnyway: (r: SheetRow) => void;
+  /** The reading in the way is the wrong one: take it back, then save this row (migration 170). */
+  onTakeBack: (r: SheetRow) => void;
   onRetry: (r: SheetRow) => void;
 }) {
   if (!rows.length) return null;
@@ -22,6 +24,9 @@ export function SheetRowsList({ rows, onUndo, onSaveAnyway, onRetry }: {
         const words = r.result ? sheetRowWords(r.result, r.odo, r.day) : null;
         const conflict = r.state === 'done' && r.result?.status === 'conflict';
         const saved = r.state === 'done' && r.result?.status === 'saved';
+        // ⭐ Only a higher reading BEFORE the sheet, with nothing after it: that one is the car's newest, the only
+        // reading a take-back can reach (Aaron, 2026-11-14: LJF712's 37,331 standing in front of the real 31,787).
+        const inTheWay = conflict && r.result?.status === 'conflict' && r.result.before && !r.result.after ? r.result.before : null;
         return (
           <li key={r.key} className="px-3 py-2 flex items-start gap-2">
             <div className="min-w-0 flex-1">
@@ -35,6 +40,13 @@ export function SheetRowsList({ rows, onUndo, onSaveAnyway, onRetry }: {
                   : r.state === 'failed' ? "Didn't save. No signal?"
                   : words?.text}
               </p>
+              {inTheWay && (
+                <button type="button" onClick={() => onTakeBack(r)}
+                  className="mt-1 text-left text-xs font-semibold text-amber-800 dark:text-amber-300 underline underline-offset-2 cursor-pointer">
+                  {`${dayOfInstant(inTheWay.at)}'s ${km(inTheWay.km)} is the wrong one: take it back and save this`}
+                </button>
+              )}
+              {r.note && r.state === 'done' && <p role="alert" className="mt-1 text-xs font-semibold text-red-600 dark:text-red-400">{r.note}</p>}
             </div>
             {saved && <button type="button" onClick={() => onUndo(r)} className={`${BTN} text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800`}>Undo</button>}
             {conflict && (

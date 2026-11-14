@@ -4,6 +4,8 @@ import { useCallback, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { sheetDayBounds, type SheetCar, type SheetResult } from '../lib/sheetDay';
+import { takeBackWords } from '../lib/odometerTakeBack';
+import { useTakeBackOdometer } from './useTakeBackOdometer';
 
 export interface SheetRow {
   key: number;
@@ -12,6 +14,8 @@ export interface SheetRow {
   day: string;
   state: 'saving' | 'done' | 'undone' | 'failed';
   result?: SheetResult;
+  /** Why a take-back of the reading in the way didn't happen (migration 170), said under the row. */
+  note?: string;
 }
 
 let nextKey = 1;
@@ -44,6 +48,18 @@ export function usePastGasSheet() {
     void send(row.key, row.car, row.odo, row.day, true);
   }, [send]);
 
+  /** ⭐ The reading in the way is the wrong one (Aaron, 2026-11-14, LJF712's 37,331): take the car's newest reading
+   *  back (its visit stays), then save this row the ordinary way. Refused server-side unless it is still the current. */
+  const takeBack = useTakeBackOdometer();
+  const takeBackAndSave = useCallback(async (row: SheetRow) => {
+    const before = row.result?.status === 'conflict' ? row.result.before : null;
+    if (!before) return;
+    patch(row.key, { state: 'saving', note: undefined });
+    const r = await takeBack(row.car.id, before.km, before.at).catch(() => null);
+    if (r?.status !== 'taken_back') { patch(row.key, { state: 'done', note: takeBackWords(r, 'km').text }); return; }
+    void send(row.key, row.car, row.odo, row.day, false);
+  }, [send, takeBack]);
+
   const retry = useCallback((row: SheetRow) => {
     patch(row.key, { state: 'saving', result: undefined });
     void send(row.key, row.car, row.odo, row.day, false);
@@ -57,5 +73,5 @@ export function usePastGasSheet() {
     patch(row.key, error ? { state: 'done' } : { state: 'undone' });
   }, []);
 
-  return { rows, add, saveAnyway, retry, undo };
+  return { rows, add, saveAnyway, takeBackAndSave, retry, undo };
 }

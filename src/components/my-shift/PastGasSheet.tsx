@@ -120,7 +120,7 @@ export function PastGasSheetBody({ sheet }: { sheet: ReturnType<typeof usePastGa
         )}
       </form>
 
-      <SheetRowsList rows={sheet.rows} onUndo={r => void sheet.undo(r)} onSaveAnyway={sheet.saveAnyway} onRetry={sheet.retry} />
+      <SheetRowsList rows={sheet.rows} onUndo={r => void sheet.undo(r)} onSaveAnyway={sheet.saveAnyway} onTakeBack={r => void sheet.takeBackAndSave(r)} onRetry={sheet.retry} />
     </>
   );
 }

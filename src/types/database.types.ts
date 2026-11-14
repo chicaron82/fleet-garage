@@ -2745,6 +2745,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      take_back_odometer: {
+        Args: { p_at: string; p_km: number; p_vehicle: string }
+        Returns: Json
+      }
       undo_sheet_odometer: {
         Args: { p_reading: number; p_sighting?: number }
         Returns: Json

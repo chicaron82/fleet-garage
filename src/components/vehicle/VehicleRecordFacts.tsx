@@ -18,6 +18,7 @@ import type { KeytagAuditResult, VinSource } from '../../types';
 import { } from '../../lib/keyCount';
 import { describeOdometer, describeOdometerAge, odometerUnitFor } from '../../lib/odometer';
 import { OdometerCapture } from '../shared/OdometerCapture';
+import { OdometerTakeBack } from './OdometerTakeBack';
 
 // What the record knows about this car's physical handover: the key tag it was READ from, and how
 // many keys are on the ring. Both live here (rather than inline in VehicleHistory, which sits at
@@ -224,7 +225,7 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
           looks when he is NOT mid-scan.
           Rendered even when BLANK now: an invisible affordance can't be the answer to "there's no
           way to enter this", and a car with no reading is exactly the one worth offering. */}
-      {editingOdo ? (
+      {editingOdo ? (<>
         <OdometerCapture
           isUs={isUs}
           vehicleId={vehicleId}
@@ -246,7 +247,9 @@ export function VehicleRecordFacts({ vehicleId, plate, keytagPhotoUrl, keytagPho
           onConfirm={confirmOdometer}
           onRestore={restoreOdometer}
         />
-      ) : (
+        {/* ⭐ Days later, once Undo is gone (2026-11-14, LJF712): the newest reading back to the one before it. */}
+        <OdometerTakeBack vehicleId={vehicleId} currentKm={odometer} currentAt={odometerAt} unit={odometerUnitFor(isUs)} />
+      </>) : (
         <button
           type="button"
           onClick={() => { hapticLight(); setEditingOdo(true); }}
