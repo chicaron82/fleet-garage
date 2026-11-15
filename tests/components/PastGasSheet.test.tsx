@@ -119,6 +119,40 @@ describe('⭐ Past gas sheet', () => {
     await waitFor(() => expect(rpc).toHaveBeenLastCalledWith('record_sheet_odometer', expect.objectContaining({ p_km: 4810, p_force: true })));
   });
 
+  // ⭐ Migration 170 on the sheet (Aaron, 2026-11-14: *"a way to undo the incorrect odo so yesterday's can be entered"*).
+  // Shipped in 005ee57c with only its words tested; /reflect 94 added these.
+  it('⭐ the wrong reading in the way is taken back, then the row saves UNforced', async () => {
+    const before = { km: 49000, at: '2026-11-02T18:00:00Z' };
+    rpc.mockResolvedValueOnce({ data: { status: 'conflict', before, after: null }, error: null });
+    rpc.mockResolvedValueOnce({ data: { status: 'taken_back', km: 48000, at: '2026-10-30T18:00:00Z' }, error: null });
+    open();
+    await typeRow('LUR247', 'LUR247', '48100');
+    fireEvent.click(screen.getByRole('button', { name: /^Save to/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /49,000 is the wrong one: take it back and save this/ }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith('take_back_odometer', { p_vehicle: 'v1', p_km: 49000, p_at: before.at }));
+    await waitFor(() => expect(rpc).toHaveBeenLastCalledWith('record_sheet_odometer', expect.objectContaining({ p_km: 48100, p_force: false })));
+  });
+
+  it('a take-back FG refuses saves nothing, and says why under the row', async () => {
+    rpc.mockResolvedValueOnce({ data: { status: 'conflict', before: { km: 49000, at: '2026-11-02T18:00:00Z' }, after: null }, error: null });
+    rpc.mockResolvedValueOnce({ data: { status: 'not_current' }, error: null });
+    open();
+    await typeRow('LUR247', 'LUR247', '48100');
+    fireEvent.click(screen.getByRole('button', { name: /^Save to/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /is the wrong one/ }));
+    expect(await screen.findByText('The odo changed since. Nothing was taken back.')).toBeInTheDocument();
+    expect(rpc.mock.calls.filter(c => c[0] === 'record_sheet_odometer')).toHaveLength(1);
+  });
+
+  it('a reading AFTER the sheet day too: no take-back offered (the one before is not the newest, so it cannot be reached)', async () => {
+    rpc.mockResolvedValueOnce({ data: { status: 'conflict', before: { km: 49000, at: '2026-11-02T18:00:00Z' }, after: { km: 47000, at: '2026-11-12T18:00:00Z' } }, error: null });
+    open();
+    await typeRow('LUR247', 'LUR247', '48100');
+    fireEvent.click(screen.getByRole('button', { name: /^Save to/ }));
+    await screen.findByRole('button', { name: 'Save anyway' });
+    expect(screen.queryByRole('button', { name: /is the wrong one/ })).toBeNull();
+  });
+
   it('⭐ the picked car shows its readings either side of the sheet day, and how the odo fits', async () => {
     near.before = { km: 48000, read_at: '2026-11-05T18:00:00Z' };
     near.after = { km: 48350, read_at: '2026-11-09T18:00:00Z' };
