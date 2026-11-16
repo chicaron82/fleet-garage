@@ -101,6 +101,22 @@ describe('calcPayEstimate', () => {
     expect(est.daysLogged).toBe(0);
     expect(est.daysProjected).toBe(0);
     expect(est.ptoDays).toBe(0);
+    expect(est.ptoHours).toBe(0);
+    expect(est.sickHours).toBe(0);
+  });
+
+  it('a period mixing worked days and PTO splits the hours but not the money', () => {
+    // The current-period shape from his screenshot (2026-11-16): worked days + PTO days in one period.
+    const shifts = [
+      makeShift({ date: '2026-06-05', actualStartTime: '09:00', actualEndTime: '17:30' }), // 8h net
+      makeShift({ date: '2026-06-06', shiftType: 'pto' }),
+      makeShift({ date: '2026-06-08', shiftType: 'pto' }),
+    ];
+    const est = calcPayEstimate(shifts, today);
+    expect(est.regularHours).toBe(8);
+    expect(est.ptoHours).toBe(16);
+    expect(est.ptoDays).toBe(2);
+    expect(est.gross).toBeCloseTo(24 * PAY_CONFIG.regularRate, 5);
   });
 
   it('projects scheduled hours for unlogged working days, OT included', () => {
@@ -193,10 +209,14 @@ describe('calcPayEstimate', () => {
     expect(PAY_CONFIG.employeeId).toBe('331965');
   });
 
-  it('credits 8 regular hours for a PTO shift (always a full day)', () => {
+  it('credits 8 PTO hours for a PTO shift (always a full day), on its own line, not Regular', () => {
+    // Aaron 2026-11-16: "Can we break it down to show PTO hours too". Same money, its own line.
     const shift = makeShift({ date: '2026-06-06', shiftType: 'pto' });
     const est = calcPayEstimate([shift], today);
-    expect(est.regularHours).toBe(8);
+    expect(est.ptoHours).toBe(8);
+    expect(est.sickHours).toBe(0);
+    expect(est.regularHours).toBe(0);
+    expect(est.gross).toBeCloseTo(8 * PAY_CONFIG.regularRate, 5);
     expect(est.otHours).toBe(0);
     expect(est.holidayHours).toBe(0);
     expect(est.holPremGross).toBe(0);
@@ -205,10 +225,13 @@ describe('calcPayEstimate', () => {
     expect(est.daysLogged).toBe(0);
   });
 
-  it('credits 8 regular hours for a sick shift (always a full day)', () => {
+  it('credits 8 sick hours for a sick shift (always a full day), on its own line, not Regular', () => {
     const shift = makeShift({ date: '2026-06-06', shiftType: 'sick' });
     const est = calcPayEstimate([shift], today);
-    expect(est.regularHours).toBe(8);
+    expect(est.sickHours).toBe(8);
+    expect(est.ptoHours).toBe(0);
+    expect(est.regularHours).toBe(0);
+    expect(est.gross).toBeCloseTo(8 * PAY_CONFIG.regularRate, 5);
     expect(est.otHours).toBe(0);
     expect(est.holidayHours).toBe(0);
     expect(est.holPremGross).toBe(0);

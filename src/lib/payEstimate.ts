@@ -90,7 +90,9 @@ export function periodConfidence(
 export interface PayEstimate {
   periodStart:     string;
   periodEnd:       string;
-  regularHours:    number;
+  regularHours:    number;   // hours WORKED (or scheduled to be) at regularRate; paid time off is not in here
+  ptoHours:        number;   // 8h per PTO day, at regularRate: its own line (Aaron, 2026-11-16)
+  sickHours:       number;   // 8h per sick day, at regularRate: its own line
   otHours:         number;   // real OT on non-stat days
   holidayHours:    number;   // hours worked on a stat (Holiday line, at regularRate)
   holPremGross:    number;   // stat entitlement dollars — worked stat: net×otRate; unworked: 8h×regularRate
@@ -145,6 +147,8 @@ export function calcPayEstimate(myShifts: Shift[], today: string, sickDaysUsed =
   const periodShifts = myShifts.filter(s => s.date >= start && s.date <= end);
 
   let regularHours  = 0;
+  let ptoHours      = 0;
+  let sickHours     = 0;
   let otHours       = 0;
   let holidayHours  = 0;
   let holPremGross  = 0;
@@ -176,9 +180,12 @@ export function calcPayEstimate(myShifts: Shift[], today: string, sickDaysUsed =
         regularHours += Math.max(0, net - ot);
       }
     } else if (shift.shiftType === 'pto' || shift.shiftType === 'sick') {
-      if (shift.shiftType === 'pto') ptoDays++;
+      // Paid time off: a full 8h at regularRate, kept OFF the Regular line so the card can show it as its own
+      // (Aaron 2026-11-16: "Can we break it down to show PTO hours too"). Same money as before.
+      // ⚠️ A PTO day with actuals logged takes the worked branch above and loses this 8h. Whether Hertz pays both
+      // on a called-in PTO day is HIS call (asked 2026-11-16, docs/ticket-pay-estimate-pto-line.md).
       bumpUnlogged(shift.date);
-      regularHours += 8;
+      if (shift.shiftType === 'pto') { ptoDays++; ptoHours += 8; } else sickHours += 8;
     } else if (shift.isStat && !isFullDayShift(shift.shiftType)) {
       // Scheduled WORKED stat (rostered working shift, no actuals yet): Holiday = scheduled hours
       // (regularRate) + HolPrem = those hours at OT rate (1.5×). Mirrors the with-actuals worked-stat
@@ -212,6 +219,8 @@ export function calcPayEstimate(myShifts: Shift[], today: string, sickDaysUsed =
   const sickPayoutGross   = sickDaysUnused * 8 * PAY_CONFIG.regularRate;
 
   const gross = regularHours  * PAY_CONFIG.regularRate
+              + ptoHours       * PAY_CONFIG.regularRate
+              + sickHours      * PAY_CONFIG.regularRate
               + otHours        * PAY_CONFIG.otRate
               + holidayHours   * PAY_CONFIG.regularRate
               + holPremGross
@@ -221,5 +230,5 @@ export function calcPayEstimate(myShifts: Shift[], today: string, sickDaysUsed =
   const tax   = gross * PAY_CONFIG.taxRate;
   const net   = gross - cpp - ei - tax;
 
-  return { periodStart: start, periodEnd: end, regularHours, otHours, holidayHours, holPremGross, sickPayoutGross, sickDaysUnused, gross, cpp, ei, tax, net, daysLogged, daysConfirmed, daysProjected, ptoDays };
+  return { periodStart: start, periodEnd: end, regularHours, ptoHours, sickHours, otHours, holidayHours, holPremGross, sickPayoutGross, sickDaysUnused, gross, cpp, ei, tax, net, daysLogged, daysConfirmed, daysProjected, ptoDays };
 }

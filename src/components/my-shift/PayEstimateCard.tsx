@@ -66,6 +66,18 @@ function PeriodBlock({ est, label, confidence, payday }: PeriodBlockProps) {
           <span>Regular <span className="text-gray-400 dark:text-gray-500 text-xs">{fmtHours(est.regularHours)} × ${PAY_CONFIG.regularRate.toFixed(2)}</span></span>
           <span className="tabular-nums">{fmt(est.regularHours * PAY_CONFIG.regularRate)}</span>
         </div>
+        {est.ptoHours > 0 && (
+          <div className="flex justify-between text-sm text-sky-600 dark:text-sky-400">
+            <span>PTO <span className="text-xs">{fmtHours(est.ptoHours)} × ${PAY_CONFIG.regularRate.toFixed(2)}</span></span>
+            <span className="tabular-nums">{fmt(est.ptoHours * PAY_CONFIG.regularRate)}</span>
+          </div>
+        )}
+        {est.sickHours > 0 && (
+          <div className="flex justify-between text-sm text-teal-600 dark:text-teal-400">
+            <span>Sick <span className="text-xs">{fmtHours(est.sickHours)} × ${PAY_CONFIG.regularRate.toFixed(2)}</span></span>
+            <span className="tabular-nums">{fmt(est.sickHours * PAY_CONFIG.regularRate)}</span>
+          </div>
+        )}
         {est.holidayHours > 0 && (
           <div className="flex justify-between text-sm text-violet-600 dark:text-violet-400">
             <span>Holiday <span className="text-xs">{fmtHours(est.holidayHours)} × ${PAY_CONFIG.regularRate.toFixed(2)}</span></span>
