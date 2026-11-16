@@ -45,9 +45,16 @@ export function LotViewPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
       <div className="mx-auto max-w-[460px] px-4 pt-3 pb-10 space-y-3">
-        <div className="flex items-baseline justify-between gap-3">
-          <h1 className="text-xl font-extrabold">Lot Lookout</h1>
-          <span className="text-xs text-gray-500 dark:text-gray-400">Erin St · read only</span>
+        {/* The FG brand (2026-11-15, docs/ticket-lot-view-fg-branding.md). Aaron: *"its quiet advertising of the FG brand
+            we've built"*. Lot Lookout stays the headline, since it's what the link is opened for; the logo and the line
+            under it say where it comes from. The app header's logo, without its online dot: that dot is HIS
+            connection, and means nothing to a viewer. */}
+        <div className="flex items-center gap-2.5">
+          <img src="/FG.webp" alt="Fleet Garage" className="w-9 h-9 shrink-0 rounded-md object-cover" />
+          <div className="min-w-0">
+            <h1 className="text-xl font-extrabold leading-tight">Lot Lookout</h1>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Fleet Garage · Erin St · read only</p>
+          </div>
         </div>
         {!erin.loaded || !bay.loaded ? <p className="mt-8 text-center text-sm text-gray-500">Loading the bay…</p> : (
           <div className="relative">

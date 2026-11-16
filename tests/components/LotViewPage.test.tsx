@@ -94,3 +94,21 @@ describe('LotViewPage, on break (migration 166)', () => {
     expect(screen.getByRole('status')).toBeTruthy();
   });
 });
+
+// The FG brand on the public page (docs/ticket-lot-view-fg-branding.md). Aaron, 2026-11-15: *"its quiet advertising of
+// the FG brand we've built"*. Lot Lookout stays the headline; FG says where it comes from.
+describe('LotViewPage, the FG brand', () => {
+  beforeEach(() => { state.rows = []; state.bay = { ...state.bay, cleansAt: ago(5), dirtiesAt: ago(5) }; });
+
+  it('⭐ the FG logo beside the title, Fleet Garage under it, and it still says read only', () => {
+    render(<LotViewPage />);
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Lot Lookout');
+    expect(screen.getByRole('img', { name: 'Fleet Garage' }).getAttribute('src')).toBe('/FG.webp');
+    expect(screen.getByText('Fleet Garage · Erin St · read only')).toBeTruthy();
+  });
+
+  it("no online dot: in the app it reports his connection, which means nothing to a viewer", () => {
+    const { container } = render(<LotViewPage />);
+    expect(container.querySelector('[title="Online"], [title="Offline"]')).toBeNull();
+  });
+});
