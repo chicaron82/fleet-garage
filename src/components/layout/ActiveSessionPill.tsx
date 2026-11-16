@@ -8,7 +8,8 @@ const TONES = {
   amber: 'bg-amber-500 hover:bg-amber-400 text-white',
   teal:  'bg-teal-600 hover:bg-teal-500 text-white',
 } as const;
-const CHIP = 'flex items-center gap-1 rounded-full font-semibold active:scale-95 transition cursor-pointer pl-2 pr-2.5 py-1 text-[11px] shadow-sm';
+/** One shape for every header pill (the bay pill takes it too, docs/ticket-header-bay-pill.md). */
+export const CHIP = 'flex items-center gap-1 rounded-full font-semibold active:scale-95 transition cursor-pointer pl-2 pr-2.5 py-1 text-[11px] shadow-sm';
 
 function SessionPillButton({ s, nowMs, tone, held, said, onTap, onUndo }: {
   s: ActiveSession; nowMs: number; tone: keyof typeof TONES; held?: PillHeld; said?: PillSaid;

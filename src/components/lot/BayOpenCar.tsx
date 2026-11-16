@@ -33,7 +33,7 @@ import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import type { BayStandbyState } from '../../hooks/useBayStandby';
 import { hapticMedium } from '../../lib/haptics';
 import { whenOf } from '../../lib/lotBay';
-import { bayOdoEntry, bayOdoLetsExit, type BayLeave, type BayLogRow } from '../../lib/lotBayLog';
+import { bayHeldSince, bayOdoEntry, bayOdoLetsExit, type BayLeave, type BayLogRow } from '../../lib/lotBayLog';
 import { odometerUnitFor } from '../../lib/odometer';
 import { businessDateOf } from '../../lib/shiftDay';
 import { BayCarHeader } from './BayCarHeader';
@@ -69,11 +69,10 @@ export function BayOpenCar({ open, next, onStart, busy, onExit, onBump, onCloseH
   const [confirmBump, setConfirmBump] = useState(false);
   // The car lined up behind this one (never this car itself: that slot would be stale).
   const waiting = next.standby && next.standby.vehicle_id !== open.vehicle_id ? next.standby : null;
-  // A hold flagged on this car since it came in: the form saved it, the close did not land.
-  // Compared as instants: the hold's ISO and Postgres' timestamptz text are spelled differently ("Z" vs "+00:00").
-  const startedMs = Date.parse(open.started_at);
-  const heldSince = holds.find(h => h.vehicleId === open.vehicle_id && Date.parse(h.flaggedAt) >= startedMs);
-  const heldKind: 'mhold' | 'bhold' | null = heldSince ? (heldSince.holdTypes.includes('mechanical') ? 'mhold' : 'bhold') : null;
+  // A hold flagged on this car since it came in: the form saved it, the close did not land. lib/lotBayLog, shared with
+  // the header's bay pill so both read it the same way.
+  const heldSince = bayHeldSince(open, holds);
+  const heldKind = heldSince?.kind ?? null;
   const tap = (f: () => void) => () => { hapticMedium(); f(); };
   const car = vehicles.find(v => v.id === open.vehicle_id) ?? archivedVehicles.find(v => v.id === open.vehicle_id) ?? null;
 
@@ -133,7 +132,7 @@ export function BayOpenCar({ open, next, onStart, busy, onExit, onBump, onCloseH
       {heldKind ? (
         <button type="button" disabled={busy} onClick={tap(() => onCloseHeld(heldKind))}
           className="w-full rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi py-3.5 text-base font-bold text-black cursor-pointer disabled:opacity-50">
-          Held at {whenOf(heldSince!.flaggedAt)}. Close it as held
+          Held at {whenOf(heldSince!.at)}. Close it as held
         </button>
       ) : (
         <>

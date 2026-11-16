@@ -230,6 +230,17 @@ export function unflaggedHoldIds(rows: readonly BayLogRow[], holds: readonly Hol
   return new Set(rows.filter(r => isUnflaggedHold(r, holds)).map(r => r.id));
 }
 
+/** A hold flagged on the car in the bay SINCE it came in: the form saved it, the close did not land. Then the only way out
+ *  is "Close it as held", so the hold he already made is never asked for twice. Mechanical → M, anything else → B.
+ *  One reader for the bay card and the header pill (docs/ticket-header-bay-pill.md), so the two can't disagree about
+ *  whether a car may leave as Clean. Compared as instants (the "Z" vs "+00:00" note above). */
+export function bayHeldSince(open: Pick<BayLogRow, 'vehicle_id' | 'started_at'>,
+  holds: readonly (HoldStamp & { holdTypes: readonly string[] })[]): BayMark | null {
+  const since = Date.parse(open.started_at);
+  const h = holds.find(x => x.vehicleId === open.vehicle_id && Date.parse(x.flaggedAt) >= since);
+  return h ? { kind: h.holdTypes.includes('mechanical') ? 'mhold' : 'bhold', at: h.flaggedAt } : null;
+}
+
 /** What Find a car says about a car, from its LATEST finished bay row: a hold mark not yet flagged, or null. A later
  *  Clean or Skip of the same car is the newer row, so it clears the mark by itself.
  *

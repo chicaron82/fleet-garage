@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { doneToday, doneTodayLine, sameHoldChoices, sameHoldLabel, bayLines, bayMarkLine, bayMarkOf, bayOdoEntry, bayOdoLetsExit, bayReportLine, baySummary, inTheBay, isUnflaggedHold, startBlock, unflaggedHoldIds, vehicleForPick, type BayLogRow } from '../../src/lib/lotBayLog';
+import { bayHeldSince, doneToday, doneTodayLine, sameHoldChoices, sameHoldLabel, bayLines, bayMarkLine, bayMarkOf, bayOdoEntry, bayOdoLetsExit, bayReportLine, baySummary, inTheBay, isUnflaggedHold, startBlock, unflaggedHoldIds, vehicleForPick, type BayLogRow } from '../../src/lib/lotBayLog';
 
 // Times are UTC; clockOf prints Winnipeg (CDT, UTC−5 on 2026-10-29).
 const row = (id: number, plate: string, start: string, exit: BayLogRow['exit'], exitAt: string | null, extra: Partial<BayLogRow> = {}): BayLogRow => ({
@@ -231,5 +231,28 @@ describe('⚠️ doneToday: a car already on today\'s list', () => {
     expect(doneTodayLine(doneToday(DAY, 'v-MCN139')!, at)).toBe('MCN139 was cleaned 14 min ago (10:55)');
     expect(doneTodayLine(doneToday(DAY, 'v-LUR352')!, at)).toBe('LUR352 went on M hold 4 min ago (11:05)');
     expect(doneTodayLine(doneToday(DAY, 'v-0DM137')!, Date.parse('2026-10-29T16:10:00.000Z'))).toBe('0DM137 went on B hold 2h 30m ago (08:40)');
+  });
+});
+
+// The card's "Close it as held" and the header pill read this one function (docs/ticket-header-bay-pill.md).
+describe('bayHeldSince', () => {
+  const inBay = row(9, 'LUR437', '15:00', null, null);
+  const hold = (flaggedAt: string, holdTypes: string[], vehicleId = 'v-LUR437') => ({ vehicleId, flaggedAt, holdTypes });
+
+  it('⭐ a hold flagged after the car went in: close it as held, mechanical as M', () => {
+    expect(bayHeldSince(inBay, [hold('2026-10-29T15:10:00.000Z', ['mechanical'])])).toEqual({ kind: 'mhold', at: '2026-10-29T15:10:00.000Z' });
+  });
+  it('anything that is not mechanical is B', () => {
+    expect(bayHeldSince(inBay, [hold('2026-10-29T15:10:00.000Z', ['damage'])])?.kind).toBe('bhold');
+  });
+  it('a hold from before the car went in does not hold this clean', () => {
+    expect(bayHeldSince(inBay, [hold('2026-10-29T14:59:00.000Z', ['damage'])])).toBeNull();
+  });
+  it("another car's hold is not this car's", () => {
+    expect(bayHeldSince(inBay, [hold('2026-10-29T15:10:00.000Z', ['damage'], 'v-MCN117')])).toBeNull();
+  });
+  it('compared as instants: Postgres spells the start "+00:00", the hold "Z"', () => {
+    const pg = { ...inBay, started_at: '2026-10-29 15:00:00+00:00' };
+    expect(bayHeldSince(pg, [hold('2026-10-29T15:00:00.000Z', ['damage'])])?.kind).toBe('bhold');
   });
 });

@@ -6,6 +6,7 @@ import { BuildStamp } from './BuildStamp';
 import { ModuleGuideModal } from '../shared/ModuleGuideModal';
 import { usePreferences } from '../../context/PreferencesContext';
 import { ActiveSessionPill } from './ActiveSessionPill';
+import { BayPill } from './BayPill';
 import { ErinPill } from '../lot/ErinPill';
 import { useScanRouter } from '../../context/scanRouter';
 import { OffStdEditApprovalSheet } from '../off-standard/OffStdEditApprovalSheet';
@@ -150,6 +151,8 @@ export function AppShell({ activeModule, screenKey, onNavigate, children }: Prop
           </div>
           <div className="flex items-center gap-2 shrink-0 whitespace-nowrap">
             <ActiveSessionPill activeModule={activeModule} onNavigate={handleNavigate} />
+            {/* The car in the bay, off Lot Lookout (2026-11-15): one tap finishes the clean, the car on deck comes in. */}
+            <BayPill activeModule={activeModule} onNavigate={handleNavigate} />
             {/* Erin St's count, "7/3", on every screen (2026-10-16): his updates had cost a trip to My Day after every car. */}
             <ErinPill />
             {/* 🔍 The typing door into the SAME scan sheet (2026-09-10): plate or unit, keyboard up,
