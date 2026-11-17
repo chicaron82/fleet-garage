@@ -25,7 +25,7 @@ describe('BayAddCleaned', () => {
     render(<BayAddCleaned onAdd={onAdd} onMore={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: '+ Add a car already cleaned' }));
     fireEvent.click(screen.getByRole('button', { name: 'pick LZM503' }));
-    expect(screen.getByText(/added later · \+1 Erin St cleans/)).toBeTruthy();
+    expect(screen.getByText(/added later · \+1 airport cleans/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /Add as clean/ }));
     await waitFor(() => expect(onAdd).toHaveBeenCalledWith('v-503', 'LZM503'));
     await waitFor(() => expect(screen.getByRole('button', { name: '+ Add a car already cleaned' })).toBeTruthy());

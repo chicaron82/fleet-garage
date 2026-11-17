@@ -67,7 +67,7 @@ export function BayAddCleaned({ onAdd, onMore }: { onAdd: (vehicleId: string, pl
           <button type="button" disabled={busy} onClick={() => void add()}
             className="w-full min-h-14 rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi grid justify-items-center content-center gap-0.5 text-black cursor-pointer touch-manipulation active:scale-[0.98] transition disabled:opacity-50">
             <span className="text-base font-extrabold">✓ Add as clean</span>
-            <span className="text-xs font-semibold text-gray-800">Onto the list, added later · +1 Erin St cleans</span>
+            <span className="text-xs font-semibold text-gray-800">Onto the list, added later · +1 airport cleans</span>
           </button>
         </>
       ) : (
