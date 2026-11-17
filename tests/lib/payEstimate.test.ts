@@ -119,6 +119,18 @@ describe('calcPayEstimate', () => {
     expect(est.gross).toBeCloseTo(24 * PAY_CONFIG.regularRate, 5);
   });
 
+  it('⭐ called in on a PTO day: the 8h PTO still pays, and the hours worked are OT on top', () => {
+    // Aaron 2026-11-16 19:48: "I get paid the 8h PTO, then whatever I work tonight on top is my overtime".
+    // 18:38–22:00 = 3h22m, under 5h so no break, all OT on a full-day type.
+    const shift = makeShift({ date: '2026-06-06', shiftType: 'pto', actualStartTime: '18:38', actualEndTime: '22:00' });
+    const est = calcPayEstimate([shift], today);
+    expect(est.ptoHours).toBe(8);
+    expect(est.ptoDays).toBe(1);
+    expect(est.regularHours).toBe(0);
+    expect(est.otHours).toBeCloseTo(3 + 22 / 60, 5);
+    expect(est.gross).toBeCloseTo(8 * PAY_CONFIG.regularRate + (3 + 22 / 60) * PAY_CONFIG.otRate, 5);
+  });
+
   it('projects scheduled hours for unlogged working days, OT included', () => {
     // 13:30–23:00 = 9.5h gross, net = 9h → 8h regular + 1h planned OT. Until 2026-10-22 the OT was
     // dropped ("no OT projected for unlogged"); Aaron asked for the schedule's OT to show.

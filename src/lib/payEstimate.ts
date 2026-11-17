@@ -167,6 +167,10 @@ export function calcPayEstimate(myShifts: Shift[], today: string, sickDaysUsed =
       // than via bumpUnlogged(), because a shift logged on the day it happened is worked, not
       // projected.
       if (isZeroDeviation(shift)) daysConfirmed++; else daysLogged++;
+      // Called in on a PTO day: the PTO still pays, and the hours worked land below as OT on top (calcOT treats a
+      // full-day type as all OT). Aaron 2026-11-16: "I get paid the 8h PTO, then whatever I work tonight on top is my
+      // overtime". docs/ticket-pay-pto-plus-called-in-ot.md
+      if (shift.shiftType === 'pto') { ptoDays++; ptoHours += 8; }
       const net = workedHours(shift);   // main actuals after the break, plus any [+] blocks
       if (shift.isStat) {
         // Worked stat: Holiday = hours worked (regularRate) + HolPrem = those hours at OT rate (1.5×)
@@ -182,8 +186,7 @@ export function calcPayEstimate(myShifts: Shift[], today: string, sickDaysUsed =
     } else if (shift.shiftType === 'pto' || shift.shiftType === 'sick') {
       // Paid time off: a full 8h at regularRate, kept OFF the Regular line so the card can show it as its own
       // (Aaron 2026-11-16: "Can we break it down to show PTO hours too"). Same money as before.
-      // ⚠️ A PTO day with actuals logged takes the worked branch above and loses this 8h. Whether Hertz pays both
-      // on a called-in PTO day is HIS call (asked 2026-11-16, docs/ticket-pay-estimate-pto-line.md).
+      // (A PTO day with hours logged is handled in the worked branch above: PTO 8h + the hours as OT.)
       bumpUnlogged(shift.date);
       if (shift.shiftType === 'pto') { ptoDays++; ptoHours += 8; } else sickHours += 8;
     } else if (shift.isStat && !isFullDayShift(shift.shiftType)) {
