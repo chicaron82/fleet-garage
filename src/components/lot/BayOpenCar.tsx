@@ -138,18 +138,18 @@ export function BayOpenCar({ open, next, onStart, busy, onExit, onBump, onCloseH
         <>
           <button type="button" disabled={blocked} onClick={tap(() => leave('clean'))}
             className="w-full min-h-16 rounded-xl bg-fg-yellow hover:bg-fg-yellow-hi grid justify-items-center content-center gap-0.5 text-black cursor-pointer touch-manipulation active:scale-[0.98] transition disabled:opacity-50">
-            <span className="text-lg font-extrabold">✓ Clean{entry.kind === 'log' ? ` · log ${entry.km.toLocaleString('en-CA')} ${odometerUnitFor(car?.isUs)}` : ''}</span>
+            <span className="text-lg font-extrabold">✓ Cleaned{entry.kind === 'log' ? ` · log ${entry.km.toLocaleString('en-CA')} ${odometerUnitFor(car?.isUs)}` : ''}</span>
             <span className="text-xs font-semibold text-gray-800">Onto the list · +1 airport cleans{waiting ? ` · ${waiting.plate} comes in` : ''}</span>
           </button>
           {/* ✈ Clean · sent up (2026-11-10, migration 169): caught up, so the drivers take it the moment it's clean.
               *"Removes a dirty and doesn't +1 the clean so I don't have to -1 when they take it"*. Not a fifth tile:
               the four fill his 412 px. docs/ticket-bay-clean-sent-up-at-exit.md */}
           <button type="button" disabled={blocked} onClick={tap(() => leave('sent'))} className={QUIET_BTN}>
-            ✈ Clean · sent up <span className="font-normal text-gray-500 dark:text-gray-400">· −1 dirty, no clean</span>
+            ✈ Cleaned · sent up <span className="font-normal text-gray-500 dark:text-gray-400">· −1 dirty, no clean</span>
           </button>
           {waiting && (
             <button type="button" disabled={blocked} onClick={tap(() => leave('clean', false))} className={QUIET_BTN}>
-              ✓ Clean only · {waiting.plate} waits
+              ✓ Cleaned only · {waiting.plate} waits
             </button>
           )}
           <div className="grid grid-cols-4 gap-1.5">

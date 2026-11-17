@@ -155,7 +155,7 @@ describe('LotLookoutView — the bay log', () => {
   it('⭐ ✈ Clean · sent up: one tap, its own note, with an Undo', async () => {
     rows = [row({})];
     render(<LotLookoutView onNavigate={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: /Clean · sent up/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Cleaned · sent up/ }));
     await waitFor(() => expect(exit).toHaveBeenCalledWith(6, 'sent'));
     expect(await screen.findByText(/LZM536 clean · ✈ sent up · off the dirties/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Undo' })).toBeTruthy();
@@ -317,7 +317,7 @@ describe('LotLookoutView — the bay log', () => {
     inNoOdo();
     render(<LotLookoutView onNavigate={vi.fn()} />);
     type('21,500');
-    fireEvent.click(screen.getByRole('button', { name: /Clean · log 21,500 km/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Cleaned · log 21,500 km/ }));
     await waitFor(() => expect(exit).toHaveBeenCalledWith(6, 'clean', 21500));
     expect(recordOdometer).toHaveBeenCalledWith('v-536', 21500);
     expect(recordOdometer.mock.invocationCallOrder[0]!).toBeLessThan(exit.mock.invocationCallOrder[0]!);
@@ -328,7 +328,7 @@ describe('LotLookoutView — the bay log', () => {
   it('⭐ the box is optional: plain Clean closes the car and writes no reading', async () => {
     inNoOdo();
     render(<LotLookoutView onNavigate={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: /^✓ Clean/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^✓ Cleaned/ }));
     await waitFor(() => expect(exit).toHaveBeenCalledWith(6, 'clean'));
     expect(recordOdometer).not.toHaveBeenCalled();
   });
@@ -338,7 +338,7 @@ describe('LotLookoutView — the bay log', () => {
     recordOdometer.mockResolvedValueOnce(false);
     render(<LotLookoutView onNavigate={vi.fn()} />);
     type('21500');
-    fireEvent.click(screen.getByRole('button', { name: /Clean · log/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Cleaned · log/ }));
     expect((await screen.findByRole('alert')).textContent).toMatch(/did not save/);
     expect(exit).not.toHaveBeenCalled();
     expect(odoBox()).toHaveValue('21500');   // what he typed is still there
@@ -348,18 +348,18 @@ describe('LotLookoutView — the bay log', () => {
     inNoOdo();
     render(<LotLookoutView onNavigate={vi.fn()} />);
     type('19000');
-    for (const name of [/^✓ Clean/, /M hold/, /B hold/, /Skip/]) expect(screen.getByRole('button', { name })).toBeDisabled();
+    for (const name of [/^✓ Cleaned/, /M hold/, /B hold/, /Skip/]) expect(screen.getByRole('button', { name })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: /Correct it to 19,000 km/ }));
     await waitFor(() => expect(correctOdometer).toHaveBeenCalledWith('v-536', 19000));
     type('');
-    expect(screen.getByRole('button', { name: /^✓ Clean/ })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: /^✓ Cleaned/ })).not.toBeDisabled();
   });
 
   it('an unreadable number holds the exits too', () => {
     inNoOdo();
     render(<LotLookoutView onNavigate={vi.fn()} />);
     type('12a');
-    expect(screen.getByRole('button', { name: /^✓ Clean/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^✓ Cleaned/ })).toBeDisabled();
     expect(screen.getByText(/isn't a reading/)).toBeTruthy();
   });
 
@@ -468,8 +468,8 @@ describe('LotLookoutView — the bay log', () => {
     rows = [row({})];
     loadSeltos();
     render(<LotLookoutView onNavigate={vi.fn()} />);
-    expect(screen.getByRole('button', { name: /^✓ Clean.*0GK487 comes in/ })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '✓ Clean only · 0GK487 waits' }));
+    expect(screen.getByRole('button', { name: /^✓ Cleaned.*0GK487 comes in/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '✓ Cleaned only · 0GK487 waits' }));
     await waitFor(() => expect(exit).toHaveBeenCalledWith(6, 'clean', undefined, false));
     expect(await screen.findByText(/LZM536 clean · on deck waits/)).toBeInTheDocument();
   });
@@ -478,7 +478,7 @@ describe('LotLookoutView — the bay log', () => {
     vehicles = [seltos, corolla];
     rows = [row({})];
     render(<LotLookoutView onNavigate={vi.fn()} />);
-    expect(screen.queryByRole('button', { name: /Clean only/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Cleaned only/ })).toBeNull();
     expect(screen.queryByText(/comes in/)).toBeNull();
   });
 
