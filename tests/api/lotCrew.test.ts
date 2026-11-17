@@ -136,3 +136,33 @@ describe('left off the crew line', () => {
     expect(crewSummary(kept).driver.on).toBe(crewSummary(crewOf(roster, DAY, now)).driver.on - 1);
   });
 });
+
+// ⭐ Called in on a day off or PTO (Aaron, 2026-11-16 19:13, his PTO day, called in for the close): *"Added my hours
+// today lot lookout only recognizing 1 VSA on"*. His row stayed `pto` with actuals 18:38–22:00, and the type check
+// dropped it before the logged hours were read. docs/ticket-crew-line-counts-called-in.md
+describe('called in on a day off: logged hours make you crew', () => {
+  const NIGHT = '2026-11-16';
+  const ray = row('ray', 'Ray T.', 'VSA', '16:30:00', '21:00:00', 'closing');
+
+  it('a PTO row with logged hours is on (tonight, exactly)', () => {
+    const aaron: RosterRow = { ...row('aaron', 'Aaron S.', 'VSA', null, null, 'pto'), actualStart: '18:38:00', actualEnd: '22:00:00' };
+    const crew = crewOf([ray, aaron], NIGHT, at('19:15', NIGHT));
+    expect(crewSummary(crew).vsa).toEqual({ on: 2, out: 0 });
+    expect(crew.find(m => m.userId === 'aaron')).toMatchObject({ start: '18:38', end: '22:00', onNow: true });
+  });
+
+  it('a day-off row with logged hours is on too', () => {
+    const r: RosterRow = { ...row('rey', 'Rey', 'Driver', null, null, 'day-off'), actualStart: '17:00:00', actualEnd: '22:00:00' };
+    expect(crewSummary(crewOf([r], NIGHT, at('19:15', NIGHT))).driver).toEqual({ on: 1, out: 0 });
+  });
+
+  it('a day-off with only [+] hours counts inside the block', () => {
+    const r: RosterRow = { ...row('erick', 'Erick', 'VSA', null, null, 'day-off'), extraBlocks: [{ start: '18:00', end: '21:00' }] };
+    expect(crewSummary(crewOf([r], NIGHT, at('19:15', NIGHT))).vsa).toEqual({ on: 1, out: 0 });
+  });
+
+  it('a day off or PTO with nothing logged is still not crew', () => {
+    const off = [row('a', 'A', 'VSA', null, null, 'day-off'), row('b', 'B', 'VSA', null, null, 'pto')];
+    expect(crewOf(off, NIGHT, at('19:15', NIGHT))).toEqual([]);
+  });
+});

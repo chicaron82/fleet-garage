@@ -13,7 +13,9 @@
 //   • MORE HOURS COUNT (migration 160, 2026-10-26): a [+] block is logged hours too. He opened, went home, and came
 //     back 17:00–21:00 so Erick wasn't cleaning solo; the line read him as finished. Inside a block = on; between
 //     the shift and a block = later (coming back, so not folded away as finished); after the last one = done.
-//   • Day-off and PTO are not today's crew at all.
+//   • Day-off and PTO are not today's crew at all, UNTIL hours are logged on them (2026-11-16, his PTO day, called in
+//     for the close: *"lot lookout only recognizing 1 VSA on"*). The type check used to run before the logged hours
+//     were read, so "logged hours win" never reached a called-in day. docs/ticket-crew-line-counts-called-in.md
 //   • LEFT OFF (migration 155): someone on a crew schedule who isn't part of this line (Larry C, the in-house
 //     utility man on the driver schedule) is not a member at all, so never counted. No reason is kept.
 
@@ -99,13 +101,18 @@ export function crewOf(
     const role = crewRoleOf(r.profileRole);
     if (!role || leftOff.has(r.userId)) continue;
     const out = r.shiftType === 'sick' || r.attendance === 'absent';
-    if (!WORKING.has(r.shiftType) && !out) continue;
+    const more = (r.extraBlocks ?? []).filter(b => b.start && b.end).map(b => ({ start: b.start.slice(0, 5), end: b.end.slice(0, 5) }));
+    // Logged hours make you crew whatever the type: called in on a day off or PTO (2026-11-16).
+    const logged = !!(r.actualStart && r.actualEnd) || more.length > 0;
+    if (!WORKING.has(r.shiftType) && !out && !logged) continue;
     const start = r.actualStart || r.start;
     const end = r.actualEnd || r.end;
-    const more = (r.extraBlocks ?? []).filter(b => b.start && b.end).map(b => ({ start: b.start.slice(0, 5), end: b.end.slice(0, 5) }));
     let phase: CrewMember['phase'] = out ? 'on' : 'later';
-    if (!out && start && end) {
-      const windows = [windowOf(day, start, end, false), ...more.map(b => windowOf(day, b.start, b.end, b.start < '04:00'))];
+    if (!out && ((start && end) || more.length > 0)) {
+      const windows = [
+        ...(start && end ? [windowOf(day, start, end, false)] : []),
+        ...more.map(b => windowOf(day, b.start, b.end, b.start < '04:00')),
+      ];
       phase = windows.some(([s, e]) => nowMs >= s && nowMs < e) ? 'on'
         : windows.every(([, e]) => nowMs >= e) ? 'done'
         : 'later';
