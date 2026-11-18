@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { canManageVehicles } from '../../types';
-import { exactCarId } from '../../lib/exactCarMatch';
+import { archivedCarFor } from '../../lib/exactCarMatch';
 import { hapticMedium } from '../../lib/haptics';
 
 /**
@@ -22,8 +22,7 @@ export function ScanArchivedOffer({ plate, unit, onRestored }: { plate?: string 
   const { archivedVehicles, restoreVehicle } = useVehicleHoldContext();
   const [restoring, setRestoring] = useState(false);
   const [failed, setFailed] = useState(false);
-  const id = exactCarId(plate ?? '', archivedVehicles) ?? exactCarId(unit ?? '', archivedVehicles);
-  const car = id ? archivedVehicles.find(v => v.id === id) : undefined;
+  const car = archivedCarFor(plate, unit, archivedVehicles);
   if (!car || !user || !canManageVehicles(user.role)) return null;
   const since = car.archivedAt
     ? new Date(car.archivedAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })

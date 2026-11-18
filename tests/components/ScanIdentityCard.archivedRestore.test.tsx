@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
-// Find a car's card offers Restore under "Not in the fleet" when FG holds the car archived
+// Find a car's card says "Not active in the fleet" and offers Restore when FG holds the car archived
 // (docs/ticket-recent-cars-everywhere-and-restore-from-find.md). Aaron, 2026-11-18: *"I think the find a car should be
 // able to view and have the option to restore an archived vehicle"*. The offer's own behaviour is in
 // ScanArchivedOffer.test.tsx; this pins that the CARD shows it, with the plate he searched.
@@ -39,14 +39,16 @@ function renderCard(plate: string, onRestored?: (id: string) => void) {
 }
 
 describe('ScanIdentityCard — an archived car is not a stranger', () => {
-  it('⭐ "Not in the fleet" about an archived car comes with its Restore', () => {
+  it('⭐ an archived car reads "Not active in the fleet", and comes with its Restore', () => {
     renderCard('LUR357', vi.fn());
-    expect(screen.getByText(/Not in the fleet/)).toBeInTheDocument();
+    expect(screen.getByText('Not active in the fleet')).toBeInTheDocument();
+    expect(screen.queryByText(/^Not in the fleet/)).toBeNull();
     expect(screen.getByRole('button', { name: /Restore to fleet/ })).toBeInTheDocument();
   });
 
-  it('a plate FG never had: no offer, the card reads as it always did', () => {
+  it('a plate FG never had: "Not in the fleet", no offer, the card reads as it always did', () => {
     renderCard('ZZZ999', vi.fn());
+    expect(screen.getByText(/^Not in the fleet/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Restore to fleet/ })).toBeNull();
   });
 });

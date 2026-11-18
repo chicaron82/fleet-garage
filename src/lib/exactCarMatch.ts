@@ -26,3 +26,13 @@ export function exactCarId(term: string, cars: readonly CarKeys[]): string | nul
   const hits = cars.filter(c => norm(c.licensePlate) === t || (!!c.unitNumber && norm(c.unitNumber) === t));
   return hits.length === 1 ? hits[0].id : null;
 }
+
+/**
+ * The archived car a scan or a typed look-up names, by its plate first and then its unit. One answer for Find a car's
+ * card and its Restore offer, so the line can never say "Not active in the fleet" over an offer that isn't there, or
+ * the reverse. Aaron, 2026-11-18: *"even archived vehicles read 'Not in the fleet'"*.
+ */
+export function archivedCarFor<T extends CarKeys>(plate: string | null | undefined, unit: string | null | undefined, archived: readonly T[]): T | undefined {
+  const id = exactCarId(plate ?? '', archived) ?? exactCarId(unit ?? '', archived);
+  return id ? archived.find(c => c.id === id) : undefined;
+}

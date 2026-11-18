@@ -31,6 +31,7 @@ import type { KeytagScanResult } from '../../lib/resolveKeytagScan';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 import { formatUnitNumber } from '../../lib/formatUnitNumber';
 import { ScanArchivedOffer } from './ScanArchivedOffer';
+import { archivedCarFor } from '../../lib/exactCarMatch';
 
 interface Props {
   scanRead: KeytagRead | null;
@@ -59,7 +60,7 @@ export function ScanIdentityCard({
   scanRead, result, holdLines, scanNonce, canRegister, onPickCandidate, onOpenVehicle, onRestored,
   geotabPending, scanPhoto, backfillToast, conflictToast, codexToast,
 }: Props) {
-  const { holds, recordKeyCount, recordOdometer, clearOdometer, correctOdometer, confirmOdometer, restoreOdometer, updateVehicleEVAssets, adoptPlate, retakeKeytagPhoto } = useVehicleHoldContext();
+  const { holds, recordKeyCount, recordOdometer, clearOdometer, correctOdometer, confirmOdometer, restoreOdometer, updateVehicleEVAssets, adoptPlate, retakeKeytagPhoto, archivedVehicles } = useVehicleHoldContext();
   const photographed = !!scanPhoto;
   const vehicle = result.vehicle ?? null;
   // The photo in his hand is a picture of the car's CURRENT tag: it was photographed, and its plate
@@ -199,8 +200,13 @@ export function ScanIdentityCard({
         </p>
       ) : (
         <>
+          {/* ⭐ An ARCHIVED car is FG's, just not active (Aaron, 2026-11-18: *"even archived vehicles read 'Not in the
+              fleet' … change it to 'Not active in the fleet'"*). Every archived car, whatever the reason: FG doesn't
+              store why, and "not active" is true either way. The 📦 line below says since when. */}
           <p className="text-xs text-amber-700 dark:text-amber-400">
-            Not in the fleet{canRegister ? '' : ' — couldn’t read enough to register it'}
+            {archivedCarFor(scanRead?.plate?.trim(), scanRead?.unitNumber?.trim(), archivedVehicles)
+              ? 'Not active in the fleet'
+              : `Not in the fleet${canRegister ? '' : ' — couldn’t read enough to register it'}`}
           </p>
           {/* ⭐⭐ SAY WHAT IT SEARCHED WITH (2026-09-20). Aaron scanned a sideways tag: the plate
               came back empty and the UNIT came back misread, so FG searched for a car that does not
@@ -213,7 +219,7 @@ export function ScanIdentityCard({
               scanRead?.unitNumber?.trim() ? `unit ${scanRead.unitNumber.trim()}` : null,
             ].filter(Boolean).join(' · ') || 'nothing — no plate or unit was read'}
           </p>
-          {/* "Not in the fleet" is only true of the LIVE fleet: an archived car gets its Restore here. */}
+          {/* An archived car gets its Restore right here (the line above says "Not active"). */}
           {onRestored && <ScanArchivedOffer plate={scanRead?.plate?.trim()} unit={scanRead?.unitNumber?.trim()} onRestored={onRestored} />}
         </>
       ))}
