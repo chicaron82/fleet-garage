@@ -92,7 +92,8 @@ export function ActiveSessionsProvider({ children }: { children: React.ReactNode
   const hasOth  = oth  !== null;
   useEffect(() => {
     if (!hasTrip && !hasOth) return;
-    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    // Hidden: no per-second re-render nobody can see (the battery ticket above); the first visible tick catches up.
+    const id = setInterval(() => { if (document.visibilityState === 'visible') setNowMs(Date.now()); }, 1000);
     return () => clearInterval(id);
   }, [hasTrip, hasOth]);
 
@@ -123,10 +124,18 @@ export function ActiveSessionsProvider({ children }: { children: React.ReactNode
   // Sync with the DB (the external system that owns active-ness): prime on mount/
   // user change, then poll. refresh()'s setState is post-await (async), so this is
   // not the synchronous-cascade the rule guards against — disabled deliberately.
+  //
+  // ⭐ Sleeps while FG is hidden (2026-11-18, docs/ticket-battery-poll-sleeps-when-hidden.md). Aaron: *"using FG more to
+  // keep the bay log updated is draining my batter"*. This provider is app-wide, so the poll ran on every screen, pocketed
+  // or not. Now a hidden tick does nothing, and coming back reads once right away, so the pill is never stale when he
+  // looks. Same shape as useFleetSync.
   useEffect(() => {
     void refresh(); // eslint-disable-line react-hooks/set-state-in-effect
-    const id = setInterval(() => void refresh(), POLL_MS);
-    return () => clearInterval(id);
+    const visible = () => document.visibilityState === 'visible';
+    const id = setInterval(() => { if (visible()) void refresh(); }, POLL_MS);
+    const onVisible = () => { if (visible()) void refresh(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVisible); };
   }, [refresh]);
 
   return (
