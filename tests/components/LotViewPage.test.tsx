@@ -112,3 +112,21 @@ describe('LotViewPage, the FG brand', () => {
     expect(container.querySelector('[title="Online"], [title="Offline"]')).toBeNull();
   });
 });
+
+// What a ✈ mark means (docs/ticket-lot-view-sent-mark-disclaimer.md). Aaron, 2026-11-17: *"the count is more important
+// than what was marked as sent. i use it for the ones they ask for specifically"*. An unmarked car is not "still here".
+describe('LotViewPage, the ✈ disclaimer', () => {
+  beforeEach(() => { state.rows = []; state.bay = { ...state.bay, cleansAt: ago(5), dirtiesAt: ago(5) }; });
+
+  it('⭐ says what a ✈ mark is, right under the bay log', () => {
+    render(<LotViewPage />);
+    const line = screen.getByText('✈ marks cars asked for by name. The count is the lot.');
+    expect(line.previousElementSibling?.textContent).toBe('the list');
+  });
+
+  it('hides with the list when the count is not being kept', () => {
+    state.bay = { ...state.bay, cleansAt: ago(200), dirtiesAt: ago(190), breakAt: undefined } as typeof state.bay;   // the break tests above leave one
+    render(<LotViewPage />);
+    expect(screen.getByText('✈ marks cars asked for by name. The count is the lot.').closest('[aria-hidden="true"]')).not.toBeNull();
+  });
+});

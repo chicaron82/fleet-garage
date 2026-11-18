@@ -93,6 +93,10 @@ export function LotViewPage() {
             {/* Find a car (2026-11-10): the last 14 days here, his ruling. docs/ticket-bay-log-find-a-car.md */}
             <BayFind readOnly />
             <BayLogList rows={bay.rows} readOnly heading={`Today · ${shiftDayLabel()}`} />
+            {/* What a ✈ mark means (2026-11-17, docs/ticket-lot-view-sent-mark-disclaimer.md): a receipt for the cars asked
+                for by name, not a record of every car that left. Aaron: *"the count is more important than what was
+                marked as sent"*. On a busy stretch the marks can't keep up, and FG never guesses which cars went. */}
+            <p className="text-xs text-gray-500 dark:text-gray-400">✈ marks cars asked for by name. The count is the lot.</p>
             {crew && <LotCrewLine summary={crew.summary} />}
           </div>
           </div>
