@@ -14,6 +14,9 @@ import { PriorityHint } from './PriorityHint';
 import { EVAssetCheck } from './EVAssetCheck';
 import { PlateInput } from '../shared/VehicleFields';
 import { KeytagSearchScan } from '../holds/KeytagSearchScan';
+import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
+import { useRecentCarsBox } from '../../hooks/useRecentCarsBox';
+import { RecentCars } from '../shared/RecentCars';
 
 const MISSING_LABEL: Record<'cable' | 'adapter', string> = { cable: 'charge cable', adapter: 'J1772 adapter' };
 const fmtMissing = (m: ('cable' | 'adapter')[]) => m.map(x => MISSING_LABEL[x]).join(' & ');
@@ -51,6 +54,10 @@ export function TripForm({
   evWarning,
 }: TripFormProps) {
   const { user } = useAuth();
+  // ⭐ His recent cars (docs/ticket-recent-cars-everywhere-and-restore-from-find.md; asked "movement log in or out?",
+  // Aaron, 2026-11-18: *"In"*). The car he sends up is usually one he just touched.
+  const { vehicles } = useVehicleHoldContext();
+  const recent = useRecentCarsBox(vehiclePlate, vehicles);
 
   const [plateSuggestions, setPlateSuggestions] = useState<VehicleSearchResult[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -152,6 +159,7 @@ export function TripForm({
         <div className="relative">
           <PlateInput
             placeholder="e.g. LUR156"
+            aria-label="Vehicle plate"
             value={vehiclePlate}
             onValueChange={val => {
               setVehiclePlate(val);
@@ -160,9 +168,11 @@ export function TripForm({
             }}
             onBlur={() => {
               setTimeout(() => setShowSuggestions(false), 200);
+              recent.onBlur();
               onPlateBlur?.();
             }}
             onFocus={() => {
+              recent.onFocus();
               if (plateSuggestions.length > 0 || searchFailed) setShowSuggestions(true);
             }}
             className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
@@ -171,6 +181,8 @@ export function TripForm({
             suggestions={plateSuggestions} open={showSuggestions} failed={searchFailed}
             onPick={handleSuggestionSelect}
           />
+          {/* A recent is picked exactly as a typed suggestion is. */}
+          {recent.showRecents && <RecentCars recents={recent.recents} onChoose={handleSuggestionSelect} />}
         </div>
       </div>
 

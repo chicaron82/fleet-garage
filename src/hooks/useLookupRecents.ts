@@ -17,8 +17,9 @@ import type { VehicleSearchResult } from '../lib/ev-detection';
 // writes only `lookup_recents`; the sighting stays held by the overlay until an action implies he was
 // actually at the car, exactly as it does for a typed plate.
 //
-// `enabled` is false everywhere but Find a car — the closing inventory and the airport flip share the
-// lookup box, and a recents list is noise while he walks the lot entering one new car after another.
+// `enabled` is false on the closing inventory, the airport flip and the gas sheet, which share the lookup box: a
+// recents list is noise while he walks the lot entering one new car after another. It is on for Find a car, the bay
+// log's boxes, and (2026-11-18, useRecentCarsBox) Fleet, Holds, New Hold and the movement log.
 
 const RECENT_LIMIT = 3;
 const VEHICLE_COLS = 'license_plate, unit_number, make, model, year, color, is_hybrid, is_tesla, archived_at';

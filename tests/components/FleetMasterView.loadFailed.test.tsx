@@ -11,7 +11,7 @@ const loadFleet = vi.fn();
 vi.mock('../../src/lib/fleet-master', async (orig) => ({ ...(await orig<Record<string, unknown>>()), loadFleet: (b: string) => loadFleet(b) }));
 vi.mock('../../src/hooks/useFleetAudit', () => ({ useFleetAudit: () => ({ findings: [], loaded: true, dismiss: vi.fn() }) }));
 vi.mock('../../src/hooks/useFleetTrend', () => ({ useFleetTrend: () => ({ baseline: null, rows: [] }) }));
-vi.mock('../../src/context/VehicleHoldContext', () => ({ useVehicleHoldContext: () => ({ archiveVehicle: vi.fn() }) }));
+vi.mock('../../src/context/VehicleHoldContext', () => ({ useVehicleHoldContext: () => ({ archiveVehicle: vi.fn(), archivedVehicles: [] }) }));
 vi.mock('../../src/hooks/useFleetHistory', () => ({
   useFleetHistory: () => ({
     holdDates: [], flaggedVehicleIds: new Set(), sightingsByVehicle: new Map(), sightingsWeekAgo: new Map(),

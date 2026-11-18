@@ -358,6 +358,7 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
                 scanNonce={scanNonce}
                 canRegister={actions.some(a => a.kind === 'register')}
                 onPickCandidate={id => go({ name: 'vehicle', vehicleId: id })}
+                onRestored={id => go({ name: 'vehicle', vehicleId: id })}
                 onOpenVehicle={viewAction ? () => go(viewAction.screen, viewAction.kind) : undefined}
                 geotabPending={geotabPending}
                 backfillToast={backfillToast}

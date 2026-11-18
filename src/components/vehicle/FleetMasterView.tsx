@@ -20,6 +20,9 @@ import { anyDelta, cohortDeltas, describeBaseline, registeredOn, toLocalDate } f
 import type { Screen } from '../../types';
 import { VehicleName } from '../shared/VehicleName';
 import { formatUnitNumber } from '../../lib/formatUnitNumber';
+import { useRecentCarsBox } from '../../hooks/useRecentCarsBox';
+import { useFleetReloadOnArchiveChange } from '../../hooks/useFleetReloadOnArchiveChange';
+import { RecentCars } from '../shared/RecentCars';
 
 interface Props {
   onNavigate: (screen: Screen) => void;
@@ -86,6 +89,9 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
   // Fetched once, shared: the history cards AND the "gone quiet" chip read the same sightings.
   const history = useFleetHistory();
   const { archiveVehicle } = useVehicleHoldContext();
+  // Recent cars + a restore anywhere refreshes this list (docs/ticket-recent-cars-everywhere-and-restore-from-find.md).
+  const recent = useRecentCarsBox(search, vehicles);
+  useFleetReloadOnArchiveChange(user?.branchId, setVehicles);
 
   // ⭐ AUTO-ARCHIVE, his call (2026-09-10): exception cars with no contact for AUTO_ARCHIVE_AFTER_DAYS
   // are archived through the app's own archive (holds voided the same way), once per visit, and he
@@ -210,6 +216,7 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
           aria-label="Search the fleet by plate, unit, or class"
           value={search}
           onChange={e => setSearch(e.target.value.toUpperCase())}
+          onFocus={recent.onFocus} onBlur={recent.onBlur}
           className="w-full pl-3 pr-9 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 uppercase focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
         />
         {search && (
@@ -233,6 +240,8 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
             what he wanted, so the difference is deleted rather than explained. */}
         <PrimaryAction label="Add Vehicle" aria-label="Register a vehicle" onClick={() => onRegisterNew(term || undefined)} />
       </div>
+      {/* Tap = the search he'd otherwise retype (Aaron, 2026-11-18). */}
+      {recent.showRecents && <RecentCars recents={recent.recents} onChoose={v => setSearch(v.license_plate)} />}
 
       {/* Records that contradict each other — silent unless there are any. Sits ABOVE the health
           chips deliberately: a chip counts a GAP (no key count yet), this counts a CONTRADICTION,
@@ -340,7 +349,7 @@ export function FleetMasterView({ onNavigate, onRegisterNew, refreshKey }: Props
                         type="button"
                         // The cohort is THIS GROUP as displayed, so the record's prev/next walks the
                         // same run of cars he is looking at rather than the whole fleet.
-                        onClick={() => onNavigate({ name: 'vehicle', vehicleId: v.id, cohort: group.map(g => g.id) })}
+                        onClick={() => { void recent.record(v.id); onNavigate({ name: 'vehicle', vehicleId: v.id, cohort: group.map(g => g.id) }); }}
                         className={`w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors cursor-pointer ${evBorderClass}`}
                       >
                         <div className="flex items-center gap-2 min-w-0">

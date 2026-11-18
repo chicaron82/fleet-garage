@@ -30,6 +30,7 @@ import { matchedByUnitLabel, matchedByClippedTagLabel, isPlateMismatch } from '.
 import type { KeytagScanResult } from '../../lib/resolveKeytagScan';
 import type { KeytagRead } from '../../../api/_lib/keytagRead';
 import { formatUnitNumber } from '../../lib/formatUnitNumber';
+import { ScanArchivedOffer } from './ScanArchivedOffer';
 
 interface Props {
   scanRead: KeytagRead | null;
@@ -43,6 +44,8 @@ interface Props {
   onPickCandidate: (vehicleId: string) => void;
   /** Tapping the identity block opens the record — the same screen as the menu's "View unit". */
   onOpenVehicle?: () => void;
+  /** An archived car he just restored from this card: open its record. */
+  onRestored?: (vehicleId: string) => void;
   geotabPending: boolean;
   /** The tag photo this scan read — null on the typed-plate door. The card derives "photographed"
    *  from it, and hands it to the re-plate offer so an adopted re-plate keeps THIS photo. */
@@ -53,7 +56,7 @@ interface Props {
 }
 
 export function ScanIdentityCard({
-  scanRead, result, holdLines, scanNonce, canRegister, onPickCandidate, onOpenVehicle,
+  scanRead, result, holdLines, scanNonce, canRegister, onPickCandidate, onOpenVehicle, onRestored,
   geotabPending, scanPhoto, backfillToast, conflictToast, codexToast,
 }: Props) {
   const { holds, recordKeyCount, recordOdometer, clearOdometer, correctOdometer, confirmOdometer, restoreOdometer, updateVehicleEVAssets, adoptPlate, retakeKeytagPhoto } = useVehicleHoldContext();
@@ -210,6 +213,8 @@ export function ScanIdentityCard({
               scanRead?.unitNumber?.trim() ? `unit ${scanRead.unitNumber.trim()}` : null,
             ].filter(Boolean).join(' · ') || 'nothing — no plate or unit was read'}
           </p>
+          {/* "Not in the fleet" is only true of the LIVE fleet: an archived car gets its Restore here. */}
+          {onRestored && <ScanArchivedOffer plate={scanRead?.plate?.trim()} unit={scanRead?.unitNumber?.trim()} onRestored={onRestored} />}
         </>
       ))}
       {/* Which key did the work. FG never resolves by the weaker key silently — if the

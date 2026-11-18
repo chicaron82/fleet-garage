@@ -29,6 +29,8 @@ import { HoldsTabStrip, type HoldsTab } from './HoldsTabStrip';
 import { EVAssetsTab } from '../holds/EVAssetsTab';
 import { ExceptionReturnSection } from '../holds/ExceptionReturnSection';
 import { formatUnitNumber } from '../../lib/formatUnitNumber';
+import { useRecentCarsBox } from '../../hooks/useRecentCarsBox';
+import { RecentCars } from '../shared/RecentCars';
 interface Props {
   /** `cohort` is the list AS DISPLAYED — his filter, his sort — so the record can offer prev/next
    *  through the same worklist instead of sending him back here to find the next car. */
@@ -45,6 +47,8 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
   // Passing attach makes the holds search-scan also save the tag to a known car that lacks one.
   const { backfillToast, backfillFromRead } = useBackfillOnScan({ vehicles, updateVehicleFields, attachKeytagPhotoIfMissing });
   const [search, setSearch] = useState('');
+  // His recent cars, shared with Find a car (docs/ticket-recent-cars-everywhere-and-restore-from-find.md).
+  const recent = useRecentCarsBox(search, vehicles);
   const { prefs, updatePref } = usePreferences();
   const [activeTab, setActiveTab] = useState<HoldsTab>('holds');
   const [currentPage, setCurrentPage] = useState(() => {
@@ -136,6 +140,7 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
   };
 
   const handleOpenVehicle = (vehicle: Vehicle) => {
+    void recent.record(vehicle.id);
     if (search.trim()) setPendingVehicle(vehicle);
     // The FILTERED, SORTED list — not the page. He works a status down; the arrows should follow
     // that same run of cars past the page boundary rather than stopping at 20.
@@ -210,6 +215,7 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
                 setSearch(e.target.value.toUpperCase());
                 setCurrentPage(1);
               }}
+              onFocus={recent.onFocus} onBlur={recent.onBlur}
               className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-fg-yellow focus:border-transparent transition-all uppercase shadow-sm"
             />
             {search && (
@@ -234,6 +240,7 @@ export function HoldsView({ onSelectVehicle, onRegisterAndFlag, onOpenZoneBackfi
               {backfillToast}<Sparkles size="0.75rem" /></p>
           )}
         </div>
+        {recent.showRecents && <RecentCars recents={recent.recents} onChoose={v => { setSearch(v.license_plate); setCurrentPage(1); }} />}
 
         {/* ⭐ SALE CARS OFF THE WORKLIST BY DEFAULT (Aaron, 2026-09-10). With the lot overflowing they
             are pulling sale cars again, and 23 of them sat in this list among cars that need work.

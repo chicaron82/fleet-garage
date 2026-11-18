@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Vehicle, User, Hold } from '../../src/types';
 
@@ -103,6 +103,13 @@ vi.mock('../../src/lib/haptics', () => ({
 vi.mock('../../src/lib/barcode', () => ({
   parseFleetBarcode: vi.fn().mockReturnValue({ ok: false }),
 }));
+
+// His recent cars (docs/ticket-recent-cars-everywhere-and-restore-from-find.md).
+const recordRecentSpy = vi.fn(async () => {});
+vi.mock('../../src/hooks/useLookupRecents', () => ({ useLookupRecents: () => ({
+  recents: [{ license_plate: 'CLR222', unit_number: '7654321', make: 'Kia', model: 'Seltos', year: 2026, color: 'Black', is_hybrid: false, is_tesla: false }],
+  record: recordRecentSpy,
+}) }));
 
 const importComponent = async () => {
   const mod = await import('../../src/components/dashboard/HoldsView');
@@ -213,5 +220,19 @@ describe('HoldsView — vehicle card interaction', () => {
     // Opens WITH the list as displayed, so the record can offer prev/next through the same
     // worklist instead of sending him back here to find the next car (2026-08-22).
     expect(onSelectVehicle).toHaveBeenCalledWith('v-1', expect.arrayContaining(['v-1']));
+  });
+});
+
+describe('HoldsView — his recent cars', () => {
+  it('⭐ the empty search box offers them; a tap searches that car, which a CLEAR car needs to show at all', async () => {
+    const HoldsView = await importComponent();
+    render(<HoldsView onSelectVehicle={vi.fn()} onOpenZoneBackfill={vi.fn()} onRegisterAndFlag={vi.fn()} />);
+    const box = screen.getByPlaceholderText(/Search unit #, plate, make/i) as HTMLInputElement;
+    expect(screen.queryByText('765 4321')).not.toBeInTheDocument();
+    fireEvent.focus(box);
+    fireEvent.click(screen.getByRole('button', { name: /CLR222/ }));
+    expect(box.value).toBe('CLR222');
+    expect(await screen.findByText('765 4321')).toBeInTheDocument();
+    expect(recordRecentSpy).toHaveBeenCalledWith('v-2');   // a whole plate in the box is a look-up
   });
 });

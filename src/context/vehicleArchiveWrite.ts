@@ -47,7 +47,8 @@ export function makeArchiveOps({ allVehicles, holds, activeBranch, userId, userN
     );
   };
 
-  const restoreVehicle = async (vehicleId: string) => {
+  /** Resolves true once the car is back; false when the write failed (the caller must say so; Find a car does). */
+  const restoreVehicle = async (vehicleId: string): Promise<boolean> => {
     // Un-archive INTO CIRCULATION: management put a sale/auction car back, which reverses ONLY the
     // sale intent — NOT the car's real condition. So we void just the still-open sale_car holds
     // (auction's off, and they're what pinned the car at AUCTION_SHORT_TERM) and PRESERVE every other
@@ -62,7 +63,7 @@ export function makeArchiveOps({ allVehicles, holds, activeBranch, userId, userN
     const { error } = await writeWithRefresh(() =>
       supabase.from('vehicles').update({ archived_at: null, archived_by_id: null, status: newStatus }).eq('id', vehicleId)
     );
-    if (error) return;
+    if (error) return false;
     if (cancelIds.length) {
       await writeWithRefresh(() =>
         supabase.from('holds').update({ status: 'VOIDED' }).eq('vehicle_id', vehicleId).in('id', cancelIds)
@@ -83,6 +84,7 @@ export function makeArchiveOps({ allVehicles, holds, activeBranch, userId, userN
       'info',
       { vehicleId },
     );
+    return true;
   };
 
   return { archiveVehicle, restoreVehicle };

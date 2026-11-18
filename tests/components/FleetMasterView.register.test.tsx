@@ -40,7 +40,7 @@ vi.mock('../../src/hooks/useFleetAudit', () => ({
 vi.mock('../../src/hooks/useFleetTrend', () => ({ useFleetTrend: () => ({ baseline: null, rows: [] }) }));
 // The view reads the fleet context (for the auto-archive) and history directly since 2026-09-10.
 // History is still LOADING here, which is exactly the state the auto-archive must stand down in.
-vi.mock('../../src/context/VehicleHoldContext', () => ({ useVehicleHoldContext: () => ({ archiveVehicle: vi.fn() }) }));
+vi.mock('../../src/context/VehicleHoldContext', () => ({ useVehicleHoldContext: () => ({ archiveVehicle: vi.fn(), archivedVehicles: [] }) }));
 vi.mock('../../src/hooks/useFleetHistory', () => ({
   useFleetHistory: () => ({
     holdDates: [], flaggedVehicleIds: new Set(), sightingsByVehicle: new Map(), sightingsWeekAgo: new Map(),

@@ -109,6 +109,12 @@ vi.mock('../../src/lib/holdBadge', async (importOriginal) => ({
   holdContextEmojis:  vi.fn().mockReturnValue([]),
 }));
 
+// His recent cars (docs/ticket-recent-cars-everywhere-and-restore-from-find.md). Empty unless a test sets it, so the
+// autofocused search box shows nothing new to the tests that predate them.
+let recentsImpl: unknown[] = [];
+const recordRecentSpy = vi.fn(async () => {});
+vi.mock('../../src/hooks/useLookupRecents', () => ({ useLookupRecents: () => ({ recents: recentsImpl, record: recordRecentSpy }) }));
+
 const importComponent = async () => {
   const mod = await import('../../src/components/holds/NewHoldForm');
   return mod.NewHoldForm;
@@ -142,6 +148,8 @@ beforeEach(() => {
   BASE_PROPS.onSuccess = vi.fn();
   getActiveHoldImpl = () => null;
   getActiveHoldsImpl = () => [];
+  recentsImpl = [];
+  recordRecentSpy.mockClear();
 });
 
 describe('NewHoldForm — vehicle selection', () => {
@@ -168,6 +176,16 @@ describe('NewHoldForm — vehicle selection', () => {
 
     await user.type(screen.getByPlaceholderText(/search by unit/i), '5500');
     expect(await screen.findByText('550 0001')).toBeInTheDocument();
+  });
+
+  it('⭐ a recent car is one tap: it selects the car he just looked up, and stays remembered', async () => {
+    recentsImpl = [{ license_plate: 'AAA111', unit_number: '5500001', make: 'Toyota', model: 'Corolla', year: 2024, color: 'White', is_hybrid: false, is_tesla: false }];
+    const NewHoldForm = await importComponent();
+    render(<NewHoldForm {...BASE_PROPS} />);
+    fireEvent.focus(screen.getByPlaceholderText(/search by unit/i));
+    fireEvent.click(await screen.findByRole('button', { name: /AAA111/ }));
+    expect(await screen.findByText(/Plate: AAA111/i)).toBeInTheDocument();
+    expect(recordRecentSpy).toHaveBeenCalledWith('v-1');
   });
 
   it('shows "not in the system" and flag CTA for unmatched search ≥2 chars', async () => {

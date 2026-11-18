@@ -130,7 +130,8 @@ export interface VehicleHoldContextValue {
   closeException: (holdId: string, resolvedByName: string) => Promise<void>;
   syncVehicleStatus: (vehicleId: string) => Promise<boolean>;
   archiveVehicle: (vehicleId: string) => Promise<void>;
-  restoreVehicle: (vehicleId: string) => Promise<void>;
+  /** True once the car is back; false when the write failed. */
+  restoreVehicle: (vehicleId: string) => Promise<boolean>;
   archivedVehicles: Vehicle[];
   setCoverPhoto: (vehicleId: string, url: string | null) => Promise<void>;
   markVehicleEditPending: (vehicleId: string, patch: { unit: string | null; plate: string; by: string; at: string; note: string }) => void;

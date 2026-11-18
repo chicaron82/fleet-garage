@@ -13,6 +13,9 @@ import { canRelease } from '../../types';
 import { NewHoldDetailsSection } from './NewHoldDetailsSection';
 import { PhotoError } from '../shared/PhotoError';
 import { formatUnitNumber } from '../../lib/formatUnitNumber';
+import { useRecentCarsBox } from '../../hooks/useRecentCarsBox';
+import { RecentCars } from '../shared/RecentCars';
+import type { VehicleSearchResult } from '../../lib/ev-detection';
 
 
 interface Props {
@@ -30,9 +33,14 @@ export function NewHoldForm({ vehicleId: preselectedId, prefillNonce, onBack, on
   const h = useNewHold(preselectedId, prefillNonce, holdKind ? (holdKind === 'bhold' ? 'damage' : 'mechanical') : undefined);
   const { getVehicleByUnit, vehicles, addVehicle } = useVehicleHoldContext();
   const { user } = useAuth();
+  // ⭐ His recent cars (docs/ticket-recent-cars-everywhere-and-restore-from-find.md): the car he flags is usually one he
+  // just looked up. Any pick here is remembered too.
+  const recent = useRecentCarsBox(h.unitSearch, vehicles);
+  const recordRecent = recent.record;
 
   const selectVehicleAndLink = useCallback((vehicleId: string) => {
     h.selectVehicle(vehicleId);
+    void recordRecent(vehicleId);
     if (!user) return;
     const vehicle = vehicles.find(v => v.id === vehicleId);
     if (!vehicle) return;
@@ -46,8 +54,14 @@ export function NewHoldForm({ vehicleId: preselectedId, prefillNonce, onBack, on
       year: vehicle.year,
       color: vehicle.color,
     });
-  }, [h, user, vehicles]);
+  }, [h, user, vehicles, recordRecent]);
   const [creatingPlateOnly, setCreatingPlateOnly] = useState(false);
+  // A recent is the same car a typed match would be: select it. One that isn't a live car here (archived since) falls
+  // back to the search, so the "not in the system" path stays the one that answers.
+  const pickRecent = (r: VehicleSearchResult) => {
+    const car = vehicles.find(v => v.licensePlate === r.license_plate && (v.unitNumber ?? null) === (r.unit_number ?? null));
+    if (car) selectVehicleAndLink(car.id); else h.setUnitSearch(r.license_plate);
+  };
 
   const handleFlagUnknownPlate = async () => {
     if (!user) return;
@@ -188,6 +202,7 @@ export function NewHoldForm({ vehicleId: preselectedId, prefillNonce, onBack, on
                       aria-label="Search for a vehicle by unit number or plate"
                       value={h.unitSearch}
                       onChange={e => h.setUnitSearch(e.target.value.toUpperCase())}
+                      onFocus={recent.onFocus} onBlur={recent.onBlur}
                       autoFocus
                       className="w-full px-3.5 py-2.5 pr-8 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow focus:border-transparent transition uppercase"
                     />
@@ -203,6 +218,7 @@ export function NewHoldForm({ vehicleId: preselectedId, prefillNonce, onBack, on
                   </div>
                   <CameraBarcodeScanner onDecode={handleCameraDecode} />
                 </div>
+                {recent.showRecents && <RecentCars recents={recent.recents} onChoose={pickRecent} />}
                 {h.searchResults.length > 0 && (
                   <div className="space-y-1">
                     {h.searchResults.map(v => (

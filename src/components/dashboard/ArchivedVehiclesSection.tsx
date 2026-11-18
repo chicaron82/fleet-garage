@@ -6,7 +6,7 @@ import { formatUnitNumber } from '../../lib/formatUnitNumber';
 
 interface Props {
   archivedVehicles: Vehicle[];
-  onRestore: (vehicleId: string) => void | Promise<void>;
+  onRestore: (vehicleId: string) => unknown;
   /** ⭐ Open the car's record WITHOUT restoring it (2026-09-15). Aaron had been restoring a car just
    *  to look at it — which the 60-day sweep undid on the next Fleet open, so it could never work.
    *  *"i really just need the ability to view archived vehicles without having to restore it first."*
