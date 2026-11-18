@@ -49,14 +49,17 @@ export function workedHours(shift: Shift): number {
 }
 
 // Returns OT hours for a shift. Rules:
-//   day-off + actual hours logged  → all net hours are OT
+//   day-off / pto + actual hours   → all net hours are OT (called in on a day you weren't working)
 //   isStat                         → all net hours are OT
+//   sick + actual hours            → an ordinary day: max(0, netHours - 8). The pay estimate tops the rest up to 8h
+//                                    as sick. Aaron 2026-11-16: "working a sick day, doesn't burn your sick time".
+//                                    docs/ticket-sick-day-tops-up-to-8h.md
 //   regular shift                  → max(0, netHours - 8)
 // Net hours include the [+] blocks: a day is one day for the 8h line, however many stretches it took.
 export function calcOT(shift: Shift): number {
   const net = workedHours(shift);
   if (net <= 0) return 0;
-  if (isFullDayShift(shift.shiftType) || shift.isStat) return net;
+  if (shift.isStat || (isFullDayShift(shift.shiftType) && shift.shiftType !== 'sick')) return net;
   return Math.max(0, net - 8);
 }
 

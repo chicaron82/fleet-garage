@@ -131,6 +131,26 @@ describe('calcPayEstimate', () => {
     expect(est.gross).toBeCloseTo(8 * PAY_CONFIG.regularRate + (3 + 22 / 60) * PAY_CONFIG.otRate, 5);
   });
 
+  // ⭐ A sick day tops up to 8h (Aaron, 2026-11-16 23:05): *"worked half a day, then went home sick. 4h sick pay burned.
+  // 4h logged. total hours for the day paid is 8h"*. docs/ticket-sick-day-tops-up-to-8h.md
+  it('⭐ sick after half a day: 4h worked regular + 4h sick, no OT, 8h paid', () => {
+    const shift = makeShift({ date: '2026-06-06', shiftType: 'sick', actualStartTime: '06:45', actualEndTime: '10:45' });
+    const est = calcPayEstimate([shift], today);
+    expect(est.regularHours).toBe(4);
+    expect(est.sickHours).toBe(4);
+    expect(est.otHours).toBe(0);
+    expect(est.gross).toBeCloseTo(8 * PAY_CONFIG.regularRate, 5);
+  });
+
+  it('a sick day worked in full burns no sick time: 8h regular, 0 sick', () => {
+    // *"called in sick but worked the whole day. that's 8h sick pay that didn't get paid out"*. 06:45–15:15 = 8h net.
+    const shift = makeShift({ date: '2026-06-06', shiftType: 'sick', actualStartTime: '06:45', actualEndTime: '15:15' });
+    const est = calcPayEstimate([shift], today);
+    expect(est.regularHours).toBe(8);
+    expect(est.sickHours).toBe(0);
+    expect(est.otHours).toBe(0);
+  });
+
   it('projects scheduled hours for unlogged working days, OT included', () => {
     // 13:30–23:00 = 9.5h gross, net = 9h → 8h regular + 1h planned OT. Until 2026-10-22 the OT was
     // dropped ("no OT projected for unlogged"); Aaron asked for the schedule's OT to show.

@@ -172,6 +172,10 @@ export function calcPayEstimate(myShifts: Shift[], today: string, sickDaysUsed =
       // overtime". docs/ticket-pay-pto-plus-called-in-ot.md
       if (shift.shiftType === 'pto') { ptoDays++; ptoHours += 8; }
       const net = workedHours(shift);   // main actuals after the break, plus any [+] blocks
+      // A sick day with hours tops up to 8h: sick pays only what wasn't worked, and the hours worked are an ordinary
+      // day's (calcOT: OT only past 8). Aaron 2026-11-16: "worked half a day, then went home sick. 4h sick pay burned.
+      // 4h logged. total hours for the day paid is 8h". docs/ticket-sick-day-tops-up-to-8h.md
+      if (shift.shiftType === 'sick') sickHours += Math.max(0, 8 - net);
       if (shift.isStat) {
         // Worked stat: Holiday = hours worked (regularRate) + HolPrem = those hours at OT rate (1.5×)
         // — the premium for working a holiday. (Fix 2026-08-04: was a flat 8h×regularRate, which
@@ -186,7 +190,7 @@ export function calcPayEstimate(myShifts: Shift[], today: string, sickDaysUsed =
     } else if (shift.shiftType === 'pto' || shift.shiftType === 'sick') {
       // Paid time off: a full 8h at regularRate, kept OFF the Regular line so the card can show it as its own
       // (Aaron 2026-11-16: "Can we break it down to show PTO hours too"). Same money as before.
-      // (A PTO day with hours logged is handled in the worked branch above: PTO 8h + the hours as OT.)
+      // (A PTO or sick day with hours logged is handled in the worked branch above: PTO 8h + OT; sick tops up to 8h.)
       bumpUnlogged(shift.date);
       if (shift.shiftType === 'pto') { ptoDays++; ptoHours += 8; } else sickHours += 8;
     } else if (shift.isStat && !isFullDayShift(shift.shiftType)) {

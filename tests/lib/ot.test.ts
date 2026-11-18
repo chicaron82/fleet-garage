@@ -103,6 +103,17 @@ describe('calcOT', () => {
     expect(calcOT(shift)).toBe(0);
   });
 
+  // A sick day tops up to 8h, never OT (Aaron, 2026-11-16 23:05): *"working a sick day, doesn't burn your sick time"*.
+  // docs/ticket-sick-day-tops-up-to-8h.md. The hours worked are an ordinary day's: OT only past 8.
+  it('⭐ a sick day with hours is NOT all OT: half a day worked, then home sick, is 0 OT', () => {
+    const shift = makeShift({ shiftType: 'sick', actualStartTime: '06:45', actualEndTime: '10:45' });
+    expect(calcOT(shift)).toBe(0);
+  });
+  it('a sick day worked long still earns OT past 8, like any day', () => {
+    // 06:00–15:30 = 9.5h, 30m break → 9h net → 1h OT.
+    const shift = makeShift({ shiftType: 'sick', actualStartTime: '06:00', actualEndTime: '15:30' });
+    expect(calcOT(shift)).toBeCloseTo(1);
+  });
   it('all net hours are OT on a day-off shift (short call-in, no break)', () => {
     // 4h gross, < 5h → 4h net → 4h OT
     const shift = makeShift({ shiftType: 'day-off', actualStartTime: '10:00', actualEndTime: '14:00' });
