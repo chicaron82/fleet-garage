@@ -35,6 +35,34 @@ describe('BayLogList on the read-only link', () => {
   });
 });
 
+// The counter's monitor (docs/ticket-lot-view-desktop-layout.md): on the read-only link, one line per car from `lg` up.
+describe('BayLogList, one line per car on a desktop', () => {
+  it('⭐ read-only rows lay the plate and car out in a line from lg up', () => {
+    render(<BayLogList readOnly heading="Today" rows={[{ ...row(1, 'clean'), car: '2026 Kia Seltos · Blue' }]} />);
+    expect(screen.getByText('LUR1').parentElement!.className).toContain('lg:flex');
+    expect(screen.getByText('2026 Kia Seltos · Blue').className).toContain('lg:text-sm');
+  });
+
+  it('control: FG\'s own list keeps its stacked rows (no desktop classes on a row)', () => {
+    const edit = { flagIds: new Set<number>(), choicesFor: () => [], onNewHold: () => {},
+      onSameHold: async () => null, onNote: async () => null, onSentUp: async () => null };
+    render(<BayLogList heading="Today" edit={edit} rows={[{ ...row(1, 'clean'), car: '2026 Kia Seltos · Blue' }]} />);
+    expect(screen.getByText('LUR1').parentElement!.className).not.toContain('lg:');
+  });
+});
+
+describe('BayLogList with a filter held outside (the desktop tiles)', () => {
+  it('⭐ shows only the shared filter\'s cars, and a chip tap goes to the owner of the filter', () => {
+    const rows = [1, 2, 3].map(i => row(i, i === 2 ? 'erin' : 'clean'));
+    const seen: (string | null)[] = [];
+    render(<BayLogList readOnly heading="Today" rows={rows} filter="erin" onFilter={f => seen.push(f)} chipsClassName="lg:hidden" />);
+    expect(screen.getAllByText(/^LUR\d$/).map(e => e.textContent)).toEqual(['LUR2']);
+    fireEvent.click(screen.getByRole('button', { name: '1 for Erin St' }));
+    expect(seen).toEqual([null]);
+    expect(screen.getByRole('button', { name: '1 for Erin St' }).parentElement!.className).toContain('lg:hidden');
+  });
+});
+
 describe('BayLogList in FG: the fold', () => {
   const edit = (flag: number[] = []) => ({ flagIds: new Set(flag), choicesFor: () => [], onNewHold: () => {},
     onSameHold: async () => null, onNote: async () => null, onSentUp: async () => null });

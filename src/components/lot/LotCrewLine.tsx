@@ -2,7 +2,9 @@
 // (his calls, 2026-10-15). Straight from the schedule since 2026-10-24, so there is no "changed at" to show.
 import { crewLine, type CrewSummary } from '../../lib/lotCrew';
 
-export function LotCrewLine({ summary, heading = true }: { summary: CrewSummary; heading?: boolean }) {
+/** `big`: the read-only desktop's left column (docs/ticket-lot-view-desktop-layout.md), larger from `lg` up only. */
+export function LotCrewLine({ summary, heading = true, big = false }: { summary: CrewSummary; heading?: boolean; big?: boolean }) {
+  const row = big ? 'px-3 py-2 lg:px-5 lg:py-3.5' : 'px-3 py-2';
   return (
     <section aria-label="Crew now" className="space-y-1">
       {heading && (
@@ -11,9 +13,9 @@ export function LotCrewLine({ summary, heading = true }: { summary: CrewSummary;
           <span className="text-[11px] text-gray-500 dark:text-gray-400">from the schedule</span>
         </div>
       )}
-      <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-        <p className="px-3 py-2"><span className="font-semibold">VSAs</span> <span className="text-gray-700 dark:text-gray-300">{crewLine(summary.vsa)}</span></p>
-        <p className="px-3 py-2"><span className="font-semibold">Drivers</span> <span className="text-gray-700 dark:text-gray-300">{crewLine(summary.driver)}</span></p>
+      <div className={`rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700 text-sm ${big ? 'lg:text-lg' : ''}`}>
+        <p className={row}><span className="font-semibold">VSAs</span> <span className="text-gray-700 dark:text-gray-300">{crewLine(summary.vsa)}</span></p>
+        <p className={row}><span className="font-semibold">Drivers</span> <span className="text-gray-700 dark:text-gray-300">{crewLine(summary.driver)}</span></p>
       </div>
     </section>
   );
