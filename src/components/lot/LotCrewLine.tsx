@@ -14,7 +14,16 @@ export function LotCrewLine({ summary, heading = true, big = false }: { summary:
         </div>
       )}
       <div className={`rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700 text-sm ${big ? 'lg:text-lg' : ''}`}>
-        <p className={row}><span className="font-semibold">VSAs</span> <span className="text-gray-700 dark:text-gray-300">{crewLine(summary.vsa)}</span></p>
+        {/* No VSA on = nobody in the bay (Aaron, 2026-11-19: *"VSA's none right now showing a bit more urgency"*).
+            Same words, louder: the schedule's fact, never a reason. Drivers stay quiet. */}
+        {summary.vsa.on === 0 ? (
+          <p data-urgent className={`${row} flex items-center gap-2 bg-red-50 dark:bg-red-950/50 text-red-800 dark:text-red-200 first:rounded-t-2xl`}>
+            <span aria-hidden className="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-red-500 animate-pulse" />
+            <span><span className="font-semibold">VSAs</span> <span className="font-bold">{crewLine(summary.vsa)}</span></span>
+          </p>
+        ) : (
+          <p className={row}><span className="font-semibold">VSAs</span> <span className="text-gray-700 dark:text-gray-300">{crewLine(summary.vsa)}</span></p>
+        )}
         <p className={row}><span className="font-semibold">Drivers</span> <span className="text-gray-700 dark:text-gray-300">{crewLine(summary.driver)}</span></p>
       </div>
     </section>

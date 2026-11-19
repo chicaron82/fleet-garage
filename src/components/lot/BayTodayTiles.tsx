@@ -49,8 +49,11 @@ function Tile({ n, what, tone, onTap, pressed }: { n: number; what: string; tone
     </>
   );
   if (!onTap) return <div className={`${TILE} ${tone}`}>{body}</div>;
+  // The hover hint (Aaron, 2026-11-19: *"on hover text for Erin St "tap to filter""*, then "Click" for a monitor: these
+  // tiles only show from `lg` up). The total, or a tile that's on, clears instead.
+  const hint = pressed || what === 'through the bay' ? 'Click to show all' : 'Click to filter';
   return (
-    <button type="button" onClick={onTap} aria-pressed={pressed}
+    <button type="button" onClick={onTap} aria-pressed={pressed} title={hint}
       className={`${TILE} ${tone} cursor-pointer hover:brightness-95 dark:hover:brightness-110 ${pressed ? 'ring-2 ring-offset-1 ring-gray-900 dark:ring-gray-100 dark:ring-offset-gray-950' : ''}`}>
       {body}
     </button>

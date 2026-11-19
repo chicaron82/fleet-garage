@@ -39,6 +39,15 @@ describe('BayTodayTiles', () => {
     expect(screen.queryByText(/held/)).toBeNull();
   });
 
+  it('a filter tile says so on hover; the total and a tile already on say "show all"; Clean says nothing', () => {
+    const { rerender } = render(<BayTodayTiles rows={day} filter={null} onFilter={() => {}} />);
+    expect(screen.getByRole('button', { name: /for Erin St/ })).toHaveAttribute('title', 'Click to filter');
+    expect(screen.getByRole('button', { name: /through the bay/ })).toHaveAttribute('title', 'Click to show all');
+    expect(screen.getByText('clean').closest('[title]')).toBeNull();
+    rerender(<BayTodayTiles rows={day} filter="erin" onFilter={() => {}} />);
+    expect(screen.getByRole('button', { name: /for Erin St/ })).toHaveAttribute('title', 'Click to show all');
+  });
+
   it('⚠️ counts only: no times, no pace (a per-hour view would show his breaks)', () => {
     const { container } = render(<BayTodayTiles rows={day} filter={null} onFilter={() => {}} />);
     expect(container.textContent).not.toMatch(/\d\d:\d\d|per hour|\/h/i);
