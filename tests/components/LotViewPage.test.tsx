@@ -76,6 +76,15 @@ describe('LotViewPage, on break (migration 166)', () => {
     expect(screen.getByText('the count').closest('[aria-hidden="true"]')).toBeNull();
   });
 
+  it('⭐ pulled away: a generic line, no time, never what the work was (migration 171)', () => {
+    state.bay = { ...state.bay, cleansAt: ago(40), dirtiesAt: ago(45), breakAt: ago(20), breakKind: 'pulled' } as typeof state.bay;
+    render(<LotViewPage />);
+    const note = screen.getByRole('status');
+    expect(note.textContent).toBe('The count is paused while the bay crew is on other work. It catches up after.');
+    expect(note.textContent).not.toMatch(/\d\d:\d\d|driv|meeting|break/i);
+    state.bay = { ...state.bay, breakKind: undefined } as typeof state.bay;
+  });
+
   it('⭐ his next tap ends it, with nothing cleared', () => {
     state.bay = { ...state.bay, cleansAt: ago(5), dirtiesAt: ago(45), breakAt: ago(20) } as typeof state.bay;
     render(<LotViewPage />);

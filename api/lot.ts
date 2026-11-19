@@ -114,7 +114,9 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
     }
     if (parsed.action === 'bayBreak') {
       // On break (migration 166, docs/ticket-lot-bay-on-break.md): a stamp, not a count. Moves no number, logs no tap.
-      const { data: saved, error } = await db.from('lot_bay').update({ break_at: parsed.on ? now : null }).eq('id', 1).select().single();
+      // Pulled away (migration 171) is the same stamp with its kind; Back leaves the kind, which means nothing off a pause.
+      const change = parsed.on ? { break_at: now, break_kind: parsed.kind } : { break_at: null };
+      const { data: saved, error } = await db.from('lot_bay').update(change).eq('id', 1).select().single();
       if (error) throw error;
       res.status(200).json({ ok: true, bay: saved });
       return;

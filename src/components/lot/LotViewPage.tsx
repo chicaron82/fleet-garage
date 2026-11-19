@@ -87,7 +87,10 @@ export function LotViewPage() {
             <div data-column="glance" className="space-y-3 lg:space-y-5 lg:sticky lg:top-6">
             {onBreak && (
               <p role="status" className="rounded-2xl border border-sky-300 dark:border-sky-700 bg-sky-50 dark:bg-sky-950 px-4 py-2.5 text-sm text-sky-900 dark:text-sky-100">
-                <span className="font-bold">The count is paused for a break.</span> It catches up after.
+                {/* Pulled away (migration 171): generic, never what the work was; no time on either. */}
+                <span className="font-bold">{erin.bay?.breakKind === 'pulled'
+                  ? 'The count is paused while the bay crew is on other work.'
+                  : 'The count is paused for a break.'}</span> It catches up after.
               </p>
             )}
             <section aria-label="In the bay now"

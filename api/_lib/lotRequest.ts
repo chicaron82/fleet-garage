@@ -12,12 +12,16 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // The airport is gone (2026-10-29): first the stall map (151, 152 → 157, *"scrap the stale time and stall map"*), then
 // its two readings: *"airport lot data is hard to keep track of that's why i proposed cutting it altogether and focusing
 // on erin st"*. Its tables stay as history. Lot Lookout is Erin St's count and the bay log (161).
+/** Which pause (migration 171, docs/ticket-lot-bay-pulled-away.md): On break, or Pulled away onto other work. */
+export type BayPauseKind = 'break' | 'pulled';
+const PAUSE_KINDS: readonly BayPauseKind[] = ['break', 'pulled'];
+
 export type LotRequest =
   | BayRequest
   | BayLogRequest
   | { action: 'leaveOff'; user: string; off: boolean; by: string }
   // On break (migration 166): on = he's off the floor, off = he's back. Any later tap ends it on its own.
-  | { action: 'bayBreak'; on: boolean; by: string };
+  | { action: 'bayBreak'; on: boolean; by: string; kind: BayPauseKind };
 
 /** A typed count at Erin St (dirties, and cleans since migration 156). A cap, so a fat-fingered 2300 is refused. */
 export const DIRTIES_MAX = 300;
@@ -101,7 +105,9 @@ export function parseLotRequest(body: unknown): LotRequest | { error: string } {
       return { action: 'leaveOff', user: b.user, off: b.off, by };
     case 'bayBreak':
       if (typeof b.on !== 'boolean') return { error: 'On break, or back?' };
-      return { action: 'bayBreak', on: b.on, by };
+      // No kind = a break, so every client from before migration 171 means what it always meant.
+      if (b.kind !== undefined && !PAUSE_KINDS.includes(b.kind as BayPauseKind)) return { error: 'A break, or pulled away?' };
+      return { action: 'bayBreak', on: b.on, by, kind: (b.kind as BayPauseKind | undefined) ?? 'break' };
     default:
       return { error: 'Unknown action.' };
   }

@@ -66,11 +66,19 @@ describe('api/lot — On break (migration 166, docs/ticket-lot-bay-on-break.md)'
     const on = await call({ action: 'bayBreak', on: true, by: 'AS' }, 'Bearer good');
     expect(on.status).toBe(200);
     expect(typeof f.patches[0]!.break_at).toBe('string');
-    expect(Object.keys(f.patches[0]!)).toEqual(['break_at']);
+    expect(Object.keys(f.patches[0]!)).toEqual(['break_at', 'break_kind']);
+    expect(f.patches[0]!.break_kind).toBe('break');   // no kind sent = a break, as before migration 171
     const back = await call({ action: 'bayBreak', on: false, by: 'AS' }, 'Bearer good');
     expect(back.status).toBe(200);
     expect(f.patches[1]).toEqual({ break_at: null });
     expect(f.tables).toEqual(['lot_bay', 'lot_bay']);
+  });
+
+  it('⭐ Pulled away stamps the same break_at with its kind (migration 171, ticket-lot-bay-pulled-away)', async () => {
+    const f = fakeBay();
+    expect((await call({ action: 'bayBreak', on: true, kind: 'pulled', by: 'AS' }, 'Bearer good')).status).toBe(200);
+    expect(f.patches[0]!.break_kind).toBe('pulled');
+    expect(typeof f.patches[0]!.break_at).toBe('string');
   });
 
   it('needs the sign-in like everything else', async () => {

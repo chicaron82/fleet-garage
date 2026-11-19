@@ -165,9 +165,15 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
         <section aria-label="Erin St" className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <h2 className={SECTION_HEAD}>Erin St</h2>
-            {!onBreak && <BayBreakButton onBreak={() => void taps.setBreak(true)} />}
+            {/* Pulled away (migration 171, docs/ticket-lot-bay-pulled-away.md): the generic pause beside the break. */}
+            {!onBreak && (
+              <div className="flex items-center gap-1.5">
+                <BayBreakButton onBreak={() => void taps.setBreak(true, 'break')} />
+                <BayBreakButton kind="pulled" onBreak={() => void taps.setBreak(true, 'pulled')} />
+              </div>
+            )}
           </div>
-          {onBreak && <BayBreakStrip onBack={() => void taps.setBreak(false)} />}
+          {onBreak && <BayBreakStrip kind={erin.bay.breakKind ?? 'break'} onBack={() => void taps.setBreak(false)} />}
           <ErinCountBlocks erin={erin} taps={taps} drivers={crew?.summary.driver.on ?? 0} />
         </section>
       )}

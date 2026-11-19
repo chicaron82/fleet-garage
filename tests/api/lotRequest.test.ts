@@ -114,11 +114,19 @@ describe('parseLotRequest — leaveOff (migration 155)', () => {
 
 describe('parseLotRequest — bayBreak (migration 166, docs/ticket-lot-bay-on-break.md)', () => {
   it('on break, and back', () => {
-    expect(parseLotRequest({ action: 'bayBreak', on: true, by: 'AS' })).toEqual({ action: 'bayBreak', on: true, by: 'AS' });
+    expect(parseLotRequest({ action: 'bayBreak', on: true, by: 'AS' })).toEqual({ action: 'bayBreak', on: true, by: 'AS', kind: 'break' });
     expect(parseLotRequest({ action: 'bayBreak', on: false })).toMatchObject({ action: 'bayBreak', on: false });
   });
   it('refuses a break with no on/off', () => {
     expect(parseLotRequest({ action: 'bayBreak' })).toHaveProperty('error');
     expect(parseLotRequest({ action: 'bayBreak', on: 'yes' })).toHaveProperty('error');
+  });
+  // Pulled away (migration 171, docs/ticket-lot-bay-pulled-away.md).
+  it('⭐ a pause carries its kind: pulled, or break when none is sent', () => {
+    expect(parseLotRequest({ action: 'bayBreak', on: true, kind: 'pulled', by: 'AS' })).toMatchObject({ kind: 'pulled' });
+    expect(parseLotRequest({ action: 'bayBreak', on: true, by: 'AS' })).toMatchObject({ kind: 'break' });
+  });
+  it('refuses a kind that is neither', () => {
+    expect(parseLotRequest({ action: 'bayBreak', on: true, kind: 'lunch', by: 'AS' })).toHaveProperty('error');
   });
 });

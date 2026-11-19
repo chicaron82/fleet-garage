@@ -13,7 +13,7 @@
 // One way in: FG's signed-in session (useBayTapsSignedIn — Aaron, 2026-10-15: *"May I suggest adding the cleans steppers
 // here"*). The public /lot/erin page and its shared PIN were retired on 2026-11-05 (*"It's unused"*).
 import { useCallback, useRef } from 'react';
-import { bayFromRow, isCleansFix, usedToday, type BayRow, type LotBay } from '../lib/lotBay';
+import { bayFromRow, isCleansFix, usedToday, type BayPauseKind, type BayRow, type LotBay } from '../lib/lotBay';
 import { businessDateOf } from '../lib/shiftDay';
 import type { LotBayState } from './useLotBay';
 import { postLotSignedIn, type LotPost } from './useLotPin';
@@ -136,10 +136,12 @@ function useBayWriter(state: LotBayState, toast: BayToast, send: Send, by: strin
     toast(`Erin set to ${cleans}/${dirties}`, undoTo(before, 'cleans'));
   }, [state, write, by, toast, undoTo]);
 
-  /** On break / Back (migration 166): a stamp on the row, not a count. Any later tap ends a break by itself. */
-  const setBreak = useCallback(async (on: boolean) => {
-    const saved = await write({ action: 'bayBreak', on }, (b, at) => ({ ...b, breakAt: on ? at : null }));
-    if (saved) toast(on ? 'On break. The read-only page says the count is paused.' : 'Back. The count is live again.');
+  /** On break / Pulled away / Back (migrations 166, 171): a stamp on the row, not a count. Any later tap ends it. */
+  const setBreak = useCallback(async (on: boolean, kind: BayPauseKind = 'break') => {
+    const saved = await write({ action: 'bayBreak', on, kind },
+      (b, at) => (on ? { ...b, breakAt: at, breakKind: kind } : { ...b, breakAt: null }));
+    if (saved) toast(!on ? 'Back. The count is live again.'
+      : `${kind === 'pulled' ? 'Pulled away' : 'On break'}. The read-only page says the count is paused.`);
   }, [write, toast]);
 
   return { tapCleans, stepDirties, setCount, setDirties, drain, fill, setBoth, setBreak };

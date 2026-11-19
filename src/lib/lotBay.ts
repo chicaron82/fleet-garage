@@ -32,7 +32,14 @@ export interface LotBay {
   usedOn: string | null;
   /** When he went on break (migration 166); null = not on one. Any later tap ends it (src/lib/countKept.ts). */
   breakAt?: string | null;
+  /** Which pause breakAt is (migration 171): On break, or Pulled away onto other work. Means nothing without breakAt. */
+  breakKind?: BayPauseKind;
 }
+
+/** docs/ticket-lot-bay-pulled-away.md. Aaron: *"a generic pause when pulled. Could be driving. Maybe a meeting"*. */
+export type BayPauseKind = 'break' | 'pulled';
+/** The button and strip words for each pause (BayBreak.tsx). */
+export const PAUSE_LABEL: Record<BayPauseKind, string> = { break: 'On break', pulled: 'Pulled away' };
 
 // set / drain / fill / undo: the Erin pill's quick taps (migration 156). held: a bay car out on M/B hold (migration 162).
 // sent: a bay car out as ✈ Clean · sent up (migration 169): a dirty off, never onto the cleans.
@@ -53,6 +60,8 @@ export interface BayRow {
   used: number; used_on: string | null;
   /** Absent from a row read before migration 166's column was selected: treated as no break. */
   break_at?: string | null;
+  /** Absent before migration 171: a break. */
+  break_kind?: string | null;
 }
 
 export function bayFromRow(r: BayRow): LotBay {
@@ -60,6 +69,7 @@ export function bayFromRow(r: BayRow): LotBay {
     cleans: r.cleans, cleansBy: r.cleans_by, cleansAt: r.cleans_at,
     dirties: r.dirties, dirtiesBy: r.dirties_by, dirtiesAt: r.dirties_at,
     used: r.used, usedOn: r.used_on, breakAt: r.break_at ?? null,
+    breakKind: r.break_kind === 'pulled' ? 'pulled' : 'break',
   };
 }
 

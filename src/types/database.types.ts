@@ -1095,6 +1095,7 @@ export type Database = {
       lot_bay: {
         Row: {
           break_at: string | null
+          break_kind: string
           cleans: number
           cleans_at: string | null
           cleans_by: string | null
@@ -1107,6 +1108,7 @@ export type Database = {
         }
         Insert: {
           break_at?: string | null
+          break_kind?: string
           cleans?: number
           cleans_at?: string | null
           cleans_by?: string | null
@@ -1119,6 +1121,7 @@ export type Database = {
         }
         Update: {
           break_at?: string | null
+          break_kind?: string
           cleans?: number
           cleans_at?: string | null
           cleans_by?: string | null
