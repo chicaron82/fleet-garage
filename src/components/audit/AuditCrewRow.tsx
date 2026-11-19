@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useCancelableTimeout } from '../../hooks/useCancelableTimeout';
 import { useProfiles, useRosterStaff } from '../../context/ProfilesContext';
 import { useAuth } from '../../context/AuthContext';
 import { useUserResolver } from '../../hooks/useUserResolver';
@@ -27,6 +28,8 @@ export function CrewRow({ member, showRemove, onChange, onRemove }: {
 
   const [query, setQuery]   = useState('');
   const [focused, setFocused] = useState(false);
+  // The blur's close dies with the row, and a refocus cancels it (useCancelableTimeout, 2026-11-19).
+  const blur = useCancelableTimeout();
   const [adding, setAdding] = useState(false);
 
   const canAdd   = user ? canManageSchedule(user.role) : false;
@@ -70,8 +73,8 @@ export function CrewRow({ member, showRemove, onChange, onRemove }: {
                 type="text"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                onFocus={() => setFocused(true)}
-                onBlur={() => setTimeout(() => setFocused(false), 150)}
+                onFocus={() => { blur.cancel(); setFocused(true); }}
+                onBlur={() => blur.later(() => setFocused(false), 150)}
                 placeholder="Search crew by name…"
                 aria-label="Search crew by name"
                 className={`w-full pr-9 ${INPUT}`}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useCancelableTimeout } from './useCancelableTimeout';
 import { useLookupRecents } from './useLookupRecents';
 import { exactCarId, type CarKeys } from '../lib/exactCarMatch';
 
@@ -20,6 +21,8 @@ import { exactCarId, type CarKeys } from '../lib/exactCarMatch';
 export function useRecentCarsBox(term: string, cars: readonly CarKeys[]) {
   const { recents, record } = useLookupRecents(true);
   const [armed, setArmed] = useState(false);
+  // ⚠️ The blur's close timer dies with the box, and a refocus cancels it (useCancelableTimeout, 2026-11-19).
+  const close = useCancelableTimeout();
 
   const matchId = useMemo(() => exactCarId(term, cars), [term, cars]);
   // The write is the async upsert; its only state change lands after the await.
@@ -29,8 +32,8 @@ export function useRecentCarsBox(term: string, cars: readonly CarKeys[]) {
     recents,
     record,
     showRecents: armed && !term.trim() && recents.length > 0,
-    onFocus: () => setArmed(true),
+    onFocus: () => { close.cancel(); setArmed(true); },
     // ⚠️ Delayed so a tap on a recent lands before the list closes under the thumb (VehicleLookup's same 200 ms).
-    onBlur: () => { setTimeout(() => setArmed(false), 200); },
+    onBlur: () => close.later(() => setArmed(false), 200),
   };
 }

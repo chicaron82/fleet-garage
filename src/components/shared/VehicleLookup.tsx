@@ -22,6 +22,7 @@
 // instead of typing. It costs one line of screen and removes a whole failure mode.
 import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 import { searchVehicles, type VehicleSearchResult } from '../../lib/ev-detection';
+import { useCancelableTimeout } from '../../hooks/useCancelableTimeout';
 import { LookupRow } from './LookupRow';
 
 export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the scan is down', busy, autoFocus, inlineResults, recents }: {
@@ -59,6 +60,8 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
   // ⚠️ Guards against a slow early request landing after a fast later one and repainting the list
   // with results for a query he has already typed past.
   const seq = useRef(0);
+  // The blur's close dies with the box, and a refocus cancels it (useCancelableTimeout, 2026-11-19).
+  const close = useCancelableTimeout();
   const wrapRef = useRef<HTMLDivElement>(null);
 
   // ⚠️ NO SYNCHRONOUS setState IN HERE — ESLint refuses it, correctly, and the right answer is the
@@ -136,9 +139,9 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
         <input
           value={query}
           onChange={e => edit(e.target.value.toUpperCase())}
-          onFocus={() => { setArmed(true); if (visible.length) setOpen(true); }}
+          onFocus={() => { close.cancel(); setArmed(true); if (visible.length) setOpen(true); }}
           // ⚠️ Delayed so a tap on a suggestion lands before the list closes under the thumb.
-          onBlur={() => setTimeout(() => { setOpen(false); setArmed(false); }, 200)}
+          onBlur={() => close.later(() => { setOpen(false); setArmed(false); }, 200)}
           onKeyDown={onKey}
           placeholder={placeholder}
           aria-label="Look up a vehicle by plate or unit number"

@@ -11,6 +11,7 @@ import { DriverLiveCompleteView } from './DriverLiveCompleteView';
 import { useDriverLiveTrip, LOCATIONS } from '../../hooks/useDriverLiveTrip';
 import { PlateInput } from '../shared/VehicleFields';
 import { PlateSuggestions } from './PlateSuggestions';
+import { useCancelableTimeout } from '../../hooks/useCancelableTimeout';
 
 interface Props {
   flaggedClasses: RentalClass[];
@@ -22,6 +23,8 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
   const { shuttlePlate } = useVehicleHoldContext();
 
   const trip = useDriverLiveTrip({ user, onTripComplete });
+  // The plate box's blur close dies with the form (useCancelableTimeout, 2026-11-19).
+  const closeSuggestions = useCancelableTimeout();
 
   if (trip.phase === 'form') {
     const {
@@ -126,10 +129,10 @@ export function DriverLiveForm({ flaggedClasses, onTripComplete }: Props) {
                 if (!val) setShowSuggestions(false);
               }}
               onBlur={() => {
-                setTimeout(() => setShowSuggestions(false), 200);
+                closeSuggestions.later(() => setShowSuggestions(false), 200);
                 handlePlateBlur();
               }}
-              onFocus={() => { if (plateSuggestions.length > 0 || searchFailed) setShowSuggestions(true); }}
+              onFocus={() => { closeSuggestions.cancel(); if (plateSuggestions.length > 0 || searchFailed) setShowSuggestions(true); }}
               className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fg-yellow transition"
             />
             <PlateSuggestions

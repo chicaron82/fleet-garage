@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useCancelableTimeout } from '../../hooks/useCancelableTimeout';
 import { useAuth } from '../../context/AuthContext';
 import { hapticLight } from '../../lib/haptics';
 import { canRelease } from '../../types';
@@ -61,6 +62,8 @@ export function TripForm({
 
   const [plateSuggestions, setPlateSuggestions] = useState<VehicleSearchResult[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  // The plate box's blur close dies with the form (useCancelableTimeout, 2026-11-19).
+  const closeSuggestions = useCancelableTimeout();
   // ⚠️ The search itself failing is not the same as no car matching — see PlateSuggestions.
   const [searchFailed, setSearchFailed] = useState(false);
 
@@ -167,11 +170,12 @@ export function TripForm({
               if (!val) setShowSuggestions(false);
             }}
             onBlur={() => {
-              setTimeout(() => setShowSuggestions(false), 200);
+              closeSuggestions.later(() => setShowSuggestions(false), 200);
               recent.onBlur();
               onPlateBlur?.();
             }}
             onFocus={() => {
+              closeSuggestions.cancel();
               recent.onFocus();
               if (plateSuggestions.length > 0 || searchFailed) setShowSuggestions(true);
             }}

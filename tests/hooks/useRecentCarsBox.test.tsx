@@ -32,6 +32,26 @@ describe('useRecentCarsBox', () => {
     expect(result.current.showRecents).toBe(false);
   });
 
+  // CI on f7968ac8 (2026-11-19): all 5349 tests passed and the run failed anyway, on "window is not defined" from this
+  // hook's blur timer firing after HoldsView's test had torn the page down.
+  it('⭐ unmounting cancels the close timer: nothing fires after the screen is gone', () => {
+    const { result, unmount } = renderHook(() => useRecentCarsBox('', cars));
+    act(() => result.current.onFocus());
+    act(() => result.current.onBlur());
+    expect(vi.getTimerCount()).toBe(1);
+    unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('⭐ a refocus inside 200 ms keeps the list open (the old timer no longer closes it under him)', () => {
+    const { result } = renderHook(() => useRecentCarsBox('', cars));
+    act(() => result.current.onFocus());
+    act(() => result.current.onBlur());
+    act(() => result.current.onFocus());
+    act(() => { vi.advanceTimersByTime(300); });
+    expect(result.current.showRecents).toBe(true);
+  });
+
   it('⭐ a whole plate typed into a filter box is remembered, once', () => {
     const { rerender } = renderHook(({ term }) => useRecentCarsBox(term, cars), { initialProps: { term: 'LUR5' } });
     expect(record).not.toHaveBeenCalled();                    // half a plate is not a look-up
