@@ -37,21 +37,3 @@ describe('LotBayStrip', () => {
     expect(screen.getByText('not counted yet')).toBeTruthy();
   });
 });
-
-// The read-only page's desktop glance (docs/ticket-lot-view-desktop-layout.md). Aaron, 2026-11-19: *"Jagdeep reads from
-// the computer rather than from his phone"*. `big` grows the counts from `lg` up only; every other strip is untouched.
-describe('LotBayStrip, big (the desktop glance)', () => {
-  it('⭐ big grows both counts from lg up, and keeps the phone size below it', () => {
-    render(<LotBayStrip bay={bay()} nowMs={NOW} big />);
-    for (const n of ['6', '23']) {
-      const cls = screen.getByText(n).className;
-      expect(cls).toContain('lg:text-7xl');
-      expect(cls).toMatch(/(^| )text-2xl( |$)/);
-    }
-  });
-
-  it('control: without big, no desktop size (My Day and /lot stay as they were)', () => {
-    const { container } = render(<LotBayStrip bay={bay()} nowMs={NOW} />);
-    expect(container.innerHTML).not.toContain('lg:');
-  });
-});

@@ -50,17 +50,12 @@ function DirtiesEdit({ current, onSave, onClose }: { current: number | null; onS
   );
 }
 
-/** `action` sits on the heading's right: FG's My Day card puts a link to the bay page there.
- *  `big`: the read-only page's desktop glance (docs/ticket-lot-view-desktop-layout.md). From `lg` up the counts grow to
- *  read from across a desk; on a phone it changes nothing. */
-export function LotBayStrip({ bay, nowMs, action, controls, big = false }: { bay: LotBay; nowMs: number; action?: React.ReactNode; controls?: BayControls; big?: boolean }) {
+/** `action` sits on the heading's right: FG's My Day card puts a link to the bay page there. */
+export function LotBayStrip({ bay, nowMs, action, controls }: { bay: LotBay; nowMs: number; action?: React.ReactNode; controls?: BayControls }) {
   const [editing, setEditing] = useState(false);
   const cleansOld = isBayStale(bay.cleansAt, nowMs);
   const dirtiesOld = isBayStale(bay.dirtiesAt, nowMs);
   const dirtiesColour = dirtiesOld ? 'text-amber-700 dark:text-amber-400' : 'text-red-700 dark:text-red-400';
-  const num = big ? 'text-2xl lg:text-7xl lg:leading-none lg:mb-2' : 'text-2xl';
-  const cell = big ? 'px-3 py-2 lg:px-5 lg:py-5 min-w-0' : 'px-3 py-2 min-w-0';
-  const what = big ? 'block text-[11px] lg:text-sm lg:font-semibold text-gray-500 dark:text-gray-400' : 'block text-[11px] text-gray-500 dark:text-gray-400';
   return (
     <section aria-label="Erin St" className="space-y-1">
       <div className="flex items-center justify-between gap-2 px-0.5">
@@ -68,9 +63,9 @@ export function LotBayStrip({ bay, nowMs, action, controls, big = false }: { bay
         {action}
       </div>
       <div className="grid grid-cols-2 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 divide-x divide-gray-200 dark:divide-gray-700">
-        <div className={cell}>
-          <b className={`block ${num} font-extrabold tabular-nums ${cleansOld ? 'text-amber-700 dark:text-amber-400' : 'text-green-700 dark:text-green-400'}`}>{bay.cleans}</b>
-          <span className={what}>cleans ready for the airport</span>
+        <div className="px-3 py-2 min-w-0">
+          <b className={`block text-2xl font-extrabold tabular-nums ${cleansOld ? 'text-amber-700 dark:text-amber-400' : 'text-green-700 dark:text-green-400'}`}>{bay.cleans}</b>
+          <span className="block text-[11px] text-gray-500 dark:text-gray-400">cleans ready for the airport</span>
           <Stamp at={bay.cleansAt} nowMs={nowMs} />
           {controls && (
             <div className="grid grid-cols-[1fr_1.4fr] gap-1.5 mt-1.5">
@@ -81,16 +76,16 @@ export function LotBayStrip({ bay, nowMs, action, controls, big = false }: { bay
             </div>
           )}
         </div>
-        <div className={cell}>
+        <div className="px-3 py-2 min-w-0">
           {controls && !editing ? (
             <button type="button" onClick={() => setEditing(true)} aria-label={`Dirties waiting: ${bay.dirties ?? 'not counted'}. Tap to update`}
               className="block text-left cursor-pointer">
               <b className={`block text-2xl font-extrabold tabular-nums ${dirtiesColour}`}>{bay.dirties ?? '–'} <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 underline underline-offset-2">update</span></b>
             </button>
           ) : (
-            <b className={`block ${num} font-extrabold tabular-nums ${dirtiesColour}`}>{bay.dirties ?? '–'}</b>
+            <b className={`block text-2xl font-extrabold tabular-nums ${dirtiesColour}`}>{bay.dirties ?? '–'}</b>
           )}
-          <span className={what}>dirties waiting</span>
+          <span className="block text-[11px] text-gray-500 dark:text-gray-400">dirties waiting</span>
           <Stamp at={bay.dirtiesAt} nowMs={nowMs} />
           {controls && editing && <DirtiesEdit current={bay.dirties} onSave={controls.onDirties} onClose={() => setEditing(false)} />}
         </div>

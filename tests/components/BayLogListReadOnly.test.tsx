@@ -35,22 +35,6 @@ describe('BayLogList on the read-only link', () => {
   });
 });
 
-// The counter's monitor (docs/ticket-lot-view-desktop-layout.md): on the read-only link, one line per car from `lg` up.
-describe('BayLogList, one line per car on a desktop', () => {
-  it('⭐ read-only rows lay the plate and car out in a line from lg up', () => {
-    render(<BayLogList readOnly heading="Today" rows={[{ ...row(1, 'clean'), car: '2026 Kia Seltos · Blue' }]} />);
-    expect(screen.getByText('LUR1').parentElement!.className).toContain('lg:flex');
-    expect(screen.getByText('2026 Kia Seltos · Blue').className).toContain('lg:text-sm');
-  });
-
-  it('control: FG\'s own list keeps its stacked rows (no desktop classes on a row)', () => {
-    const edit = { flagIds: new Set<number>(), choicesFor: () => [], onNewHold: () => {},
-      onSameHold: async () => null, onNote: async () => null, onSentUp: async () => null };
-    render(<BayLogList heading="Today" edit={edit} rows={[{ ...row(1, 'clean'), car: '2026 Kia Seltos · Blue' }]} />);
-    expect(screen.getByText('LUR1').parentElement!.className).not.toContain('lg:');
-  });
-});
-
 describe('BayLogList in FG: the fold', () => {
   const edit = (flag: number[] = []) => ({ flagIds: new Set(flag), choicesFor: () => [], onNewHold: () => {},
     onSameHold: async () => null, onNote: async () => null, onSentUp: async () => null });
