@@ -123,7 +123,11 @@ test('scan → View opens the scanned vehicle (and its geotab hold reads Done)',
   await expect(page.getByText('Geotab not installed')).toBeVisible();
   // Cleared, off the install list. A mechanical hold finishes Done, not Repaired (2026-11-10,
   // docs/ticket-repair-outcome-windshield-only.md): an install is a service, not a damage repair.
-  await expect(page.getByText('Done', { exact: true })).toBeVisible();
+  // ⚠️ Scoped to the Geotab hold's OWN card (2026-11-19). The fixture is a real car, and a real "PM due" hold closed
+  // Done on it this morning: a page-wide 'Done' then matched two badges and failed strict mode. The innermost card
+  // holding the Geotab text is `.last()`; its own badge must say Done, whatever other holds the car collects.
+  const geotabCard = page.locator('div.rounded-xl.overflow-hidden').filter({ hasText: 'Geotab not installed' }).last();
+  await expect(geotabCard.getByText('Done', { exact: true })).toBeVisible();
 });
 
 test('scan → Start trip auto-fires a Routine run to the live timer — twice (repeat scan)', async ({ page }) => {
