@@ -11,7 +11,8 @@ const state = {
 vi.mock('../../src/hooks/useLotBay', () => ({ useLotBay: () => ({ bay: state.bay, log: [], loaded: true, nowMs: NOW, setBay: () => {} }) }));
 vi.mock('../../src/hooks/useBayLog', () => ({ useBayLog: () => ({ rows: state.rows, loaded: true, error: null }) }));
 vi.mock('../../src/hooks/useLotCrew', () => ({ useLotCrew: () => ({ crew: null }) }));
-vi.mock('../../src/components/lot/LotBayStrip', () => ({ LotBayStrip: () => <p>the count</p> }));
+const strip: { big?: boolean } = {};
+vi.mock('../../src/components/lot/LotBayStrip', () => ({ LotBayStrip: (p: { big?: boolean }) => { strip.big = p.big; return <p>the count</p>; } }));
 vi.mock('../../src/components/lot/BayLogList', () => ({ BayLogList: () => <p>the list</p> }));
 const { LotViewPage } = await import('../../src/components/lot/LotViewPage');
 const { clockOf } = await import('../../src/lib/lotBay');
@@ -128,5 +129,40 @@ describe('LotViewPage, the ✈ disclaimer', () => {
     state.bay = { ...state.bay, cleansAt: ago(200), dirtiesAt: ago(190), breakAt: undefined } as typeof state.bay;   // the break tests above leave one
     render(<LotViewPage />);
     expect(screen.getByText('✈ marks cars asked for by name. The count is the lot.').closest('[aria-hidden="true"]')).not.toBeNull();
+  });
+});
+
+// The counter's monitor (docs/ticket-lot-view-desktop-layout.md). Aaron, 2026-11-19: *"Jagdeep reads from the computer
+// rather than from his phone. What say we have a desktop version with a better bougie view?"*
+describe('LotViewPage, the desktop layout', () => {
+  beforeEach(() => { state.rows = []; state.bay = { ...state.bay, cleansAt: ago(5), dirtiesAt: ago(5), breakAt: undefined } as typeof state.bay; });
+
+  it('⭐ the bay and the count on the left (pinned), the log on the right', () => {
+    const { container } = render(<LotViewPage />);
+    const glance = container.querySelector('[data-column="glance"]')!;
+    const log = container.querySelector('[data-column="log"]')!;
+    expect(glance.className).toContain('lg:sticky');
+    expect(glance.querySelector('[aria-label="In the bay now"]')).not.toBeNull();
+    expect(glance.textContent).toContain('the count');
+    expect(log.textContent).toContain('the list');
+    expect(log.textContent).toContain('✈ marks cars asked for by name.');
+    expect(glance.parentElement!.className).toContain('lg:grid');
+    expect(strip.big).toBe(true);
+  });
+
+  it('⭐ the phone order is unchanged: bay, count, then the list and its ✈ line', () => {
+    const { container } = render(<LotViewPage />);
+    const text = container.textContent!;
+    const at = (t: string) => text.indexOf(t);
+    expect(at('In the bay now')).toBeLessThan(at('the count'));
+    expect(at('the count')).toBeLessThan(at('the list'));
+    expect(at('the list')).toBeLessThan(at('✈ marks cars asked for by name.'));
+  });
+
+  it('the not-kept blur still covers both columns', () => {
+    state.bay = { ...state.bay, cleansAt: ago(200), dirtiesAt: ago(190) };
+    render(<LotViewPage />);
+    expect(screen.getByText('the count').closest('[aria-hidden="true"]')).not.toBeNull();
+    expect(screen.getByText('the list').closest('[aria-hidden="true"]')).not.toBeNull();
   });
 });

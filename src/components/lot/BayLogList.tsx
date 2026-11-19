@@ -9,6 +9,10 @@
 //
 // His note on a row shows here on both screens (2026-11-04: *"can be seen via the read-only link"*); writing one, and
 // Flag it's "Same as the … hold", are FG's alone: only where `edit` is passed (BayLineEdit.tsx).
+//
+// The read-only link on a desktop (2026-11-19, docs/ticket-lot-view-desktop-layout.md): from `lg` up each car is ONE
+// line, time · plate · car · exit, for the counter's monitor. Read-only only: FG's own list keeps its stacked rows and
+// its edit buttons exactly as they were.
 import { useState, type ReactNode } from 'react';
 import { bayLines, baySummary, type BayLineKind, type BayLogRow } from '../../lib/lotBayLog';
 import { bayListView, FOLD_KEEP, type BayFilter } from '../../lib/bayListView';
@@ -24,6 +28,17 @@ const TONE: Record<BayLineKind, string> = {
 };
 
 const CHIP = 'rounded-full px-2.5 py-1 text-xs font-bold';
+
+/** The read-only link's one-line rows, from `lg` up only (docs/ticket-lot-view-desktop-layout.md). */
+const WIDE = {
+  li: 'lg:px-5 lg:py-3',
+  time: 'lg:w-14 lg:text-sm',
+  middle: 'lg:flex lg:flex-wrap lg:items-baseline lg:gap-x-6',
+  plate: 'lg:w-28 lg:shrink-0 lg:text-base',
+  car: 'lg:text-sm',
+  memo: 'lg:basis-full',
+  label: 'lg:text-base',
+};
 const SMALL_BTN = 'mt-0.5 min-h-8 rounded-lg border border-gray-300 dark:border-gray-600 px-2 text-xs font-bold text-gray-800 dark:text-gray-100 cursor-pointer';
 
 /** FG's writes on a finished line. Absent on the read-only link. */
@@ -97,17 +112,17 @@ export function BayLogList({ rows, readOnly = false, heading, empty = 'No cars t
               const isOpen = open?.id === l.id;
               const canChange = canEdit && !!edit.onChangeExit && l.kind !== 'skip' && l.kind !== 'bay';
               return (
-                <li key={l.id} className="px-3 py-2.5">
+                <li key={l.id} className={`px-3 py-2.5 ${readOnly ? WIDE.li : ''}`}>
                   <div className="flex items-center gap-3">
-                    <span className="w-11 shrink-0 font-mono text-xs font-bold tabular-nums text-gray-600 dark:text-gray-300">{l.time}</span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-mono text-sm font-bold text-gray-900 dark:text-gray-100">{l.plate}</span>
-                      {l.car && <span className="block truncate text-xs text-gray-500 dark:text-gray-400">{l.car}</span>}
+                    <span className={`w-11 shrink-0 font-mono text-xs font-bold tabular-nums text-gray-600 dark:text-gray-300 ${readOnly ? WIDE.time : ''}`}>{l.time}</span>
+                    <span className={`min-w-0 flex-1 ${readOnly ? WIDE.middle : ''}`}>
+                      <span className={`block font-mono text-sm font-bold text-gray-900 dark:text-gray-100 ${readOnly ? WIDE.plate : ''}`}>{l.plate}</span>
+                      {l.car && <span className={`block truncate text-xs text-gray-500 dark:text-gray-400 ${readOnly ? WIDE.car : ''}`}>{l.car}</span>}
                       {l.memo && !(isOpen && open.what === 'note') && (
                         canEdit ? (
                           <button type="button" onClick={() => setOpen({ id: l.id, what: 'note' })}
                             className="block text-left text-xs text-gray-800 dark:text-gray-100 cursor-pointer">📝 {l.memo}</button>
-                        ) : <span className="block text-xs text-gray-800 dark:text-gray-100">📝 {l.memo}</span>
+                        ) : <span className={`block text-xs text-gray-800 dark:text-gray-100 ${readOnly ? WIDE.memo : ''}`}>📝 {l.memo}</span>
                       )}
                       {canEdit && finished && !isOpen && (!l.memo || edit.onRemove || canChange) && (
                         <span className="flex flex-wrap gap-x-4">
@@ -127,7 +142,7 @@ export function BayLogList({ rows, readOnly = false, heading, empty = 'No cars t
                       )}
                     </span>
                     <span className="shrink-0 text-right">
-                      <span className={`block text-sm font-extrabold ${TONE[l.kind]}`}>{l.label}</span>
+                      <span className={`block text-sm font-extrabold ${TONE[l.kind]} ${readOnly ? WIDE.label : ''}`}>{l.label}</span>
                       {l.note && finished && <span className="block text-[11px] text-gray-500 dark:text-gray-400">{l.note}</span>}
                       {l.was && finished && <span className="block text-[11px] text-gray-500 dark:text-gray-400">was {l.was}</span>}
                       {/* ✈ Sent up (migration 167): FG marks it, the read-only link shows it. A Clean only. */}
