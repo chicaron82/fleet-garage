@@ -8,6 +8,10 @@
 //   optional (docs/ticket-bay-log-first-shift-friction.md).
 // • ⚠️ No autoFocus: a keyboard up on every empty bay would cover Erin St's count each time a car leaves.
 // • A key FG cannot place opens the full popup with it, never a dead end (register, Lost & Found and the rest live there).
+// • ✓ Already cleaned (2026-11-19, docs/ticket-bay-already-cleaned-in-the-empty-bay.md): a third ending beside Start and
+//   On deck, for the cars his partner finished while he was off the floor. Aaron: *"i'd have marked it off as cleaned before
+//   going off for break. so that box would be empty for the next 30min"*. It replaced the button under the list, which
+//   meant scrolling past the whole day. Same write (bay.add): "added later" on the list, +1 airport cleans, Undo.
 import { useState } from 'react';
 import { useVehicleHoldContext } from '../../context/VehicleHoldContext';
 import { useLookupRecents } from '../../hooks/useLookupRecents';
@@ -19,11 +23,16 @@ import { ScanBayStart } from '../scan-router/ScanBayStart';
 import { BayCarHeader } from './BayCarHeader';
 
 /** `onOpenCar`: the header's tap, to the car's record. */
-export function BayFindCar({ bay, onMore, onOpenCar }: { bay: BayLogState; onMore: () => void; onOpenCar: (vehicleId: string) => void }) {
+export function BayFindCar({ bay, onMore, onOpenCar, onAddCleaned }: {
+  bay: BayLogState; onMore: () => void; onOpenCar: (vehicleId: string) => void;
+  /** ✓ Already cleaned: true when it landed on the list (the parent says so, with an Undo). */
+  onAddCleaned?: (vehicleId: string, plate: string) => Promise<boolean>;
+}) {
   const { vehicles, archivedVehicles, recordOdometer, clearOdometer, correctOdometer, confirmOdometer, restoreOdometer } = useVehicleHoldContext();
   const { recents, record } = useLookupRecents(true);
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [missed, setMissed] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
   // Looked up live, so the odo he just saved shows on the card and opens Start without a re-pick.
   const fleet = [...vehicles, ...archivedVehicles];
   const car = pickedId ? fleet.find(v => v.id === pickedId) ?? null : null;
@@ -44,6 +53,14 @@ export function BayFindCar({ bay, onMore, onOpenCar }: { bay: BayLogState; onMor
           onConfirm={confirmOdometer} onRestore={restoreOdometer} />
         {/* Started: the module's own list gets the row, so this card turns into "In the bay" by itself. */}
         <ScanBayStart vehicle={car} bayLog={bay} onOpenBay={() => {}} />
+        {onAddCleaned && (
+          <button type="button" disabled={adding}
+            onClick={() => { setAdding(true); void onAddCleaned(car.id, car.licensePlate).then(ok => { setAdding(false); if (ok) setPickedId(null); }); }}
+            className="w-full min-h-11 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 grid justify-items-center gap-0.5 cursor-pointer touch-manipulation active:scale-[0.98] transition disabled:opacity-40">
+            <span className="text-sm font-extrabold text-gray-800 dark:text-gray-100">✓ Already cleaned</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">Onto the list, added later · +1 airport cleans</span>
+          </button>
+        )}
       </div>
     );
   }

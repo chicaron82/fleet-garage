@@ -17,9 +17,11 @@ export interface BayInTheBayProps extends Omit<BayOpenCarProps, 'open' | 'onStar
   bay: BayLogState;
   /** Set right after a Skip: the empty bay says what comes next. */
   bumped: boolean;
+  /** ✓ Already cleaned, on the empty bay's pick: a car finished while he was off the floor. */
+  onAddCleaned: (vehicleId: string, plate: string) => Promise<boolean>;
 }
 
-export function BayInTheBay({ open, onFindCar, bay, bumped, ...car }: BayInTheBayProps) {
+export function BayInTheBay({ open, onFindCar, bay, bumped, onAddCleaned, ...car }: BayInTheBayProps) {
   const { user } = useAuth();
   const next = useBayStandby(initialsOf(user?.name ?? null) || 'FG');
   if (open) return <BayOpenCar key={open.id} open={open} next={next} onStart={bay.start} {...car} />;
@@ -28,7 +30,7 @@ export function BayInTheBay({ open, onFindCar, bay, bumped, ...car }: BayInTheBa
       <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{bumped ? 'Bumped. Bring the ASAP car in.' : "The bay's empty."}</p>
       <p className="text-xs text-gray-500 dark:text-gray-400">Look the car up: Start clean, or put it on deck. The odo is optional.</p>
       <BayNextUp next={next} inBay={null} onStart={bay.start} />
-      <BayFindCar bay={bay} onMore={onFindCar} onOpenCar={car.onOpenCar} />
+      <BayFindCar bay={bay} onMore={onFindCar} onOpenCar={car.onOpenCar} onAddCleaned={onAddCleaned} />
     </section>
   );
 }

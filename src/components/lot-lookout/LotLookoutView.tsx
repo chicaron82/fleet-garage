@@ -6,7 +6,7 @@
 //
 // Top to bottom, in the order he uses it: the car in the bay and its exits, Erin St's count (the SAME blocks as the
 // Erin pill's sheet: *"steppers, use the same style as the header"*) with On break beside its heading (2026-11-05),
-// today's list and its + Add a car already cleaned (2026-11-05), the crew, the links.
+// today's list (a car already cleaned is added from the empty bay's lookup, 2026-11-19), the crew, the links.
 import { useCallback, useState } from 'react';
 import { initialsOf } from '../../lib/lotLookout';
 import { inTheBay, sameHoldChoices, sameHoldLabel, unflaggedHoldIds, type BayLeave, type BayLogRow, type HoldExit } from '../../lib/lotBayLog';
@@ -26,7 +26,6 @@ import { LotCrewLine } from '../lot/LotCrewLine';
 import { BayInTheBay } from '../lot/BayInTheBay';
 import { BayFind } from '../lot/BayFind';
 import { BayLogList } from '../lot/BayLogList';
-import { BayAddCleaned } from '../lot/BayAddCleaned';
 import { BayDayHeader } from '../lot/BayDayHeader';
 import { BayBreakButton, BayBreakStrip } from '../lot/BayBreak';
 import { isOnBreak, lastActivity } from '../../lib/countKept';
@@ -116,7 +115,8 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
     void settle(() => (pull === false ? bay.exit(id, kind, odometer, false) : odometer != null ? bay.exit(id, kind, odometer) : bay.exit(id, kind)),`${EXIT_NOTE[kind](plate)}${odoNote}${waits}`, undo)
       .then(ok => { if (ok) setBumped(kind === 'skip'); });
   };
-  // + Add a car already cleaned (2026-11-05, docs/ticket-bay-add-a-car-cleaned.md): the note names it, and Undo takes it off.
+  // ✓ Already cleaned, from the empty bay's pick (2026-11-19, docs/ticket-bay-already-cleaned-in-the-empty-bay.md; first
+  // built under the list 2026-11-05): the note names it, and Undo takes it off.
   const addHere = async (vehicleId: string, plate: string) => {
     setBusy(true);
     const out = await bay.add(vehicleId);
@@ -154,7 +154,7 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
         <BayInTheBay open={open} busy={busy} bumped={bumped}
           onExit={exitHere} onBump={bumpHere}
           onCloseHeld={kind => open && void settle(() => bay.exit(open.id, kind), `${open.plate} closed as held`)}
-          onFindCar={search} bay={bay}
+          onFindCar={search} bay={bay} onAddCleaned={addHere}
           onOpenCar={vehicleId => onNavigate({ name: 'vehicle', vehicleId })} />
       )}
       {isToday && bay.nextIssue && <p role="alert" className="text-sm font-semibold text-red-700 dark:text-red-400">{bay.nextIssue}</p>}
@@ -183,7 +183,6 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
       {isToday ? (
         <div className="space-y-2">
           <BayLogList rows={bay.rows} heading="The bay log" edit={edit} />
-          {bay.loaded && <BayAddCleaned onAdd={addHere} onMore={search} />}
         </div>
       )
         : record.pastRows ? <BayLogList rows={record.pastRows} heading="The bay log" empty="No cars through the bay that day." edit={edit} />
