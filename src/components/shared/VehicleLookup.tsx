@@ -25,7 +25,7 @@ import { searchVehicles, type VehicleSearchResult } from '../../lib/ev-detection
 import { useCancelableTimeout } from '../../hooks/useCancelableTimeout';
 import { LookupRow } from './LookupRow';
 
-export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the scan is down', busy, autoFocus, inlineResults, recents }: {
+export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the scan is down', busy, autoFocus, inlineResults, recents, blurOnPick }: {
   /** The chosen car, or — when he commits text that matched nothing — the raw string he typed. */
   onPick: (choice: { vehicle: VehicleSearchResult } | { typed: string }) => void;
   placeholder?: string;
@@ -44,6 +44,12 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
    * is a shortcut to a look-up, never a different act. Only Find a car passes it (useLookupRecents).
    */
   recents?: readonly VehicleSearchResult[];
+  /**
+   * Drop the keyboard once a car is picked, so the card it opens is seen whole. Opt-in: the scan sheet only
+   * (docs/ticket-scan-geotab-above-the-fold.md). Aaron, 2026-11-20, on LZM531: *"the amber alert was covered by the
+   * keyboard."* The field cleared on the pick but kept focus, and the keys sat over the bottom half of the card.
+   */
+  blurOnPick?: boolean;
 }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<VehicleSearchResult[]>([]);
@@ -63,6 +69,7 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
   // The blur's close dies with the box, and a refocus cancels it (useCancelableTimeout, 2026-11-19).
   const close = useCancelableTimeout();
   const wrapRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // ⚠️ NO SYNCHRONOUS setState IN HERE — ESLint refuses it, correctly, and the right answer is the
   // one the closing-inventory card already learned: DERIVE instead of copying into state. Clearing
@@ -88,17 +95,23 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
   /** Only while the query that failed is still on screen — a deleted query owns no error. */
   const showFailed = failed && query.trim().length >= 2 && open;
 
+  /** After any pick: an empty field, no list, and (blurOnPick) no keyboard. */
+  const reset = () => {
+    setQuery(''); setResults([]); setFailed(false); setOpen(false); setArmed(false); setActive(-1);
+    if (blurOnPick) inputRef.current?.blur();
+  };
+
   const commitTyped = () => {
     const raw = query.trim().toUpperCase().replace(/\s+/g, '');
     if (!raw || busy) return;
     // ⚠️ TYPED, THEREFORE NEVER CORRECTED — the misread corrector belongs under a camera, not under
     // his thumbs. Same rule the airport flip states.
     onPick({ typed: raw });
-    setQuery(''); setResults([]); setFailed(false); setOpen(false); setArmed(false); setActive(-1);
+    reset();
   };
 
   const pickVehicle = (v: VehicleSearchResult) => {
-    onPick({ vehicle: v }); setQuery(''); setResults([]); setFailed(false); setOpen(false); setArmed(false); setActive(-1);
+    onPick({ vehicle: v }); reset();
   };
   /** Every edit to the text drops the highlight: a new search never carries an old pick. */
   const edit = (q: string) => { setQuery(q); setActive(-1); };
@@ -137,6 +150,7 @@ export function VehicleLookup({ onPick, placeholder = 'Plate or unit — if the 
             type fallback"* — the last two are THIS component, reached through the same overlay. */}
         <div className="relative flex-1">
         <input
+          ref={inputRef}
           value={query}
           onChange={e => edit(e.target.value.toUpperCase())}
           onFocus={() => { close.cancel(); setArmed(true); if (visible.length) setOpen(true); }}

@@ -286,6 +286,7 @@ export function ScanRouterOverlay({ navigate, mode, onClose }: Props) {
               busy={reading}
               autoFocus={mode === 'search'}
               inlineResults
+              blurOnPick
               recents={lookupRecentList}
               placeholder={mode === 'search' ? 'Plate or unit' : undefined} />
           </div>

@@ -80,6 +80,13 @@ export function ScanIdentityCard({
   // kit stands at the latest check (Aaron, 2026-10-13, LJF689 — see lib/evExceptionNow).
   const evNow = vehicle ? evExceptionNowClause(vehicle) : '';
   const isEvLine = (id: string) => holds.some(h => h.id === id && isEvAssetsHold(h));
+  // Geotab install watchlist: a separate axis from holds/exception; the car holds until a unit is installed. ⭐ On a
+  // found car it goes WITH the notices, under the status (docs/ticket-scan-geotab-above-the-fold.md). Aaron,
+  // 2026-11-20, on LZM531: *"I didn't know at the time it needed a geotab because the amber alert was covered by the
+  // keyboard."* It sat at the very end of the card, the one line the 09-24 move above the fold left behind.
+  const geotabLine = geotabPending && (
+    <p className="text-xs font-semibold mt-1 text-amber-700 dark:text-amber-400">📡 On the Geotab install list — hold until a unit is installed</p>
+  );
 
   return (
     <div className="rounded-xl bg-gray-50 dark:bg-gray-800/60 px-3 py-2.5">
@@ -115,6 +122,7 @@ export function ScanIdentityCard({
               realize it needed a keytag photo until scrolling."* (ticket-tag-notice-above-the-fold) */}
           <ScanNotices scanRead={scanRead} vehicle={vehicle} codexToast={codexToast} photographed={photographed}
             scanIsCurrentTag={scanIsCurrentTag} />
+          {geotabLine}
           {/* WHAT'S WRONG WITH IT — Aaron's ask (2026-08-16), the last gap in this card.
               The overlay always had these holds in scope and counted them into "On hold
               (2)", dropping the description: it said something's wrong, then made him
@@ -279,10 +287,8 @@ export function ScanIdentityCard({
           </p>
         )
       )}
-      {/* Geotab install watchlist — separate axis from holds/exception; must hold until installed. */}
-      {geotabPending && (
-        <p className="text-xs font-semibold mt-1 text-amber-700 dark:text-amber-400">📡 On the Geotab install list — hold until a unit is installed</p>
-      )}
+      {/* No car resolved: the Geotab line has nothing above to bury it, so it stays here (found car: see geotabLine). */}
+      {!vehicle && geotabLine}
       {/* Never fill silently — name exactly what the tag just landed on the record. */}
       {backfillToast && (
         /* ⭐ Sparkled IN PLACE rather than promoted to a Toast: this line is CONTEXT he

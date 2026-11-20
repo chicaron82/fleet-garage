@@ -10,7 +10,7 @@ import type { Vehicle } from '../../src/types';
 vi.mock('../../src/context/VehicleHoldContext', () => ({
   useVehicleHoldContext: () => ({
     holds: [], recordKeyCount: vi.fn(), recordOdometer: vi.fn(), clearOdometer: vi.fn(),
-    correctOdometer: vi.fn(), updateVehicleEVAssets: vi.fn(), adoptPlate: vi.fn(), retakeKeytagPhoto: vi.fn(),
+    correctOdometer: vi.fn(), updateVehicleEVAssets: vi.fn(), adoptPlate: vi.fn(), retakeKeytagPhoto: vi.fn(), archivedVehicles: [],
   }),
 }));
 
@@ -26,17 +26,17 @@ const holdLines = [{
   firstFlaggedAt: '2026-09-24T14:00:00Z', lastFlaggedAt: '2026-09-24T14:00:00Z', zones: [],
 }];
 
-function renderCard(vehicle: Vehicle | null) {
+function renderCard(vehicle: Vehicle | null, geotabPending = false) {
   return render(
     <ScanIdentityCard
       scanRead={null}
       result={{ rawPlate: 'LUR345', plate: 'LUR345', wasCorrected: false, vehicle, noIdentityKey: false,
-        matchedByUnit: false } as never}
+        matchedByUnit: false, unitCandidates: [] } as never}
       holdLines={holdLines as never}
       scanNonce={1}
       canRegister={false}
       onPickCandidate={vi.fn()}
-      geotabPending={false}
+      geotabPending={geotabPending}
       scanPhoto={null}
       backfillToast={null}
       conflictToast={null}
@@ -68,6 +68,22 @@ describe('ScanIdentityCard — the tag notice is seen before the holds', () => {
     expect(box).toHaveTextContent(/no key tag photo on file/i);
     expect(box).toHaveTextContent('📷 Scan a tag');
     expect(box.querySelector('button')).toBeNull();
+  });
+
+  // ⭐ Aaron, 2026-11-20, on LZM531: *"I didn't know at the time it needed a geotab because the amber alert was covered
+  // by the keyboard."* The 📡 line was the one the 09-24 move left at the end of the card.
+  // docs/ticket-scan-geotab-above-the-fold.md
+  it('⭐ on a found car, the Geotab line renders ABOVE the first hold line, once', () => {
+    renderCard(rogue, true);
+    const geotab = screen.getAllByText(/on the geotab install list/i);
+    expect(geotab).toHaveLength(1);
+    const hold = screen.getByText(/low tread/i);
+    expect(geotab[0].compareDocumentPosition(hold) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('with no car resolved, the Geotab line still renders, once', () => {
+    renderCard(null, true);
+    expect(screen.getAllByText(/on the geotab install list/i)).toHaveLength(1);
   });
 
   it('is not there when the car already has its tag photo', () => {
