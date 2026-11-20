@@ -3,24 +3,31 @@
 // ruling, and the results are the answer: that page has no day record). Reading only.
 import { useState } from 'react';
 import { useBayFind } from '../../hooks/useBayFind';
-import { bayAppearances, FIND_MIN, READ_ONLY_DAYS, type BayAppearance } from '../../lib/bayFind';
+import { bayAppearances, findKey, FIND_MIN, READ_ONLY_DAYS, type BayAppearance } from '../../lib/bayFind';
 import { shiftDateStr } from '../../lib/shiftDay';
 
-export function BayFind({ readOnly = false, onOpenDay }: { readOnly?: boolean; onOpenDay?: (back: number) => void }) {
+// FG's page also narrows the day it has open (2026-11-20, docs/ticket-bay-log-search-the-day.md): `onKey` hands the key
+// up, and `openBack` leaves that day's hits out of the results, since the car is right below with its buttons.
+export function BayFind({ readOnly = false, onOpenDay, onKey, openBack }: {
+  readOnly?: boolean; onOpenDay?: (back: number) => void; onKey?: (key: string | null) => void; openBack?: number;
+}) {
   const [typed, setTyped] = useState('');
   const find = useBayFind(typed, readOnly ? READ_ONLY_DAYS : undefined);
-  const lines = find.rows ? bayAppearances(find.rows, shiftDateStr(), { readOnly }) : null;
+  const all = find.rows ? bayAppearances(find.rows, shiftDateStr(), { readOnly }) : null;
+  const lines = all && openBack !== undefined ? all.filter(l => l.back !== openBack) : all;
+  const change = (v: string) => { setTyped(v); onKey?.(findKey(v)); };
   const short = typed.trim() !== '' && !find.key;
   return (
     <section aria-label="Find in the log" className="space-y-1.5">
-      <input type="search" value={typed} onChange={e => setTyped(e.target.value)} autoCapitalize="characters" autoComplete="off"
+      <input type="search" value={typed} onChange={e => change(e.target.value)} autoCapitalize="characters" autoComplete="off"
         placeholder={readOnly ? `🔍 Find a plate · last ${READ_ONLY_DAYS} days` : '🔍 Find a plate in the log'}
         aria-label="Find a plate in the bay log"
         className="w-full min-h-11 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-sm font-mono uppercase placeholder:normal-case placeholder:font-sans text-gray-900 dark:text-gray-100" />
       {short && <p className="px-1 text-xs text-gray-500 dark:text-gray-400">Type {FIND_MIN} or more of the plate.</p>}
       {find.key && find.error && <p role="alert" className="px-1 text-xs font-semibold text-red-700 dark:text-red-400">{find.error}</p>}
       {find.key && !find.error && !lines && <p className="px-1 text-xs text-gray-500 dark:text-gray-400">Looking…</p>}
-      {lines && lines.length === 0 && (
+      {/* Every hit on the open day: the list below is the answer, so no "hasn't come through". */}
+      {lines && lines.length === 0 && all!.length === 0 && (
         <p className="px-1 text-sm text-gray-600 dark:text-gray-300">
           {find.key} hasn't come through the bay{readOnly ? ` in the last ${READ_ONLY_DAYS} days` : ''}.
         </p>

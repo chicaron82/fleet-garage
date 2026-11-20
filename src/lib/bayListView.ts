@@ -4,6 +4,7 @@
 // just shows the last 3 cleaned the rest are collapsed."* Then: *"Read-only gets the chips but not the fold. Display in
 // reverse order most recent cleaned at the top"*.
 import type { BayLine, BayLineKind } from './lotBayLog';
+import { foldOZero } from './plateFold';
 
 /** The chips that filter. Clean is most of the list, and "still to do" is a count, so neither filters. */
 export type BayFilter = Extract<BayLineKind, 'mhold' | 'bhold' | 'erin'>;
@@ -28,10 +29,17 @@ export interface BayListView {
  *   never fold: the car in the bay, and `pinned` (an M / B row still waiting on Flag it), which sits just under the
  *   three so a to-do can't hide behind a fold he would have to remember to open.
  */
-export function bayListView(lines: readonly BayLine[], { filter = null, fold = false, pinned = new Set<number>() }: {
+export function bayListView(lines: readonly BayLine[], { filter = null, fold = false, pinned = new Set<number>(), plate = null }: {
   filter?: BayFilter | null; fold?: boolean; pinned?: ReadonlySet<number>;
+  /** Find's key (findKey: [A-Z0-9], 3+), 2026-11-20: *"How bout this also searching within the day"*. The plates that
+   *  contain it, O and 0 alike, never folded (docs/ticket-bay-log-search-the-day.md). With a chip, both apply. */
+  plate?: string | null;
 } = {}): BayListView {
   const newest = [...lines].reverse();
+  if (plate) {
+    const key = foldOZero(plate);
+    return { shown: newest.filter(l => foldOZero(l.plate).includes(key) && (!filter || l.kind === filter)), folded: [] };
+  }
   if (filter) return { shown: newest.filter(l => l.kind === filter), folded: [] };
   const finished = newest.filter(l => l.kind !== 'bay');
   if (!fold || finished.length <= FOLD_KEEP) return { shown: newest, folded: [] };

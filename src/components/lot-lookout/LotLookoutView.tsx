@@ -61,6 +61,8 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
   const onBreak = isOnBreak(erin.bay?.breakAt, lastActivity(erin.bay, bay.rows));
   // The day record (Phase 2): ‹ › back through his days. Today is the live log; an earlier day is history.
   const [back, setBack] = useState(0);
+  // Find's key narrows the open day's list too (2026-11-20, docs/ticket-bay-log-search-the-day.md).
+  const [plateKey, setPlateKey] = useState<string | null>(null);
   const isToday = back === 0, day = shiftDateStr(-back);
   const record = useBayDay(day, user?.id ?? null, isToday);
   const [y, m, d] = day.split('-').map(Number);
@@ -179,13 +181,13 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
       )}
 
       {/* 🔍 Find a car in the log (2026-11-10): the whole log here; a result opens its day. docs/ticket-bay-log-find-a-car.md */}
-      <BayFind onOpenDay={setBack} />
+      <BayFind onOpenDay={setBack} onKey={setPlateKey} openBack={back} />
       {isToday ? (
         <div className="space-y-2">
-          <BayLogList rows={bay.rows} heading="The bay log" edit={edit} />
+          <BayLogList rows={bay.rows} heading="The bay log" edit={edit} plate={plateKey} />
         </div>
       )
-        : record.pastRows ? <BayLogList rows={record.pastRows} heading="The bay log" empty="No cars through the bay that day." edit={edit} />
+        : record.pastRows ? <BayLogList rows={record.pastRows} heading="The bay log" empty="No cars through the bay that day." edit={edit} plate={plateKey} />
         : <p className="text-center text-sm text-gray-500 dark:text-gray-400">Loading that day…</p>}
 
       {isToday && crew && (

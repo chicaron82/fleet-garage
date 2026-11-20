@@ -60,8 +60,10 @@ export interface BayListEdit {
   onSendAll?: () => void;
 }
 
-export function BayLogList({ rows, readOnly = false, heading, empty = 'No cars through the bay yet today.', edit, filter: shared, onFilter, chipsClassName = '' }: {
+export function BayLogList({ rows, readOnly = false, heading, empty = 'No cars through the bay yet today.', edit, filter: shared, onFilter, chipsClassName = '', plate = null }: {
   rows: BayLogRow[]; readOnly?: boolean; heading: string; empty?: string; edit?: BayListEdit;
+  /** Find's key: the list narrows to those plates (2026-11-20, docs/ticket-bay-log-search-the-day.md). */
+  plate?: string | null;
   /** A filter held outside (the read-only desktop's "Today so far" tiles drive the same list). Absent = its own. */
   filter?: BayFilter | null; onFilter?: (f: BayFilter | null) => void;
   /** The read-only desktop hides the chips from `lg` up, where the tiles stand in for them. */
@@ -82,7 +84,7 @@ export function BayLogList({ rows, readOnly = false, heading, empty = 'No cars t
   const [unfolded, setUnfolded] = useState(false);
   // A filter whose last car was undone falls away with its chip, instead of leaving an empty list behind it.
   const filter = picked && s[picked] > 0 ? picked : null;
-  const view = bayListView(lines, { filter, fold: canEdit && !unfolded, pinned: edit?.flagIds });
+  const view = bayListView(lines, { filter, fold: canEdit && !unfolded, pinned: edit?.flagIds, plate });
   const toggle = (f: BayFilter) => setPicked(p => (p === f ? null : f));
   const flag = (id: number) => {
     if (!edit) return;
@@ -109,12 +111,18 @@ export function BayLogList({ rows, readOnly = false, heading, empty = 'No cars t
             {s.stillToDo > 0 && <span className={`${CHIP} bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-200`}>{s.stillToDo} still to do</span>}
           </div>
           {/* ✈ Send all up (2026-11-10): the Cleans not yet marked. Erin cars and holds are not Cleans; no count moves. */}
-          {canEdit && edit.onSendAll && unsent > 0 && (
+          {/* Not while Find narrows the list: it acts on the whole day, not the rows on screen. */}
+          {canEdit && edit.onSendAll && unsent > 0 && !plate && (
             <button type="button" onClick={edit.onSendAll}
               className="w-full min-h-10 rounded-xl border border-sky-300 dark:border-sky-700 bg-sky-50 dark:bg-sky-900/30 px-3 text-sm font-bold text-sky-800 dark:text-sky-200 cursor-pointer touch-manipulation active:scale-[0.98] transition">
               ✈ Send up {unsent === s.clean ? (unsent === 1 ? 'the Clean' : `all ${unsent} Cleans`) : `the other ${unsent}`}
             </button>
           )}
+          {plate && view.shown.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 px-4 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+              No {plate} on this day's list.
+            </p>
+          ) : (
           <ol className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800">
             {view.shown.map(l => {
               const finished = l.kind !== 'bay';
@@ -189,7 +197,8 @@ export function BayLogList({ rows, readOnly = false, heading, empty = 'No cars t
               </li>
             )}
           </ol>
-          {canEdit && unfolded && !filter && lines.filter(l => l.kind !== 'bay').length > FOLD_KEEP && (
+          )}
+          {canEdit && unfolded && !filter && !plate && lines.filter(l => l.kind !== 'bay').length > FOLD_KEEP && (
             <button type="button" onClick={() => setUnfolded(false)}
               className="min-h-9 px-1 text-xs font-bold text-gray-500 dark:text-gray-400 cursor-pointer">▴ Fold the list</button>
           )}

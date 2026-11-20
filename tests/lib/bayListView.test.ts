@@ -60,3 +60,26 @@ describe('⭐ the fold (FG)', () => {
     expect(v.folded).toEqual([]);
   });
 });
+
+// Aaron, 2026-11-20: *"How bout this also searching within the day"* (docs/ticket-bay-log-search-the-day.md).
+describe('⭐ Find narrows the day', () => {
+  const at = (id: number, plate: string, kind: BayLineKind = 'clean'): BayLine => ({ ...line(id, kind), plate });
+  const d = [at(1, 'LUR525'), at(2, '0HL762', 'erin'), at(3, 'LUR224'), at(4, 'LUR316'), at(5, 'OHL525', 'bhold'), at(6, 'LZM569', 'bay')];
+
+  it('shows every plate containing the key, newest first, never folded', () => {
+    expect(bayListView(d, { plate: '525', fold: true })).toEqual({ shown: [d[4], d[0]], folded: [] });
+  });
+
+  it('O and 0 are one key, both ways', () => {
+    expect(ids(bayListView(d, { plate: 'OHL' }).shown)).toEqual([5, 2]);
+    expect(ids(bayListView(d, { plate: '0HL762' }).shown)).toEqual([2]);
+  });
+
+  it('a chip and the key both apply', () => {
+    expect(ids(bayListView(d, { plate: '525', filter: 'bhold' }).shown)).toEqual([5]);
+  });
+
+  it('no match is an empty list, not the whole day', () => {
+    expect(bayListView(d, { plate: 'ZZZ999', fold: true })).toEqual({ shown: [], folded: [] });
+  });
+});
