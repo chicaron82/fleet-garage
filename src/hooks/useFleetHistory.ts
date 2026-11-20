@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { outsideOdoSightings, type OdoChangeRow } from '../lib/outsideOdoSightings';
+import { windowCounts } from '../lib/recentSightings';
 
 /** FG's first real record. Anything earlier was seeded during the build. */
 export const FG_RECORD_START = '2026-04-05';
@@ -49,6 +50,8 @@ export interface FleetHistoryRows {
   sightingsByVehicle: Map<string, number>;
   /** vehicle_id → the same count as it stood a week ago (sightings older than 7 days). */
   sightingsWeekAgo: Map<string, number>;
+  /** The Top 10's "Now · 30 days" tab: the last 30 days, and the same window as it stood a week ago (lib/recentSightings). */
+  recent: { now: Map<string, number>; weekAgo: Map<string, number> };
   /** vehicle_id → its newest sighting (ISO). Orders the cars inside a tie by who came through last. */
   lastSeenByVehicle: Map<string, string>;
   /** PLATE (upper) → newest non-voided trip departure (ISO). A trip is contact: the car moved. */
@@ -63,7 +66,7 @@ export interface FleetHistoryRows {
 
 const EMPTY: FleetHistoryRows = {
   holdDates: [], flaggedVehicleIds: new Set(), sightingsByVehicle: new Map(),
-  sightingsWeekAgo: new Map(), lastSeenByVehicle: new Map(), lastTripByPlate: new Map(), lastSheetByPlate: new Map(),
+  sightingsWeekAgo: new Map(), recent: { now: new Map(), weekAgo: new Map() }, lastSeenByVehicle: new Map(), lastTripByPlate: new Map(), lastSheetByPlate: new Map(),
   window: null, loading: true, error: false,
 };
 
@@ -121,7 +124,9 @@ export function useFleetHistory(): FleetHistoryRows {
         const sightingsWeekAgo = new Map<string, number>();
         const lastSeenByVehicle = new Map<string, string>();
         let first = '', last = '';
-        for (const s of [...sightings.data, ...outsideOdoSightings(odo.data)]) {
+        const allSightings = [...sightings.data, ...outsideOdoSightings(odo.data)];
+        const recent = windowCounts(allSightings, Date.now());
+        for (const s of allSightings) {
           if (s.vehicle_id) {
             sightingsByVehicle.set(s.vehicle_id, (sightingsByVehicle.get(s.vehicle_id) ?? 0) + 1);
             const at = s.seen_at ?? '';
@@ -161,7 +166,7 @@ export function useFleetHistory(): FleetHistoryRows {
           : 0;
 
         setRows({
-          holdDates, flaggedVehicleIds, sightingsByVehicle, sightingsWeekAgo, lastSeenByVehicle,
+          holdDates, flaggedVehicleIds, sightingsByVehicle, sightingsWeekAgo, recent, lastSeenByVehicle,
           lastTripByPlate, lastSheetByPlate,
           window: first ? { first, last, days } : null,
           loading: false, error: false,

@@ -51,7 +51,7 @@ export function FleetHistorySection({ onOpenVehicle, history }: {
   //    costing it correctly**: it sits above the list, so its height is a tax on every search.
   const [open, setOpen] = useState(false);
   const {
-    holdDates, flaggedVehicleIds, sightingsByVehicle, sightingsWeekAgo, lastSeenByVehicle,
+    holdDates, flaggedVehicleIds, sightingsByVehicle, sightingsWeekAgo, recent, lastSeenByVehicle,
     window: win, loading, error,
   } = history;
   // ⚠️⚠️ `vehicles` is ALREADY archive-free (VehicleHoldContext:150) — the context filters, and
@@ -93,13 +93,14 @@ export function FleetHistorySection({ onOpenVehicle, history }: {
       totalSightings,
       // Same rows, same live-fleet filter as the cards above, so the two can never disagree.
       ranking: mostSeen(sightingsByVehicle, sightingsWeekAgo, lastSeenByVehicle, new Set(byId.keys())),
+      rankingNow: mostSeen(recent.now, recent.weekAgo, lastSeenByVehicle, new Set(byId.keys())),
       vehiclesById: new Map(live.map(v => [v.id, v])),
       fleetSize: fleet.length,
       projection: win
         ? projectSightings({ days: win.days, sightings: totalSightings, cars: metCars.length }, fleet.length, HORIZONS)
         : [],
     };
-  }, [vehicles, archivedVehicles, holdDates, flaggedVehicleIds, sightingsByVehicle, sightingsWeekAgo, lastSeenByVehicle, win]);
+  }, [vehicles, archivedVehicles, holdDates, flaggedVehicleIds, sightingsByVehicle, sightingsWeekAgo, recent, lastSeenByVehicle, win]);
 
   if (loading) return <EmptyState message="Reading the record…" />;
   if (error) return <EmptyState message="Couldn't read the history. It's a read — try again." />;
@@ -291,7 +292,7 @@ export function FleetHistorySection({ onOpenVehicle, history }: {
       </div>
 
       {/* ── 4 · the cars that keep coming back ─────────────────────────────── */}
-      <TopSeenCard ranking={model.ranking} vehiclesById={model.vehiclesById} since={win?.first ?? null}
+      <TopSeenCard ranking={model.ranking} rankingNow={model.rankingNow} vehiclesById={model.vehiclesById} since={win?.first ?? null}
         latest={newestSighting(lastSeenByVehicle)} onOpen={onOpenVehicle} />
 
       {/* ── 5 · what's in our fleet, by origin (2026-09-17) ─────────────────── */}

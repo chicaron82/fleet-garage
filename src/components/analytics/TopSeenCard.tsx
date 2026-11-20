@@ -7,6 +7,10 @@ import type { Vehicle } from '../../types';
 
 // The ten cars FG meets most, down to the plate. Ranking and movement are pure and tested
 // (lib/fleetHistory `mostSeen` / `movement`); this only draws them.
+//
+// ⭐ Two tabs (2026-11-19, docs/ticket-top-seen-now-and-all-time.md). Aaron: *"is LJF672 really that popular that even
+// after not being seen for 15 days its still #1?"*. All-time counts let a car coast on an old lead, so "Now · 30 days"
+// comes first and "All time" keeps the long view. His pick of three options.
 
 function MoveChip({ rank, prevRank }: { rank: number; prevRank: number | null }) {
   const m = movement({ rank, prevRank });
@@ -23,8 +27,10 @@ function MoveChip({ rank, prevRank }: { rank: number; prevRank: number | null })
   );
 }
 
-export function TopSeenCard({ ranking, vehiclesById, since, latest = null, onOpen }: {
+export function TopSeenCard({ ranking: allTime, rankingNow, vehiclesById, since, latest = null, onOpen }: {
   ranking: MostSeen;
+  /** The last 30 days (lib/recentSightings). Absent → the card is the all-time ranking alone, as before. */
+  rankingNow?: MostSeen;
   vehiclesById: ReadonlyMap<string, Vehicle>;
   since: string | null;
   /** The newest counted sighting (lib/fleetHistory `newestSighting`): what "updated" means here. */
@@ -34,7 +40,9 @@ export function TopSeenCard({ ranking, vehiclesById, since, latest = null, onOpe
   // The clock for "updated N min ago", read when the card mounts and once a minute after, never during render.
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => { const t = setInterval(() => setNowMs(Date.now()), 60_000); return () => clearInterval(t); }, []);
-  if (ranking.rows.length === 0) return null;
+  const [tab, setTab] = useState<'now' | 'all'>(rankingNow ? 'now' : 'all');
+  const ranking = tab === 'now' && rankingNow ? rankingNow : allTime;
+  if (allTime.rows.length === 0) return null;
   const last = ranking.rows[ranking.rows.length - 1];
 
   return (
@@ -44,10 +52,21 @@ export function TopSeenCard({ ranking, vehiclesById, since, latest = null, onOpe
         {/* The newest sighting it counted, so a change he just made shows it was seen (2026-10-20). */}
         {latest && <span className="shrink-0 text-[11px] font-semibold text-green-700 dark:text-green-400">Updated {agoLabel(minutesAgo(latest, nowMs))}</span>}
       </div>
+      {rankingNow && (
+        <div role="tablist" aria-label="Top 10 window" className="mt-2 inline-flex rounded-lg border border-gray-200 dark:border-gray-700 p-0.5 text-[11px] font-semibold">
+          {([['now', 'Now · 30 days'], ['all', 'All time']] as const).map(([k, label]) => (
+            <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => { hapticLight(); setTab(k); }}
+              className={`min-h-8 px-3 rounded-md cursor-pointer ${tab === k ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900' : 'text-gray-600 dark:text-gray-300'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
       <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-        Counting every sighting{since ? ` since ${since}` : ''}. The arrow is the change since a week ago. Cars
-        with the same count <b>share a place</b>.
+        {tab === 'now' && rankingNow ? 'Sightings in the last 30 days.' : `Counting every sighting${since ? ` since ${since}` : ''}.`} The arrow is
+        the change since a week ago. Cars with the same count <b>share a place</b>.
       </p>
+      {ranking.rows.length === 0 && <p className="mt-3 text-[11px] text-gray-500 dark:text-gray-400">No sightings in the last 30 days.</p>}
 
       <div className="mt-3 divide-y divide-gray-100 dark:divide-gray-800">
         {ranking.rows.map(r => {
