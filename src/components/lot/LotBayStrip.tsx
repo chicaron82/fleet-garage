@@ -61,6 +61,8 @@ export function LotBayStrip({ bay, nowMs, action, controls, big = false }: { bay
   const num = big ? 'text-2xl lg:text-8xl lg:leading-none lg:mb-3' : 'text-2xl';
   const cell = big ? 'px-3 py-2 lg:px-6 lg:py-7 min-w-0' : 'px-3 py-2 min-w-0';
   const what = big ? 'block text-[11px] lg:text-base lg:font-semibold text-gray-500 dark:text-gray-400' : 'block text-[11px] text-gray-500 dark:text-gray-400';
+  // The read-only column's sizer hooks (lotFit.css): only the big strip shrinks.
+  const fitNum = big ? { 'data-fit-big': '' } : {}, fitCell = big ? { 'data-fit-cell': '' } : {}, fitWhat = big ? { 'data-fit-what': '' } : {};
   return (
     <section aria-label="Erin St" className="space-y-1">
       <div className="flex items-center justify-between gap-2 px-0.5">
@@ -68,9 +70,9 @@ export function LotBayStrip({ bay, nowMs, action, controls, big = false }: { bay
         {action}
       </div>
       <div className="grid grid-cols-2 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 divide-x divide-gray-200 dark:divide-gray-700">
-        <div className={cell}>
-          <b className={`block ${num} font-extrabold tabular-nums ${cleansOld ? 'text-amber-700 dark:text-amber-400' : 'text-green-700 dark:text-green-400'}`}>{bay.cleans}</b>
-          <span className={what}>cleans ready for the airport</span>
+        <div {...fitCell} className={cell}>
+          <b {...fitNum} className={`block ${num} font-extrabold tabular-nums ${cleansOld ? 'text-amber-700 dark:text-amber-400' : 'text-green-700 dark:text-green-400'}`}>{bay.cleans}</b>
+          <span {...fitWhat} className={what}>cleans ready for the airport</span>
           <Stamp at={bay.cleansAt} nowMs={nowMs} />
           {controls && (
             <div className="grid grid-cols-[1fr_1.4fr] gap-1.5 mt-1.5">
@@ -81,16 +83,16 @@ export function LotBayStrip({ bay, nowMs, action, controls, big = false }: { bay
             </div>
           )}
         </div>
-        <div className={cell}>
+        <div {...fitCell} className={cell}>
           {controls && !editing ? (
             <button type="button" onClick={() => setEditing(true)} aria-label={`Dirties waiting: ${bay.dirties ?? 'not counted'}. Tap to update`}
               className="block text-left cursor-pointer">
               <b className={`block text-2xl font-extrabold tabular-nums ${dirtiesColour}`}>{bay.dirties ?? '–'} <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 underline underline-offset-2">update</span></b>
             </button>
           ) : (
-            <b className={`block ${num} font-extrabold tabular-nums ${dirtiesColour}`}>{bay.dirties ?? '–'}</b>
+            <b {...fitNum} className={`block ${num} font-extrabold tabular-nums ${dirtiesColour}`}>{bay.dirties ?? '–'}</b>
           )}
-          <span className={what}>dirties waiting</span>
+          <span {...fitWhat} className={what}>dirties waiting</span>
           <Stamp at={bay.dirtiesAt} nowMs={nowMs} />
           {controls && editing && <DirtiesEdit current={bay.dirties} onSave={controls.onDirties} onClose={() => setEditing(false)} />}
         </div>

@@ -44,16 +44,17 @@ export function BayTodayTiles({ rows, filter, onFilter }: {
 function Tile({ n, what, tone, onTap, pressed }: { n: number; what: string; tone: string; onTap?: () => void; pressed?: boolean }) {
   const body: ReactNode = (
     <>
-      <b className="block text-5xl font-extrabold leading-none tabular-nums">{n}</b>
-      <span className="mt-2 block text-base font-semibold opacity-80">{what}</span>
+      <b data-fit-tilenum className="block text-5xl font-extrabold leading-none tabular-nums">{n}</b>
+      <span data-fit-what className="mt-2 block text-base font-semibold opacity-80">{what}</span>
     </>
   );
-  if (!onTap) return <div className={`${TILE} ${tone}`}>{body}</div>;
+  // data-fit-tile / -tilenum / -what: the column's sizer shrinks these when the window is short (lotFit.css).
+  if (!onTap) return <div data-fit-tile className={`${TILE} ${tone}`}>{body}</div>;
   // The hover hint (Aaron, 2026-11-19: *"on hover text for Erin St "tap to filter""*, then "Click" for a monitor: these
   // tiles only show from `lg` up). The total, or a tile that's on, clears instead.
   const hint = pressed || what === 'through the bay' ? 'Click to show all' : 'Click to filter';
   return (
-    <button type="button" onClick={onTap} aria-pressed={pressed} title={hint}
+    <button type="button" data-fit-tile onClick={onTap} aria-pressed={pressed} title={hint}
       className={`${TILE} ${tone} cursor-pointer hover:brightness-95 dark:hover:brightness-110 ${pressed ? 'ring-2 ring-offset-1 ring-gray-900 dark:ring-gray-100 dark:ring-offset-gray-950' : ''}`}>
       {body}
     </button>

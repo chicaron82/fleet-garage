@@ -5,6 +5,8 @@ import { crewLine, type CrewSummary } from '../../lib/lotCrew';
 /** `big`: the read-only desktop's left column (docs/ticket-lot-view-desktop-layout.md), larger from `lg` up only. */
 export function LotCrewLine({ summary, heading = true, big = false }: { summary: CrewSummary; heading?: boolean; big?: boolean }) {
   const row = big ? 'px-3 py-2 lg:px-5 lg:py-3.5' : 'px-3 py-2';
+  // The read-only column's sizer (lotFit.css) tightens the big rows when the window is short.
+  const fit = big ? { 'data-fit-row': '' } : {};
   return (
     <section aria-label="Crew now" className="space-y-1">
       {heading && (
@@ -17,14 +19,14 @@ export function LotCrewLine({ summary, heading = true, big = false }: { summary:
         {/* No VSA on = nobody in the bay (Aaron, 2026-11-19: *"VSA's none right now showing a bit more urgency"*).
             Same words, louder: the schedule's fact, never a reason. Drivers stay quiet. */}
         {summary.vsa.on === 0 ? (
-          <p data-urgent className={`${row} flex items-center gap-2 bg-red-50 dark:bg-red-950/50 text-red-800 dark:text-red-200 first:rounded-t-2xl`}>
+          <p {...fit} data-urgent className={`${row} flex items-center gap-2 bg-red-50 dark:bg-red-950/50 text-red-800 dark:text-red-200 first:rounded-t-2xl`}>
             <span aria-hidden className="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-red-500 animate-pulse" />
             <span><span className="font-semibold">VSAs</span> <span className="font-bold">{crewLine(summary.vsa)}</span></span>
           </p>
         ) : (
-          <p className={row}><span className="font-semibold">VSAs</span> <span className="text-gray-700 dark:text-gray-300">{crewLine(summary.vsa)}</span></p>
+          <p {...fit} className={row}><span className="font-semibold">VSAs</span> <span className="text-gray-700 dark:text-gray-300">{crewLine(summary.vsa)}</span></p>
         )}
-        <p className={row}><span className="font-semibold">Drivers</span> <span className="text-gray-700 dark:text-gray-300">{crewLine(summary.driver)}</span></p>
+        <p {...fit} className={row}><span className="font-semibold">Drivers</span> <span className="text-gray-700 dark:text-gray-300">{crewLine(summary.driver)}</span></p>
       </div>
     </section>
   );

@@ -25,7 +25,12 @@
 // Second mock (his: *"The left column feels bare with all that negative space especially the deeper the day goes"*):
 // the left also takes "Today so far" as tiles (the list's chips, grown; they filter the same list), Find, and the
 // crew line, so the list gets the right side alone. On a phone those stay where they always were (`lg:hidden` twins).
+// FITS THE WINDOW (2026-11-19, docs/ticket-lot-view-left-column-fits.md): the pinned column steps down in size until it
+// fits, and scrolls on its own if even the smallest step doesn't. Aaron: *"Maybe a custom sizer? To make it smaller
+// incrementally if things don't fit"*. Automatic, never a button: nothing on this page is there to be pressed.
 import { useState } from 'react';
+import { useFitTier } from '../../hooks/useFitTier';
+import './lotFit.css';
 import type { BayFilter } from '../../lib/bayListView';
 import { useBayLog } from '../../hooks/useBayLog';
 import { useLotBay } from '../../hooks/useLotBay';
@@ -56,6 +61,8 @@ export function LotViewPage() {
   const hand = lastHand(last, breakAt);
   const covered = erin.loaded && bay.loaded && !shown && !isCountKept(hand, erin.nowMs);
   const onBreak = !covered && isCountKept(hand, erin.nowMs) && isOnBreak(breakAt, last);
+  // Steps 0–2 are sizes; 3 is the smallest, scrolling (lotFit.css).
+  const { outer: fitOuter, inner: fitInner, tier: fitStep } = useFitTier(3);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
@@ -84,7 +91,8 @@ export function LotViewPage() {
             </section>
           )}
           <div className={`${COLUMNS} ${covered ? 'blur-sm pointer-events-none select-none' : ''}`} aria-hidden={covered || undefined}>
-            <div data-column="glance" className="space-y-3 lg:space-y-5 lg:sticky lg:top-6">
+            <div data-column="glance" ref={fitOuter} data-fit={fitStep} className="lg:sticky lg:top-6">
+            <div ref={fitInner} data-fit-stack className="flex flex-col gap-3 lg:gap-5">
             {onBreak && (
               <p role="status" className="rounded-2xl border border-sky-300 dark:border-sky-700 bg-sky-50 dark:bg-sky-950 px-4 py-2.5 text-sm text-sky-900 dark:text-sky-100">
                 {/* Pulled away (migration 171): generic, never what the work was; no time on either. */}
@@ -93,13 +101,13 @@ export function LotViewPage() {
                   : 'The count is paused for a break.'}</span> It catches up after.
               </p>
             )}
-            <section aria-label="In the bay now"
+            <section aria-label="In the bay now" data-fit-cell
               className={`rounded-2xl px-4 py-3 lg:px-6 lg:py-5 ${open ? 'border-2 border-amber-500 bg-white dark:bg-gray-900' : 'border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900'}`}>
               <p className="text-[11px] lg:text-sm font-extrabold uppercase tracking-wider text-amber-800 dark:text-amber-300">In the bay now</p>
               {open ? (
                 <>
                   <p className="mt-1 flex items-baseline justify-between gap-2">
-                    <span className="font-mono text-lg lg:text-5xl font-bold">{open.plate}</span>
+                    <span data-fit-plate className="font-mono text-lg lg:text-5xl font-bold">{open.plate}</span>
                     <span className="text-xs lg:text-sm text-gray-500 dark:text-gray-400">since {whenOf(open.started_at, erin.nowMs)}</span>
                   </p>
                   {open.car && <p className="text-sm lg:text-lg lg:mt-1 text-gray-600 dark:text-gray-300">{open.car}</p>}
@@ -108,10 +116,11 @@ export function LotViewPage() {
             </section>
             {erin.bay ? <LotBayStrip bay={erin.bay} nowMs={erin.nowMs} big />
               : <p className="text-sm text-red-700 dark:text-red-400">Erin St's count could not load.</p>}
-            <div data-desktop-only className="hidden lg:block space-y-5">
+            <div data-desktop-only data-fit-stack className="hidden lg:flex lg:flex-col gap-5">
               <BayTodayTiles rows={bay.rows} filter={filter} onFilter={setFilter} />
               <BayFind readOnly />
               {crew && <LotCrewLine summary={crew.summary} big />}
+            </div>
             </div>
             </div>
             <div data-column="log" className="space-y-3">

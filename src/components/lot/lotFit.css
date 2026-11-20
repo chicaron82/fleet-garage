@@ -1,0 +1,27 @@
+/* The read-only desktop's pinned column, sized to the window (docs/ticket-lot-view-left-column-fits.md).
+   Aaron, 2026-11-19: "Maybe a custom sizer? To make it smaller incrementally if things don't fit".
+
+   useFitTier puts data-fit on the column: 0 is full size (no rules here), 1 compact, 2 tight, 3 tight and scrolling
+   on its own. The big things give up the most; the small print (the "as of" stamps, the headings) never shrinks.
+   These rules are unlayered on purpose: Tailwind's utilities live in a cascade layer, so these win over them without
+   !important. Only from lg up: below it nothing is pinned and the page scrolls. */
+@media (min-width: 1024px) {
+  [data-fit="1"] [data-fit-stack] { gap: 0.75rem; }
+  [data-fit="1"] [data-fit-big] { font-size: 4.5rem; }
+  [data-fit="1"] [data-fit-cell] { padding-top: 1rem; padding-bottom: 1rem; }
+  [data-fit="1"] [data-fit-plate] { font-size: 2.25rem; line-height: 1; }
+  [data-fit="1"] [data-fit-tile] { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+  [data-fit="1"] [data-fit-tilenum] { font-size: 2.25rem; }
+  [data-fit="1"] [data-fit-row] { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+
+  :is([data-fit="2"], [data-fit="3"]) [data-fit-stack] { gap: 0.5rem; }
+  :is([data-fit="2"], [data-fit="3"]) [data-fit-big] { font-size: 3.25rem; margin-bottom: 0.375rem; }
+  :is([data-fit="2"], [data-fit="3"]) [data-fit-cell] { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+  :is([data-fit="2"], [data-fit="3"]) [data-fit-what] { font-size: 0.875rem; line-height: 1.25rem; }
+  :is([data-fit="2"], [data-fit="3"]) [data-fit-plate] { font-size: 1.75rem; line-height: 1; }
+  :is([data-fit="2"], [data-fit="3"]) [data-fit-tile] { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+  :is([data-fit="2"], [data-fit="3"]) [data-fit-tilenum] { font-size: 1.75rem; }
+  :is([data-fit="2"], [data-fit="3"]) [data-fit-row] { padding-top: 0.375rem; padding-bottom: 0.375rem; font-size: 1rem; }
+
+  [data-fit="3"] { max-height: calc(100vh - 3rem); overflow-y: auto; overscroll-behavior: contain; }
+}

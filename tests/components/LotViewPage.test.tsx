@@ -172,7 +172,7 @@ describe('LotViewPage, the desktop layout', () => {
   it('⭐ the left column also carries Find (desktop only); the phone keeps its own Find above the list', () => {
     const { container } = render(<LotViewPage />);
     const desk = container.querySelector('[data-column="glance"] [data-desktop-only]')!;
-    expect(desk.className).toContain('hidden lg:block');
+    expect(desk.className).toContain('hidden lg:flex');
     expect(desk.querySelector('[aria-label="Find in the log"]')).not.toBeNull();
     const phoneFind = container.querySelector('[data-column="log"] [data-phone-only]')!;
     expect(phoneFind.className).toContain('lg:hidden');
