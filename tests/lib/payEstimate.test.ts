@@ -237,6 +237,7 @@ describe('calcPayEstimate', () => {
   it('uses PAY_CONFIG rates', () => {
     expect(PAY_CONFIG.regularRate).toBe(18.25);   // his raise, 2026-10-16
     expect(PAY_CONFIG.otRate).toBe(27.375);
+    // Derived, not typed (line-check 2026-11-21 #2): a raise moves ONE number and OT follows.
     expect(PAY_CONFIG.otRate).toBe(PAY_CONFIG.regularRate * 1.5);
     expect(PAY_CONFIG.employeeId).toBe('331965');
   });

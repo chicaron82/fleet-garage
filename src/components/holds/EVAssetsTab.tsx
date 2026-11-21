@@ -15,6 +15,7 @@ import { isAssetLentOut, lentOutBy } from '../../lib/evAssetLoans';
 import { hapticMedium } from '../../lib/haptics';
 import type { EvAssetStatus, Vehicle } from '../../types';
 import { formatUnitNumber } from '../../lib/formatUnitNumber';
+import { UnitNumberInput } from '../shared/VehicleFields';
 
 const BOTH_MISSING_DESCRIPTION =
   'Both EV assets missing — Mobile Charge Cable and J1772 Adapter not present. ' +
@@ -165,14 +166,14 @@ export function EVAssetsTab() {
             {cable === 'missing' && !isAssetLentOut(evAssetLoans, selected.id, 'cable') && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-600 dark:text-gray-300 w-32 shrink-0">🔌 Charge cable →</span>
-                <input value={cableLentUnit} onChange={e => setCableLentUnit(e.target.value.toUpperCase())} placeholder="unit #"
+                <UnitNumberInput value={cableLentUnit} onValueChange={setCableLentUnit} placeholder="unit #"
                   className="flex-1 px-2.5 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700/60 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 transition uppercase" />
               </div>
             )}
             {adapter === 'missing' && !isAssetLentOut(evAssetLoans, selected.id, 'adapter') && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-600 dark:text-gray-300 w-32 shrink-0">🔗 J1772 adapter →</span>
-                <input value={adapterLentUnit} onChange={e => setAdapterLentUnit(e.target.value.toUpperCase())} placeholder="unit #"
+                <UnitNumberInput value={adapterLentUnit} onValueChange={setAdapterLentUnit} placeholder="unit #"
                   className="flex-1 px-2.5 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700/60 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 transition uppercase" />
               </div>
             )}

@@ -795,13 +795,16 @@ strings in `src/`: zero remaining cases, and every standing-habit claim reads un
 
 ## Build & Test
 
-⚠️ **THREE things call themselves "the gate". CI is the one that does NOT run the flow tests.**
+⚠️ **THREE things call themselves "the gate". CI is the weakest: it runs neither the flow tests nor two of gate.sh's
+other steps.**
 
-| | `tsc -b` | lint | vitest | **flows** |
-|---|---|---|---|---|
-| `scripts/gate.sh` | ✓ | ✓ | ✓ | **✓** |
-| `.git/hooks/pre-push` | ✓ | ✓ | ✓ | **✓** (it is `exec bash scripts/gate.sh`) |
-| `.github/workflows/ci.yml` | ✓ | ✓ | ✓ | **✗** |
+| | test placement | lint | `tsc -b` | api non-strict | vitest | **flows** |
+|---|---|---|---|---|---|---|
+| `scripts/gate.sh` | ✓ | ✓ | ✓ | ✓ | ✓ | **✓** |
+| `.git/hooks/pre-push` | ✓ | ✓ | ✓ | ✓ | ✓ | **✓** (it is `exec bash scripts/gate.sh`) |
+| `.github/workflows/ci.yml` | ✗ | ✓ | ✓ | ✗ | ✓ | **✗** |
+
+(api non-strict = `api/` type-checked the way Vercel builds it, `080e4409`. Table updated at the 2026-11-21 line-check, #8.)
 
 **History, because the fix is the lesson.** Until 2026-08-27 the hook inlined tsc/lint/vitest to
 mirror CI, so a broken **journey** was invisible to `git push` *and* CI while the hook printed "✓ CI
@@ -865,15 +868,19 @@ the verify bot (creds in gitignored `.env.local`: `VERIFY_EMPLOYEE_ID` /
 falls back to the last-visited module, which reads as "wrong screen rendered"
 (bit 2026-07-16 — `/my-shift` pre-alias rendered My Day and got read as a
 landing-pref bug). This is the standing cure for "shipped visual work unseen."
-**⚠️ The helper renders at 1280px DESKTOP + LIGHT mode only** (`verify-fg.mjs` hardcodes
-`viewport 1280×900`, no theme). So it **cannot see** two whole classes of change: the
-`md:hidden` **mobile header** (`AppShell.tsx` — invisible above the `md` breakpoint) and
-**dark mode** (class-based, not `prefers-color-scheme`, so Playwright's `colorScheme:'dark'`
-does nothing). For a mobile-only or dark change, a plain helper run "verifies" a ghost —
-render a **custom viewport** (e.g. 390px) and **force the class** (`page.evaluate(() =>
-document.documentElement.classList.add('dark'))`), and drive **both themes + the tightest
-layout state in one pass**. Bit the header mis-tap fix `619fade` (2026-08-11): the fix lived
-in the `md:hidden` header, so the desktop-light helper would have shown nothing.
+**The helper now covers what it used to miss** (updated at the 2026-11-21 line-check, #7):
+- `VW=412` (his phone) or any width, `VH=` for a taller page. The default 1280×900 is a desktop, and the `md:hidden`
+  mobile header is invisible there.
+- `DARK=1` renders the dark theme by setting the class, with no database write. Playwright's `colorScheme:'dark'` does
+  nothing here, because FG's dark mode is class-based.
+- `VID=vsa` logs in as the Lead VSA mock, the closest to his role. The default is DiZee (GM), which sees
+  management-only screens he never gets. ⚠️ As `VID=vsa`, `/` lands on **My Day** (his landing preference); render
+  Holds at `/holds`.
+- `IMG=1` loads real photos (blocked by default).
+- It launches the installed Chrome, because Playwright's bundled Chromium has old time-zone tables and reads Winnipeg
+  an hour early.
+History, still the lesson: until the helper grew these, a mobile-only or dark change "verified" on desktop-light was a
+ghost. It bit the header mis-tap fix `619fade` (2026-08-11), whose fix lived in the `md:hidden` header.
 
 **Write boundary (DiZee is a mock account, scoped writes OK as of 2026-06-16):**
 self-scoped writes are free — anything affecting only DiZee's own numbers

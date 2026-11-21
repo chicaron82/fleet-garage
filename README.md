@@ -32,22 +32,28 @@ Fleet Garage has evolved far beyond a simple damage ledger. It now encompasses t
 - **Key-Tag Scanner:** Photograph a vehicle's key tag and Claude vision reads plate, unit number, class code, rental class, year and colour off it, then routes to the right module pre-filled — register, flag, start a trip, log lost & found. Unrecognised class codes teach a codex.
 - **Exception Handling:** Automatically detects when a vehicle returning from an "exception release" requires immediate review.
 
-### 7. Effie — the AI assistant
+### 4. Effie — the AI assistant
 - **Chat + vision:** Text runs on Sonnet, images on Opus. Register a car, draft a hold, read a schedule sheet, or answer a question about the fleet, conversationally.
 - **Deterministic backstops:** Guardrails are code, not prompt rules — speech is stripped of markdown, misread plates are corrected against the Manitoba prefix, and a turn that *claims* a draft without calling the tool is forced to call it.
 
-### 4. My Shift
+### 5. My Shift
 
 - **Shift Summary:** Personal throughput rate, cars cleaned in your shift window, and effort score adjusted for off-standard time.
 - **Save Summary:** Snapshot your shift to the 7-day history — saving again updates rather than duplicating.
 - **Team Today:** Management view showing all saved summaries for the branch in one screen.
 - **Shift Duties:** Washbay closing log — cars in, cars cleaned, throughput rate, and pipeline breakdown.
 
-### 5. Staff Scheduling
+### 6. Staff Scheduling
 - **Shift Management:** Weekly crew scheduling with role-based assignments.
 - **Overrides:** Management can override standard templates for exceptions or coverage adjustments.
 
-### 6. Analytics & Dashboards
+### 7. Lot Lookout — the Erin St bay
+- **The count:** cleans ready for the airport and dirties waiting, each stamped with when it was last touched. A trip to the airport takes a clean on its own.
+- **The bay log:** the car in the bay now, Next up, and every exit (Clean, for Erin St, held for damage or mechanical) with its time. Find narrows it to one plate across the last 14 days.
+- **On break / Pulled away:** a pause that tells viewers the count isn't stale, without saying why or for how long.
+- **The read-only link (`/lot/view`):** no PIN and no buttons, for whoever needs the numbers without texting the bay. It shows times, never initials or durations, and on a desk monitor it splits into a pinned glance column beside the log, sized to fit the window. The crew line shows counts from the schedule, never names.
+
+### 8. Analytics & Dashboards
 - **Paginated Dashboards:** Clean, responsive client-side pagination for tracking active exceptions and holds.
 - **Real-Time Dashboards:** Real-time data visualization of fleet health, hold turn-around times, and staff productivity.
 
@@ -125,7 +131,8 @@ sentence in the repo — corrected 2026-08-25.)*
 ## Scope
 
 This is not a system of record and nothing operationally depends on it. New tables ship with a
-numbered `migrations/NNN_*.sql` file, RLS enabled plus an allow-all policy, and regenerated types
-**and** schema snapshot — three halves, all required. The real type gate is `tsc -b`
+numbered `migrations/NNN_*.sql` file, RLS enabled plus an allow-all policy, and explicit grants
+(Supabase stopped auto-granting new tables on 2026-10-30), and regenerated types **and** schema snapshot:
+four parts, all required (CLAUDE.md, "A new table — four parts, not three"). The real type gate is `tsc -b`
 (`npm run build`); bare `tsc --noEmit` checks **zero** files here, because the root tsconfig is a
 solution file.

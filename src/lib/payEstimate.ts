@@ -7,10 +7,14 @@ import { calcHours, calcOT, calcPlannedOT, extraBlocksHours, netActualHours, tim
 // ⚠️  Update annually each January: CPP/EI rates change on Jan 1 (statutory);
 //     tax rate = observed effective rate from most recent paystub.
 
+// One number for his rate. OT is DERIVED from it, never typed (line-check 2026-11-21 #2): a raise that moved only the
+// regular rate would have left every OT and holiday-premium hour priced at 1.5× the OLD rate.
+const REGULAR_RATE = 18.25;   // raised from 17.75 — first paid on the 2026-10-15 cheque (period ending 10-08)
+
 export const PAY_CONFIG = {
   employeeId:            '331965',
-  regularRate:            18.25,    // raised from 17.75 — first paid on the 2026-10-15 cheque (period ending 10-08)
-  otRate:                 27.375,   // exactly 1.5×
+  regularRate:            REGULAR_RATE,
+  otRate:                 REGULAR_RATE * 1.5,
   cppRate:                0.0595,   // 2026 statutory — update Jan 1
   cppBiweeklyExemption:   134.62,   // $3,500 / 26 periods — update Jan 1
   eiRate:                 0.0163,   // 2026 statutory — update Jan 1

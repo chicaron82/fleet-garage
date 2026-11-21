@@ -55,6 +55,7 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
   const parsed = parseLotRequest(body);
   const db = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
   // The one door: a signed-in FG session (FG is trusted-crew-only). A body still carrying a PIN gets no further.
+  // Every action below is past it: the per-action sign-in refusals from the PIN era went (line-check 2026-11-21 #9).
   const token = bearerOf(req.headers?.authorization);
   const signedIn = token != null && !(await db.auth.getUser(token)).error;
   if (!signedIn) {
@@ -69,11 +70,6 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
 
   try {
     if (isBayLogRequest(parsed)) {
-      // His log, his taps: a signed-in FG session only, never the shared PIN (ticket-lot-lookout-bay-log).
-      if (!signedIn) {
-        res.status(403).json({ error: 'Sign in to FG to use the bay log.' });
-        return;
-      }
       const today = shiftBusinessDate(new Date(now));
       try {
         const out = parsed.action === 'bayStart' ? await startCar(db, parsed.vehicleId, parsed.by, now, today)
@@ -103,11 +99,6 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
       return;
     }
     if (parsed.action === 'leaveOff') {
-      // People, not cars: only a signed-in FG session may change the crew line. The PIN never could.
-      if (!signedIn) {
-        res.status(403).json({ error: 'Sign in to FG to change the crew.' });
-        return;
-      }
       await leaveOff(db, parsed.user, parsed.off, parsed.by, now);
       res.status(200).json({ ok: true, crew: await loadCrew(db, Date.parse(now), true) });
       return;

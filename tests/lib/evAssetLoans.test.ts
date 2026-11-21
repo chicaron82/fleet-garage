@@ -4,6 +4,7 @@ import {
   ASSET_ICON,
   lentOutBy,
   borrowedByUnit,
+  loanUnit,
   isAssetLentOut,
 } from '../../src/lib/evAssetLoans';
 import type { EvAssetLoan } from '../../src/types';
@@ -55,6 +56,18 @@ describe('borrowedByUnit', () => {
     const loans = [loan({ borrowerUnit: '7777' })];
     expect(borrowedByUnit(loans, '5424')).toEqual([]);
     expect(borrowedByUnit(loans, '7777').map(l => l.borrowerUnit)).toEqual(['7777']);
+  });
+});
+
+describe('loanUnit — a unit typed the way the tag prints it still matches (line-check 2026-11-21 #10)', () => {
+  it('drops spaces and upper-cases', () => {
+    expect(loanUnit(' 542 9998 ')).toBe('5429998');
+    expect(loanUnit('hrz-3307')).toBe('HRZ-3307');
+  });
+
+  it('⭐ a spaced borrower matches the car, and a spaced lookup matches a plain loan', () => {
+    expect(borrowedByUnit([loan({ borrowerUnit: '542 9998' })], '5429998')).toHaveLength(1);
+    expect(borrowedByUnit([loan({ borrowerUnit: '5429998' })], '542 9998')).toHaveLength(1);
   });
 });
 

@@ -1,6 +1,6 @@
 import { supabase, writeWithRefresh } from '../lib/supabase';
 import { withSubmitLock } from '../lib/submitLock';
-import { ASSET_LABEL } from '../lib/evAssetLoans';
+import { ASSET_LABEL, loanUnit } from '../lib/evAssetLoans';
 import type { EvAssetLoan, EvLoanAsset, Vehicle } from '../types';
 
 // DB row (snake_case) → domain EvAssetLoan.
@@ -56,10 +56,10 @@ export function makeEvAssetLoanOps(deps: {
     // asset. Guard on lender + asset + borrower — a dropped re-entrant tap resolves
     // undefined, skipping the local append too.
     const result = await withSubmitLock(
-      `evloan:${lenderVehicleId}:${assetType}:${borrowerUnit.trim().toLowerCase()}`,
+      `evloan:${lenderVehicleId}:${assetType}:${loanUnit(borrowerUnit)}`,
       () => writeWithRefresh(() => supabase.from('ev_asset_loans').insert({
         id, lender_vehicle_id: lenderVehicleId, asset_type: assetType,
-        borrower_unit: borrowerUnit.trim(), status: 'out', notes,
+        borrower_unit: loanUnit(borrowerUnit), status: 'out', notes,
         created_at: now, created_by: userId,
       })),
     );

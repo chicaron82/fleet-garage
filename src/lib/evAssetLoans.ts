@@ -31,7 +31,15 @@ export function lentOutBy(loans: EvAssetLoan[], vehicleId: string): EvAssetLoan[
  */
 export function borrowedByUnit(loans: EvAssetLoan[], unitNumber: string | null | undefined): EvAssetLoan[] {
   if (!unitNumber) return [];
-  return loans.filter(l => l.status === 'out' && l.borrowerUnit === unitNumber);
+  const unit = loanUnit(unitNumber);
+  return loans.filter(l => l.status === 'out' && loanUnit(l.borrowerUnit) === unit);
+}
+
+/** A unit# as a loan stores and matches it: no spaces, upper case. The tag PRINTS units spaced ("542 9998", the
+ *  display format since faeb9a66), so a unit typed the way it reads would otherwise never match its car
+ *  (line-check 2026-11-21 #10). */
+export function loanUnit(unit: string): string {
+  return unit.replace(/\s+/g, '').toUpperCase();
 }
 
 /** Whether this vehicle has the given asset out on loan (to suppress a duplicate lend). */
