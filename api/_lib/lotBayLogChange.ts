@@ -36,8 +36,9 @@ export async function changeExit(db: SupabaseClient, id: number, to: ChangeableE
   if (!row) throw new BayLogRefusal('That car already changed.');
   let bay: unknown = null;
   if (delta !== 0) {
-    const moved = await moveCountSafely(db, r => changedExitCount(r, delta, by, nowIso));
-    // A busy count says so; the line already changed, so the words say where things stand.
+    // A busy count, or a count write that fails outright (line-check 2026-11-21 #3), says so; the line already changed,
+    // so the words say where things stand. A bare error would answer "did not save" for a line that did.
+    const moved = await moveCountSafely(db, r => changedExitCount(r, delta, by, nowIso)).catch(() => ({ kind: 'refused' as const }));
     if (moved.kind === 'refused') throw new BayLogRefusal(`${was.plate} changed, but the cleans count did not move. Check it.`);
     if (moved.kind === 'saved') bay = moved.saved;
   }

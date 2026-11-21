@@ -61,7 +61,9 @@ describe('useBayTapsSignedIn — quick taps', () => {
     expect(notes[0].msg).toBe('Drained 3 · 6 cleans');
     expect(notes[0].undo).toBeTypeOf('function');
     await act(async () => { notes[0].undo!(); await Promise.resolve(); });
-    expect(sent[1]).toEqual({ action: 'bayUndo', field: 'cleans', to: { cleans: 9, dirties: 3, used: 4, usedOn: '2026-10-16' }, by: 'AS' });
+    // `left` is what the drain left, so the server can refuse an Undo once anything has moved since (line-check #4).
+    expect(sent[1]).toEqual({ action: 'bayUndo', field: 'cleans', to: { cleans: 9, dirties: 3, used: 4, usedOn: '2026-10-16' },
+      left: { cleans: 6, dirties: 3 }, by: 'AS' });
   });
 
   it('a drain bigger than the pile says how many it really took', async () => {

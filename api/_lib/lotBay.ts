@@ -40,7 +40,7 @@ export type BayRequest =
   | { action: 'drain'; n: number; by: string }
   | { action: 'dirtiesStep'; delta: 1 | -1; by: string }
   | { action: 'fill'; n: number; by: string }
-  | { action: 'bayUndo'; field: 'cleans' | 'dirties'; to: BaySnapshot; by: string }
+  | { action: 'bayUndo'; field: 'cleans' | 'dirties'; to: BaySnapshot; left?: { cleans: number; dirties: number | null }; by: string }
   | { action: 'tripClean'; delta: 1 | -1; by: string };
 
 export const BAY_ACTIONS: readonly BayRequest['action'][] = ['cleans', 'dirties', 'cleansSet', 'drain', 'dirtiesStep', 'fill', 'bayUndo', 'tripClean'];
@@ -87,6 +87,12 @@ export function bayChange(row: BayRow, req: BayRequest, nowIso: string, today: s
     }
     case 'bayUndo': {
       const t = req.to;
+      // Anything since the tap (a +1, a bay exit, a trip, the other phone) would be erased by writing `to` back whole, so
+      // the Undo stands down and says so (line-check 2026-11-21 #4). No `left` = a client from before this: as it was.
+      const l = req.left;
+      if (l && (row.cleans !== l.cleans || row.dirties !== l.dirties)) {
+        return { error: 'The count has moved since that tap, so Undo would erase it. Set it by hand.' };
+      }
       return {
         patch: {
           cleans: t.cleans, dirties: t.dirties, used: t.used, used_on: t.usedOn,

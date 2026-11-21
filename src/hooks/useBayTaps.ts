@@ -46,10 +46,13 @@ function useBayWriter(state: LotBayState, toast: BayToast, send: Send, by: strin
     return saved;
   }, [state, by, send, fail]);
 
-  /** An Undo for a quick tap: the row as it was before, for the count the tap changed. */
-  const undoTo = useCallback((before: LotBay, field: BayField) => () => {
+  /** An Undo for a quick tap: the row as it was before, for the count the tap changed. `left` is what the tap left, so
+   *  the server can refuse when anything has moved since: writing `before` back whole would erase that tap
+   *  (line-check 2026-11-21 #4: Drain 3, a bay Clean +1, Undo the drain → 10, not 11). */
+  const undoTo = useCallback((before: LotBay, field: BayField, left: LotBay) => () => {
     const to = { cleans: before.cleans, dirties: before.dirties, used: before.used, usedOn: before.usedOn };
-    void write({ action: 'bayUndo', field, to }, () => before).then(s => { if (s) toast('Undone'); });
+    void write({ action: 'bayUndo', field, to, left: { cleans: left.cleans, dirties: left.dirties } }, () => before)
+      .then(s => { if (s) toast('Undone'); });
   }, [write, toast]);
 
   const tapCleans = useCallback(async (delta: 1 | -1) => {
@@ -95,7 +98,7 @@ function useBayWriter(state: LotBayState, toast: BayToast, send: Send, by: strin
     if (!saved) return false;
     const was = field === 'cleans' ? before.cleans : before.dirties;
     toast(count === 0 && was ? `${field === 'cleans' ? 'Cleans' : 'Dirties'} zeroed (was ${was})` : `Set to ${count} ${field}`,
-      undoTo(before, field));
+      undoTo(before, field, saved));
     return true;
   }, [state, write, by, toast, undoTo]);
 
@@ -112,7 +115,7 @@ function useBayWriter(state: LotBayState, toast: BayToast, send: Send, by: strin
     const saved = await write({ action: 'drain', n }, (b, at) => ({
       ...b, cleans: b.cleans - took, cleansBy: by, cleansAt: at, used: usedToday(b, now) + took, usedOn: businessDateOf(new Date(now)),
     }));
-    if (saved) toast(`Drained ${took}${took < n ? ` (only ${before.cleans} on the lot)` : ''} · ${saved.cleans} cleans`, undoTo(before, 'cleans'));
+    if (saved) toast(`Drained ${took}${took < n ? ` (only ${before.cleans} on the lot)` : ''} · ${saved.cleans} cleans`, undoTo(before, 'cleans', saved));
   }, [state, write, by, toast, undoTo]);
 
   /** The same drivers' dirties, back at the bay. */
@@ -120,7 +123,7 @@ function useBayWriter(state: LotBayState, toast: BayToast, send: Send, by: strin
     const before = state.bay;
     if (!before || n < 1) return;
     const saved = await write({ action: 'fill', n }, (b, at) => ({ ...b, dirties: (b.dirties ?? 0) + n, dirtiesBy: by, dirtiesAt: at }));
-    if (saved) toast(`Filled ${n} · ${saved.dirties ?? 0} dirties`, undoTo(before, 'dirties'));
+    if (saved) toast(`Filled ${n} · ${saved.dirties ?? 0} dirties`, undoTo(before, 'dirties', saved));
   }, [state, write, by, toast, undoTo]);
 
   /**
@@ -131,9 +134,10 @@ function useBayWriter(state: LotBayState, toast: BayToast, send: Send, by: strin
     const before = state.bay;
     if (!before || (before.cleans === cleans && before.dirties === dirties)) return;
     const next = (b: LotBay, at: string): LotBay => ({ ...b, cleans, cleansBy: by, cleansAt: at, dirties, dirtiesBy: by, dirtiesAt: at });
-    if (before.cleans !== cleans && !(await write({ action: 'cleansSet', count: cleans }, next))) return;
-    if (before.dirties !== dirties && !(await write({ action: 'dirties', count: dirties }, next))) return;
-    toast(`Erin set to ${cleans}/${dirties}`, undoTo(before, 'cleans'));
+    let left: LotBay = before;
+    if (before.cleans !== cleans) { const s = await write({ action: 'cleansSet', count: cleans }, next); if (!s) return; left = s; }
+    if (before.dirties !== dirties) { const s = await write({ action: 'dirties', count: dirties }, next); if (!s) return; left = s; }
+    toast(`Erin set to ${cleans}/${dirties}`, undoTo(before, 'cleans', left));
   }, [state, write, by, toast, undoTo]);
 
   /** On break / Pulled away / Back (migrations 166, 171): a stamp on the row, not a count. Any later tap ends it. */

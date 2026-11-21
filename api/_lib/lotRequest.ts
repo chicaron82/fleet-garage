@@ -95,7 +95,13 @@ export function parseLotRequest(body: unknown): LotRequest | { error: string } {
       const usedOn = t.usedOn == null ? null : typeof t.usedOn === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t.usedOn) ? t.usedOn : undefined;
       if (b.field !== 'cleans' && b.field !== 'dirties') return { error: 'Nothing to undo.' };
       if (cleans == null || dirties === undefined || used == null || usedOn === undefined) return { error: 'Nothing to undo to.' };
-      return { action: 'bayUndo', field: b.field, to: { cleans, dirties, used, usedOn }, by };
+      // What the tap left (line-check 2026-11-21 #4). Optional: a client from before it sends none.
+      const l = b.left as Record<string, unknown> | undefined;
+      const leftCleans = l ? countOf(l.cleans) : undefined;
+      const leftDirties = l ? (l.dirties == null ? null : countOf(l.dirties)) : undefined;
+      if (l && (leftCleans == null || leftDirties === undefined)) return { error: 'Nothing to undo to.' };
+      const left = l ? { cleans: leftCleans as number, dirties: leftDirties as number | null } : undefined;
+      return { action: 'bayUndo', field: b.field, to: { cleans, dirties, used, usedOn }, ...(left ? { left } : {}), by };
     }
     // Left off the crew line (migration 155). Signed-in FG only; api/lot.ts enforces that, not the PIN.
     // (The per-person 'crew' state action was retired 2026-10-24: the crew line is the schedule now.)

@@ -66,6 +66,36 @@ describe('bayChange — the quick taps', () => {
   });
 });
 
+describe('⭐ UNDO stands down once the count has moved since its tap (line-check 2026-11-21 #4)', () => {
+  const to = { cleans: 9, dirties: 3, used: 4, usedOn: TODAY };
+
+  it('the row still as the tap left it: the undo lands', () => {
+    const c = bayChange(row({ cleans: 6, dirties: 3, used: 7 }), { action: 'bayUndo', field: 'cleans', to, left: { cleans: 6, dirties: 3 }, by: 'AS' }, NOW, TODAY);
+    expect(c).toHaveProperty('patch.cleans', 9);
+  });
+
+  it('a +1 since the drain (6 → 7): refused in words, nothing erased', () => {
+    const c = bayChange(row({ cleans: 7, dirties: 3, used: 7 }), { action: 'bayUndo', field: 'cleans', to, left: { cleans: 6, dirties: 3 }, by: 'AS' }, NOW, TODAY);
+    expect(c).toEqual({ error: 'The count has moved since that tap, so Undo would erase it. Set it by hand.' });
+  });
+
+  it('a dirty moved since a cleans tap: refused too (Undo writes the whole row back)', () => {
+    const c = bayChange(row({ cleans: 6, dirties: 4, used: 7 }), { action: 'bayUndo', field: 'cleans', to, left: { cleans: 6, dirties: 3 }, by: 'AS' }, NOW, TODAY);
+    expect(c).toHaveProperty('error');
+  });
+
+  it('a client from before this sends no `left`: the undo behaves as it always did', () => {
+    const c = bayChange(row({ cleans: 7, dirties: 3, used: 7 }), { action: 'bayUndo', field: 'cleans', to, by: 'AS' }, NOW, TODAY);
+    expect(c).toHaveProperty('patch.cleans', 9);
+  });
+
+  it('parse carries `left`, and refuses a broken one', () => {
+    expect(parseLotRequest({ action: 'bayUndo', field: 'cleans', to, left: { cleans: 6, dirties: 3 }, by: 'AS' }))
+      .toEqual({ action: 'bayUndo', field: 'cleans', to, left: { cleans: 6, dirties: 3 }, by: 'AS' });
+    expect(parseLotRequest({ action: 'bayUndo', field: 'cleans', to, left: { cleans: -2, dirties: 3 }, by: 'AS' })).toHaveProperty('error');
+  });
+});
+
 describe('parseLotRequest — the quick taps', () => {
   it('reads each new action', () => {
     expect(parseLotRequest({ action: 'cleansSet', count: '6', by: 'AS' })).toEqual({ action: 'cleansSet', count: 6, by: 'AS' });

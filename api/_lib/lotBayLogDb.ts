@@ -134,11 +134,13 @@ export async function exitCar(db: SupabaseClient, id: number, exit: BayExit, by:
   const { data: row, error } = await db.from('lot_bay_log')
     .update({ exit, exited_at: nowIso, took_dirty: tookDirty, ...sentUp, ...(odometer ? { odometer } : {}) }).eq('id', id).is('exit', null)
     .select(BAY_LOG_COLS).maybeSingle();
-  if (error) throw error;
-  if (!row) {
-    // Already out (another tap, another phone). Put the count back if this tap moved it.
-    if (addsClean) ({ saved: bay } = await moveCount(db, { action: 'cleans', delta: -1, fix: true, giveDirty: tookDirty, by }, nowIso, today));
-    else if (tookDirty) await moveCount(db, r => heldExitChange(r, 'give', by, nowIso), nowIso, today);
+  if (error || !row) {
+    // The line did not land: already out (another tap, another phone), or the write failed. Either way the count this
+    // tap moved goes back, so his retry can't count one car twice (line-check 2026-11-21 #3; addCleaned's rule).
+    const giveBack = addsClean ? moveCount(db, { action: 'cleans', delta: -1, fix: true, giveDirty: tookDirty, by }, nowIso, today)
+      : tookDirty ? moveCount(db, r => heldExitChange(r, 'give', by, nowIso), nowIso, today) : null;
+    if (error) { await giveBack?.catch(() => {}); throw error; }
+    if (giveBack) ({ saved: bay } = await giveBack);
     throw new BayLogRefusal('That car already left the bay.');
   }
   return { row, bay, ...(pull ? await pullNext(db, id, by, nowIso, today) : {}) };
@@ -181,15 +183,23 @@ export async function undoExit(db: SupabaseClient, id: number, by: string, nowIs
   if (error) throw error;
   if (!row) throw new BayLogRefusal('That car already changed.');
   let bay: unknown = null;
+  // The car is already back in the bay. If the count then fails, "did not save" would be a lie and a retry would count
+  // it again; say where things stand instead (line-check 2026-11-21 #3, changeExit's wording).
+  const stuck = (e: unknown) => {
+    if (e instanceof BayLogRefusal) return e;
+    return new BayLogRefusal(`${row.plate} is back in the bay, but the count did not move. Check it.`);
+  };
   if (was.exit === 'clean' && !was.sent_at_exit) {
     try {
       ({ saved: bay } = await moveCount(db, { action: 'cleans', delta: -1, fix: true, giveDirty: was.took_dirty, by }, nowIso, today));
     } catch (e) {
       // The clean already went up (a drain at 0 cleans). The car is back in the bay; the count stays as the lot is.
-      if (!(e instanceof BayLogRefusal)) throw e;
+      if (!(e instanceof BayLogRefusal)) throw stuck(e);
     }
   } else if ((dirtyOnly(was.exit) || was.sent_at_exit) && was.took_dirty) {
-    ({ saved: bay } = await moveCount(db, r => heldExitChange(r, 'give', by, nowIso), nowIso, today));
+    try {
+      ({ saved: bay } = await moveCount(db, r => heldExitChange(r, 'give', by, nowIso), nowIso, today));
+    } catch (e) { throw stuck(e); }
   }
   return { row, bay, ...unpulled };
 }
