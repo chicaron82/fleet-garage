@@ -1,4 +1,5 @@
-import { orderZones } from './damageZones';
+import { orderZones, holdIsMappable, presetFor } from './damageZones';
+import type { HoldType, Repair } from '../types';
 
 // Repairing SOME of a hold's panels.
 //
@@ -21,10 +22,66 @@ export function descriptionParts(description: string): string[] {
   return description.split(';').map(p => p.trim()).filter(Boolean);
 }
 
-/** True when a repair on this hold should ask which panels got fixed. Multi-type holds already resolve
- *  per issue (IssueResolutionSection), so they never get here. */
+/** True when a repair on this one-type hold should ask which panels got fixed. A multi-type hold asks per
+ *  issue instead — see issuePanelPick. */
 export function offersPanelPick(hold: { holdTypes: readonly string[]; damageZones?: readonly string[] }): boolean {
   return hold.holdTypes.length === 1 && orderZones(hold.damageZones ?? []).length >= 2;
+}
+
+// ── Per issue, on a multi-type hold ──────────────────────────────────────────────────────────────
+// Aaron, 2026-11-21, LJF720 (hail + a windshield chip on one hold, hood · windshield · roof · trunk): he
+// marked the hail done, the map still painted all four panels, so the chip read as still-hail and he cleared
+// it too. *"i think it should be aware. if it was hail, then the damage map for hail should be cleared once
+// marked repair. if i marked chip repaired, then the windshield would be cleared."*
+// Zones live on the hold, not per issue, so FG learns which panels an issue covered when it is marked done.
+
+interface IssueHold {
+  holdTypes: readonly string[];
+  resolvedTypes: readonly string[];
+  damageZones?: readonly string[];
+  damageDescription: string;
+}
+
+export interface IssuePanelAsk {
+  /** The last open issue: a full repair of what is left, so everything starts ticked. */
+  last: boolean;
+  /** What starts ticked. */
+  preset: string[];
+}
+
+/**
+ * Whether marking ONE issue done should ask which panels it cleared, and what starts ticked. Null is
+ * today's single tap: one panel (nothing to split), an issue with no panel (mechanical, detail), or no
+ * other panel issue left open to keep any panel for.
+ *
+ * ⚠️ Only hail has a preset to start from. Any other issue starts with nothing ticked: FG never guesses a panel.
+ */
+export function issuePanelPick(hold: IssueHold, type: string): IssuePanelAsk | null {
+  const zones = orderZones(hold.damageZones ?? []);
+  const panelled = (t: string) => holdIsMappable([t], hold.damageDescription);
+  if (zones.length < 2 || !panelled(type)) return null;
+  const open = hold.holdTypes.filter(t => !hold.resolvedTypes.includes(t));
+  if (open.length === 1 && open[0] === type) return { last: true, preset: zones };
+  if (!open.some(t => t !== type && panelled(t))) return null;
+  const preset = presetFor([type])?.zones ?? [];
+  return { last: false, preset: zones.filter(z => preset.includes(z)) };
+}
+
+export type IssuePanelPlan =
+  | PanelRepairPlan
+  /** Nothing ticked on an issue that isn't the last: mark it done, every panel stays (today's tap). */
+  | { kind: 'resolve' }
+  /** Everything ticked while another panel issue is still open, which has to sit on some panel. */
+  | { kind: 'blocked' };
+
+export function planIssuePanels(
+  hold: { damageZones?: readonly string[]; photos?: readonly string[]; damageDescription: string },
+  pick: PanelPick,
+  last: boolean,
+): IssuePanelPlan {
+  const plan = planPanelRepair(hold, pick);
+  if (plan.kind === 'split' || last) return plan;
+  return orderZones(hold.damageZones ?? []).some(z => pick.zones.includes(z)) ? { kind: 'blocked' } : { kind: 'resolve' };
 }
 
 export interface PanelSide {
@@ -36,6 +93,18 @@ export interface PanelSide {
 export type PanelRepairPlan =
   | { kind: 'whole' }
   | { kind: 'split'; fixed: PanelSide; standing: PanelSide };
+
+/** A split made at ONE issue of a multi-type hold: the fixed row is typed to it, and `resolves` says whether
+ *  the issue is now done or still stands on the panels left (context/panelRepair). */
+export interface IssueSplit {
+  type: HoldType;
+  resolves: boolean;
+}
+
+/** The write behind every part repair (context/panelRepair). */
+export type MarkPanelsRepaired = (
+  holdId: string, fixed: PanelSide, standing: PanelSide, repair: Omit<Repair, 'id' | 'holdId'>, issue?: IssueSplit,
+) => Promise<void>;
 
 export interface PanelPick {
   zones: readonly string[];

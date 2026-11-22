@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { descriptionParts, offersPanelPick, planPanelRepair } from '../../src/lib/panelRepair';
+import { descriptionParts, offersPanelPick, planPanelRepair, issuePanelPick, planIssuePanels } from '../../src/lib/panelRepair';
 
 // Aaron, 2026-10-21, 0ET075: "went to mark as repaired, but i'm afraid it will "repair" the rim
 // damage as well." One hold, the windshield AND the rear rim — and only the chips got fixed.
@@ -86,5 +86,55 @@ describe('planPanelRepair', () => {
 
   it('ignores a picked zone the hold does not carry', () => {
     expect(planPanelRepair(oet075, { ...none, zones: ['hood'] })).toEqual({ kind: 'whole' });
+  });
+});
+
+// ── Per issue, on a multi-type hold — LJF720, 2026-11-21 ─────────────────────────────────────────
+// Aaron: "if it was hail, then the damage map for hail should be cleared once marked repair. if i marked
+// chip repaired, then the windshield would be cleared."
+const ljf720 = {
+  holdTypes: ['hail', 'damage'], resolvedTypes: [] as string[],
+  damageZones: ['hood', 'windshield', 'roof', 'trunk-liftgate'],
+  damageDescription: 'Hail damage; Windshield chip',
+};
+
+describe('issuePanelPick', () => {
+  it('⭐ the hail asks, starting from the hail panels only — the windshield is the chip\'s', () => {
+    expect(issuePanelPick(ljf720, 'hail')).toEqual({ last: false, preset: ['hood', 'roof', 'trunk-liftgate'] });
+  });
+
+  it('the chip asks too, with nothing ticked: FG never guesses a panel', () => {
+    expect(issuePanelPick(ljf720, 'damage')).toEqual({ last: false, preset: [] });
+  });
+
+  it('the last open issue starts with every panel left ticked, so a full repair stays one tap', () => {
+    expect(issuePanelPick({ ...ljf720, resolvedTypes: ['hail'] }, 'damage'))
+      .toEqual({ last: true, preset: ['hood', 'windshield', 'roof', 'trunk-liftgate'] });
+  });
+
+  it('one panel, or an issue with no panel, stays today\'s single tap', () => {
+    expect(issuePanelPick({ ...ljf720, damageZones: ['windshield'] }, 'hail')).toBeNull();
+    expect(issuePanelPick({ ...ljf720, holdTypes: ['hail', 'mechanical'] }, 'mechanical')).toBeNull();
+  });
+
+  it('no other panel issue left open: nothing to keep a panel for, so no question', () => {
+    expect(issuePanelPick({ ...ljf720, holdTypes: ['damage', 'mechanical'] }, 'damage')).toBeNull();
+  });
+});
+
+describe('planIssuePanels', () => {
+  const hold = { ...ljf720, photos: [] as string[] };
+  it('some panels ticked → a split', () => {
+    const plan = planIssuePanels(hold, { ...none, zones: ['hood', 'roof', 'trunk-liftgate'] }, false);
+    expect(plan).toMatchObject({ kind: 'split', fixed: { zones: ['hood', 'roof', 'trunk-liftgate'] }, standing: { zones: ['windshield'] } });
+  });
+  it('nothing ticked → the issue is done and every panel stays (today\'s tap)', () => {
+    expect(planIssuePanels(hold, none, false)).toEqual({ kind: 'resolve' });
+  });
+  it('everything ticked while another panel issue is open → blocked', () => {
+    expect(planIssuePanels(hold, { ...none, zones: ljf720.damageZones }, false)).toEqual({ kind: 'blocked' });
+  });
+  it('the last issue, everything ticked → the whole repair', () => {
+    expect(planIssuePanels(hold, { ...none, zones: ljf720.damageZones }, true)).toEqual({ kind: 'whole' });
   });
 });

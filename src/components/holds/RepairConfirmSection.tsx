@@ -21,6 +21,10 @@ export interface RepairConfirmSectionProps {
   /** A part repair (PanelRepairSection) says what it does in its own words, and asks which panels above the notes. */
   summary?: ReactNode;
   actionLabel?: string;
+  /** No notes or outcome: an issue marked done with every panel left standing records no repair (IssuePanelSection). */
+  bare?: boolean;
+  /** The pick can't be saved as it stands; the summary says why. */
+  confirmDisabled?: boolean;
   children?: ReactNode;
 }
 
@@ -76,6 +80,8 @@ export function RepairConfirmSection({
   onConfirm,
   summary,
   actionLabel: labelOverride,
+  bare = false,
+  confirmDisabled = false,
   children,
 }: RepairConfirmSectionProps) {
   if (holds.length === 0) return null;
@@ -95,7 +101,7 @@ export function RepairConfirmSection({
         ))}
       </p>
       {children}
-      <div>
+      {!bare && <div>
         <label className="block text-xs font-medium text-green-800 dark:text-green-300 mb-1.5 uppercase tracking-wide">
           Notes (optional)
         </label>
@@ -106,10 +112,10 @@ export function RepairConfirmSection({
           onChange={(e) => setRepairNotes(e.target.value)}
           className="w-full px-3.5 py-2.5 rounded-lg border border-green-300 dark:border-green-700 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition resize-none"
         />
-      </div>
+      </div>}
       {/* Only glass leaves a scar worth asking about (docs/ticket-repair-outcome-windshield-only.md). Hidden, the
           outcome stays the hook's 'clean' default, and the footer names a service or detail by its type anyway. */}
-      {holds.some(onWindshield) && <div className="space-y-1.5">
+      {!bare && holds.some(onWindshield) && <div className="space-y-1.5">
         <p className="text-xs font-medium text-green-800 dark:text-green-300 uppercase tracking-wide">
           Repair outcome
         </p>
@@ -150,7 +156,7 @@ export function RepairConfirmSection({
         </button>
         <button
           type="button"
-          disabled={repairing}
+          disabled={repairing || confirmDisabled}
           onClick={onConfirm}
           className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition cursor-pointer disabled:cursor-not-allowed"
         >

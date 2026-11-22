@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { RepairConfirmSection } from './RepairConfirmSection';
+import { IssuePanelSection } from './IssuePanelSection';
+import { issuePanelPick, type MarkPanelsRepaired } from '../../lib/panelRepair';
 import { HOLD_TYPE_LABELS } from '../../lib/holdTypeLabels';
 import { hapticLight, hapticMedium } from '../../lib/haptics';
 import type { Hold, HoldType, Repair, RepairOutcome } from '../../types';
@@ -11,15 +13,19 @@ interface IssueResolutionSectionProps {
   landing?: RepairLanding;
   userId: string;
   markIssueRepaired: (holdId: string, type: HoldType, repair?: Omit<Repair, 'id'>) => Promise<void>;
+  markPanelsRepaired: MarkPanelsRepaired;
   onDone: () => void;
 }
 
 /** Per-issue resolution for a multi-type hold: mark each issue done as it's fixed.
  *  Intermediate issues resolve instantly (the hold stays held); the LAST remaining
  *  issue collects notes/outcome via the existing confirm form, then the whole hold
- *  flips to REPAIRED and the vehicle clears. */
-export function IssueResolutionSection({ hold, landing, userId, markIssueRepaired, onDone }: IssueResolutionSectionProps) {
+ *  flips to REPAIRED and the vehicle clears.
+ *  ⭐ On a hold over 2+ panels, an issue with panels asks which ones it cleared (IssuePanelSection, LJF720
+ *  2026-11-21), so marking the hail done takes the hail off the map and leaves the chip's windshield. */
+export function IssueResolutionSection({ hold, landing, userId, markIssueRepaired, markPanelsRepaired, onDone }: IssueResolutionSectionProps) {
   const [pendingFinal, setPendingFinal] = useState<HoldType | null>(null);
+  const [picking, setPicking] = useState<HoldType | null>(null);
   const [notes, setNotes] = useState('');
   const [outcome, setOutcome] = useState<RepairOutcome>('clean');
   const [busy, setBusy] = useState(false);
@@ -28,6 +34,10 @@ export function IssueResolutionSection({ hold, landing, userId, markIssueRepaire
   const unresolved = hold.holdTypes.filter(t => !hold.resolvedTypes.includes(t));
 
   const markDone = async (type: HoldType) => {
+    if (issuePanelPick(hold, type)) {
+      setPicking(type);
+      return;
+    }
     // The last remaining issue flips the whole hold → collect notes/outcome first.
     if (unresolved.length === 1 && unresolved[0] === type) {
       setPendingFinal(type);
@@ -62,6 +72,17 @@ export function IssueResolutionSection({ hold, landing, userId, markIssueRepaire
       setBusy(false);
     }
   };
+
+  const ask = picking && issuePanelPick(hold, picking);
+  if (picking && ask) {
+    return (
+      <IssuePanelSection
+        key={picking} hold={hold} type={picking} ask={ask} landing={landing} userId={userId}
+        markIssueRepaired={markIssueRepaired} markPanelsRepaired={markPanelsRepaired}
+        onBack={() => setPicking(null)} onDone={onDone}
+      />
+    );
+  }
 
   // Final issue → reuse the existing confirm form (notes + outcome).
   if (pendingFinal) {
