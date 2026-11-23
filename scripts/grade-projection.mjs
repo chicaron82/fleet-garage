@@ -158,6 +158,20 @@ for (let i = 0; i < H.length; i++) {
   rows.push({ date: t.date, dow: DAY[dayOfWeek(t.date)].slice(0, 3), t, a, b, c });
 }
 
+// ⭐ POSITIVE CONTROL for the re-implemented candidates (/reflect 100, 2026-11-22). `blendVariant` copies the blend's
+// logic so it can vary it; at the blend's own settings it must reproduce the real module EXACTLY, and k=0 must leave
+// the trend term inert. If either drifts, every candidate's score above is measuring the copy, not the idea.
+{
+  let drift = 0;
+  for (const r of rows) {
+    const hist = H.slice(0, H.findIndex(e => e.date === r.date));
+    for (const p of [blendVariant(5, 0.5, r.date, hist), trend(0, r.date, hist)])
+      if (p.out !== r.a.out || p.in !== r.a.in) drift++;
+  }
+  console.log(drift ? `\n🚨 CONTROL FAILED: the candidate copy disagrees with the real blend on ${drift} day(s). Fix that before reading any candidate.`
+                    : `\n✓ control: at the blend's own settings the candidate copy matches the real module on all ${rows.length} days.`);
+}
+
 if (!rows.length) {
   console.log(`No entries on or after ${SINCE} yet — nothing to grade.`);
   console.log('⚠️ That is a real answer, not a zero: the blend has not been asked a question yet.');
