@@ -28,6 +28,8 @@ import { projectFleetBalance, dayOfWeek, PROJECTION_WINDOW } from '../src/lib/fl
 /** The blend shipped here; days from this date on are the fresh evidence. */
 const SHIPPED = '2026-09-18';
 const SINCE = process.argv[2] || SHIPPED;
+/** Optional end date (inclusive), to grade one stretch of the season: `… 2026-05-01 2026-07-31`. */
+const UNTIL = process.argv[3] || '9999-12-31';
 
 const mean  = xs => xs.reduce((s, x) => s + x, 0) / xs.length;
 const R     = n  => Math.round(n * 10) / 10;
@@ -91,7 +93,38 @@ function mondayLine(variant, target, history) {
   const b = pairs.reduce((s, p) => s + (p.mon - mx) * (p.in - my), 0) / sxx;
   return { out: base.out, in: Math.round(my + b * (mon - mx)) };
 }
-const CANDIDATES = { 'mon-ratio': (t, h) => mondayLine('ratio', t, h), 'mon-fit': (t, h) => mondayLine('fit', t, h) };
+// ── CANDIDATES: the season's lag (docs/ticket-projection-seasonal-lag.md, 2026-11-22) ────────────────
+// Both halves of the blend look backward, so on a falling season it trails high (+9.4 OUT bias at the 11-21 audit) and
+// on a rising one it trails low. A constant correction was ruled out ("wrong half the year"). These are declared in the
+// ticket BEFORE this run: a TREND term whose sign follows the slope, a shorter anchor, and a lighter weekday weight.
+// ⚠️ Ship bar (the ticket's): beat the blend over the full history AND not lose the rising stretch (May–Jul). A win on
+// the falling stretch alone is the fudge factor in disguise.
+/** The blend + k × (last 5 entries − the 5 before them). Too little history → the plain blend. */
+function trend(k, target, history) {
+  const base = newRule(target, history);
+  if (!base || history.length < 10) return base;
+  const last = history.slice(-5), prev = history.slice(-10, -5);
+  const so = mean(last.map(e => e.outCount)) - mean(prev.map(e => e.outCount));
+  const si = mean(last.map(e => e.inCount)) - mean(prev.map(e => e.inCount));
+  return { out: Math.round(base.out + k * so), in: Math.round(base.in + k * si) };
+}
+/** The blend re-run with another anchor / weekday weight. Weekends and the fallback stay the blend's. */
+function blendVariant(anchor, w, target, history) {
+  const d = dayOfWeek(target);
+  const base = newRule(target, history);
+  if (!base || d === 0 || d === 6) return base;
+  const sameDay = history.filter(e => dayOfWeek(e.date) === d).slice(-PROJECTION_WINDOW);
+  if (sameDay.length < 2) return base;
+  const recent = history.slice(-anchor);
+  const mix = pick => Math.round(mean(sameDay.map(pick)) * w + mean(recent.map(pick)) * (1 - w));
+  return { out: mix(e => e.outCount), in: mix(e => e.inCount) };
+}
+
+const CANDIDATES = {
+  'mon-ratio': (t, h) => mondayLine('ratio', t, h), 'mon-fit': (t, h) => mondayLine('fit', t, h),
+  'trend-0.25': (t, h) => trend(0.25, t, h), 'trend-0.5': (t, h) => trend(0.5, t, h),
+  'anchor-3': (t, h) => blendVariant(3, 0.5, t, h), 'w-0.4': (t, h) => blendVariant(5, 0.4, t, h),
+};
 
 // ── History, straight from the DB via the Supabase Management API ─────────────
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -117,7 +150,7 @@ const H = await res.json();
 const rows = [];
 for (let i = 0; i < H.length; i++) {
   const t = H[i];
-  if (t.date < SINCE) continue;
+  if (t.date < SINCE || t.date > UNTIL) continue;
   const hist = H.slice(0, i);
   const a = newRule(t.date, hist), b = oldRule(t.date, hist);
   if (!a || !b) continue;                       // common subset only — a fair pairing or none
@@ -165,12 +198,13 @@ for (const name of Object.keys(CANDIDATES)) {
       tally[k][dc < dq ? 0 : dc > dq ? 1 : 2]++;
     }
     e.o.push(p.out - r.t.outCount); e.i.push(p.in - r.t.inCount);
-    if (p.in !== r.a.in) touched.push(`${r.date.slice(5)} ${r.dow} ${r.t.inCount} in: ${r.a.in}→${p.in}`);
+    if (p.in !== r.a.in || p.out !== r.a.out)
+      touched.push(`${r.date.slice(5)} ${r.dow} actual ${r.t.outCount}/${r.t.inCount}: ${r.a.out}/${r.a.in}→${p.out}/${p.in}`);
   }
   console.log(`\n🧪 CANDIDATE ${name} — vs new: won ${tally.new[0]}, lost ${tally.new[1]}, tied ${tally.new[2]} · ` +
               `vs old: won ${tally.old[0]}, lost ${tally.old[1]}, tied ${tally.old[2]}`);
   line(name, e);
-  console.log(`   IN it changed (actual: blend→candidate): ${touched.length ? '\n     ' + touched.join('\n     ') : 'none'}`);
+  console.log(`   days it changed: ${touched.length}` + (process.env.TOUCHED ? (touched.length ? '\n     ' + touched.join('\n     ') : '') : ' (TOUCHED=1 lists them)'));
 }
 
 // A changed rule invalidates the comparison silently, so say which code was graded.
