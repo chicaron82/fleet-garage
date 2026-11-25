@@ -9,7 +9,8 @@ import { calcHours, calcOT, calcPlannedOT, extraBlocksHours, netActualHours, tim
 
 // One number for his rate. OT is DERIVED from it, never typed (line-check 2026-11-21 #2): a raise that moved only the
 // regular rate would have left every OT and holiday-premium hour priced at 1.5× the OLD rate.
-const REGULAR_RATE = 18.25;   // raised from 17.75 — first paid on the 2026-10-15 cheque (period ending 10-08)
+const REGULAR_RATE = 18.50;   // raised from 18.25 — on the 11-12 stub mid-period; a full period at 18.50 on the 2026-11-26 cheque
+                              // (17.75 → 18.25 was the 2026-10-15 cheque). docs/ticket-pay-rate-1850.md
 
 export const PAY_CONFIG = {
   employeeId:            '331965',
