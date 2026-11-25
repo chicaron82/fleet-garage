@@ -66,11 +66,12 @@ describe('api/lot — On break (migration 166, docs/ticket-lot-bay-on-break.md)'
     const on = await call({ action: 'bayBreak', on: true, by: 'AS' }, 'Bearer good');
     expect(on.status).toBe(200);
     expect(typeof f.patches[0]!.break_at).toBe('string');
-    expect(Object.keys(f.patches[0]!)).toEqual(['break_at', 'break_kind']);
+    expect(Object.keys(f.patches[0]!)).toEqual(['break_at', 'break_kind', 'break_note']);
+    expect(f.patches[0]!.break_note).toBeNull();   // a break clears the last Pulled away note (migration 172)
     expect(f.patches[0]!.break_kind).toBe('break');   // no kind sent = a break, as before migration 171
     const back = await call({ action: 'bayBreak', on: false, by: 'AS' }, 'Bearer good');
     expect(back.status).toBe(200);
-    expect(f.patches[1]).toEqual({ break_at: null });
+    expect(f.patches[1]).toEqual({ break_at: null, break_note: null });   // Back clears his note
     expect(f.tables).toEqual(['lot_bay', 'lot_bay']);
   });
 
@@ -79,6 +80,13 @@ describe('api/lot — On break (migration 166, docs/ticket-lot-bay-on-break.md)'
     expect((await call({ action: 'bayBreak', on: true, kind: 'pulled', by: 'AS' }, 'Bearer good')).status).toBe(200);
     expect(f.patches[0]!.break_kind).toBe('pulled');
     expect(typeof f.patches[0]!.break_at).toBe('string');
+    expect(f.patches[0]!.break_note).toBeNull();
+  });
+
+  it('⭐ his note rides on Pulled away (migration 172, ticket-lot-bay-pulled-away-note)', async () => {
+    const f = fakeBay();
+    expect((await call({ action: 'bayBreak', on: true, kind: 'pulled', note: 'Driving to the airport', by: 'AS' }, 'Bearer good')).status).toBe(200);
+    expect(f.patches[0]!.break_note).toBe('Driving to the airport');
   });
 
   it('needs the sign-in like everything else', async () => {

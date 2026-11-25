@@ -106,7 +106,11 @@ export default async function handler(req: LotHttpRequest, res: LotHttpResponse)
     if (parsed.action === 'bayBreak') {
       // On break (migration 166, docs/ticket-lot-bay-on-break.md): a stamp, not a count. Moves no number, logs no tap.
       // Pulled away (migration 171) is the same stamp with its kind; Back leaves the kind, which means nothing off a pause.
-      const change = parsed.on ? { break_at: now, break_kind: parsed.kind } : { break_at: null };
+      // His note (migration 172) rides only on Pulled away; every pause writes it (a break nulls the last one) and Back
+      // clears it, so a note never outlives the pause it was written for.
+      const change = parsed.on
+        ? { break_at: now, break_kind: parsed.kind, break_note: parsed.kind === 'pulled' ? parsed.note : null }
+        : { break_at: null, break_note: null };
       const { data: saved, error } = await db.from('lot_bay').update(change).eq('id', 1).select().single();
       if (error) throw error;
       res.status(200).json({ ok: true, bay: saved });

@@ -11,8 +11,8 @@ const state = {
 vi.mock('../../src/hooks/useLotBay', () => ({ useLotBay: () => ({ bay: state.bay, log: [], loaded: true, nowMs: NOW, setBay: () => {} }) }));
 vi.mock('../../src/hooks/useBayLog', () => ({ useBayLog: () => ({ rows: state.rows, loaded: true, error: null }) }));
 vi.mock('../../src/hooks/useLotCrew', () => ({ useLotCrew: () => ({ crew: null }) }));
-const strip: { big?: boolean } = {};
-vi.mock('../../src/components/lot/LotBayStrip', () => ({ LotBayStrip: (p: { big?: boolean }) => { strip.big = p.big; return <p>the count</p>; } }));
+const strip: { big?: boolean; idle?: boolean } = {};
+vi.mock('../../src/components/lot/LotBayStrip', () => ({ LotBayStrip: (p: { big?: boolean; idle?: boolean }) => { strip.big = p.big; strip.idle = p.idle; return <p>the count</p>; } }));
 const list: { chipsClassName?: string; onFilter?: unknown } = {};
 vi.mock('../../src/components/lot/BayLogList', () => ({ BayLogList: (p: typeof list) => { list.chipsClassName = p.chipsClassName; list.onFilter = p.onFilter; return <p>the list</p>; } }));
 const { LotViewPage } = await import('../../src/components/lot/LotViewPage');
@@ -83,6 +83,26 @@ describe('LotViewPage, on break (migration 166)', () => {
     expect(note.textContent).toBe('The count is paused while the bay crew is on other work. It catches up after.');
     expect(note.textContent).not.toMatch(/\d\d:\d\d|driv|meeting|break/i);
     state.bay = { ...state.bay, breakKind: undefined } as typeof state.bay;
+  });
+
+  // His note (migration 172, docs/ticket-lot-bay-pulled-away-note.md): his words under the generic line, still no time.
+  it('⭐ pulled away with his note: the note shows under the line, his words, no time', () => {
+    state.bay = { ...state.bay, cleansAt: ago(40), dirtiesAt: ago(45), breakAt: ago(20), breakKind: 'pulled', breakNote: 'Driving to the airport' } as typeof state.bay;
+    render(<LotViewPage />);
+    const note = screen.getByRole('status');
+    expect(note.textContent).toBe('The count is paused while the bay crew is on other work. It catches up after.From the bay: “Driving to the airport”');
+    expect(note.textContent).not.toMatch(/\d\d:\d\d/);
+  });
+
+  it('⭐ a note never shows on a break, and goes when his next tap ends the pause', () => {
+    state.bay = { ...state.bay, cleansAt: ago(40), dirtiesAt: ago(45), breakAt: ago(20), breakKind: 'break', breakNote: 'stale' } as typeof state.bay;
+    const { unmount } = render(<LotViewPage />);
+    expect(screen.getByRole('status').textContent).not.toContain('stale');
+    unmount();
+    state.bay = { ...state.bay, cleansAt: ago(5), breakKind: 'pulled', breakNote: 'Driving to the airport' } as typeof state.bay;
+    render(<LotViewPage />);
+    expect(screen.queryByText(/Driving to the airport/)).toBeNull();
+    state.bay = { ...state.bay, breakKind: undefined, breakNote: undefined } as typeof state.bay;
   });
 
   it('⭐ his next tap ends it, with nothing cleared', () => {
@@ -187,5 +207,35 @@ describe('LotViewPage, the desktop layout', () => {
     render(<LotViewPage />);
     expect(screen.getByText('the count').closest('[aria-hidden="true"]')).not.toBeNull();
     expect(screen.getByText('the list').closest('[aria-hidden="true"]')).not.toBeNull();
+  });
+});
+
+// Louder when idle (2026-11-25, docs/ticket-lot-view-stale-count-louder.md). Aaron: someone read yesterday 15:02's 4/5
+// early in the morning *"and thought we would have 9 vehicles ready to send soon"*.
+describe('LotViewPage, an idle count stays loud', () => {
+  beforeEach(() => { state.rows = []; });
+
+  it('⭐ the card says what to do: contact the bay; the blur is heavy enough to hide big numbers', () => {
+    state.bay = { ...state.bay, cleansAt: ago(200), dirtiesAt: ago(190), breakAt: null } as typeof state.bay;
+    render(<LotViewPage />);
+    expect(screen.getByRole('region', { name: 'Not being kept' }).textContent).toContain('Contact the bay directly.');
+    expect(screen.getByText('the count').closest('[aria-hidden="true"]')!.className).toContain('blur-md');
+  });
+
+  it('⭐ Show it anyway keeps a line saying it is old, from when, and to contact the bay; the stamps go loud', () => {
+    state.bay = { ...state.bay, cleansAt: ago(200), dirtiesAt: ago(190), breakAt: null } as typeof state.bay;
+    const { container } = render(<LotViewPage />);
+    expect(container.querySelector('[data-stale-line]')).toBeNull();          // under the card, not twice
+    fireEvent.click(screen.getByRole('button', { name: 'Show it anyway' }));
+    const line = container.querySelector('[data-stale-line]');
+    expect(line?.textContent).toMatch(/^Old count, from \d\d:\d\d\. Contact the bay directly\.$/);
+    expect(strip.idle).toBe(true);
+  });
+
+  it('a count being kept has no line and quiet stamps', () => {
+    state.bay = { ...state.bay, cleansAt: ago(40), dirtiesAt: ago(45), breakAt: null } as typeof state.bay;
+    const { container } = render(<LotViewPage />);
+    expect(container.querySelector('[data-stale-line]')).toBeNull();
+    expect(strip.idle).toBe(false);
   });
 });

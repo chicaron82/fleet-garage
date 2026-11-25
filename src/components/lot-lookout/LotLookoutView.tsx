@@ -175,7 +175,8 @@ export function LotLookoutView({ onNavigate }: { onNavigate: (s: Screen) => void
               </div>
             )}
           </div>
-          {onBreak && <BayBreakStrip kind={erin.bay.breakKind ?? 'break'} onBack={() => void taps.setBreak(false)} />}
+          {onBreak && <BayBreakStrip kind={erin.bay.breakKind ?? 'break'} onBack={() => void taps.setBreak(false)}
+            note={erin.bay.breakNote ?? null} onNote={n => taps.setBreak(true, 'pulled', n)} />}
           <ErinCountBlocks erin={erin} taps={taps} drivers={crew?.summary.driver.on ?? 0} />
         </section>
       )}

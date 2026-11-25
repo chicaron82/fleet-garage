@@ -9,11 +9,18 @@ import { useState } from 'react';
 import { BAY_DIRTIES_MAX, isBayStale, whenOf, type LotBay } from '../../lib/lotBay';
 import { agoLabel, minutesAgo } from '../../lib/lotLookout';
 
-function Stamp({ at, nowMs }: { at: string | null; nowMs: number }) {
+// ⭐ IDLE (2026-11-25, docs/ticket-lot-view-stale-count-louder.md): once the count isn't being kept (2 h, countKept.ts)
+// and a viewer chose Show it anyway, the time is the loudest thing in the cell: bigger, and a slow pulse. Aaron: someone
+// read yesterday 15:02's 4/5 early in the morning *"and thought we would have 9 vehicles ready to send soon"*. Only when
+// idle, never at the 30-min amber, which fires on any slow half hour and would teach everyone to ignore it.
+// `motion-safe`: a device set to reduce motion gets it big and amber, still.
+const IDLE_STAMP = 'block mt-0.5 text-sm lg:text-xl font-extrabold text-amber-700 dark:text-amber-400 motion-safe:animate-pulse';
+
+function Stamp({ at, nowMs, idle = false }: { at: string | null; nowMs: number; idle?: boolean }) {
   if (!at) return <span className="block text-[11px] font-semibold text-amber-700 dark:text-amber-400">not counted yet</span>;
   const old = isBayStale(at, nowMs);
   return (
-    <span className={`block text-[11px] ${old ? 'font-semibold text-amber-700 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400'}`}>
+    <span data-stamp={idle ? 'idle' : undefined} className={idle ? IDLE_STAMP : `block text-[11px] ${old ? 'font-semibold text-amber-700 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400'}`}>
       as of {whenOf(at, nowMs)} · {agoLabel(minutesAgo(at, nowMs))}
     </span>
   );
@@ -53,7 +60,8 @@ function DirtiesEdit({ current, onSave, onClose }: { current: number | null; onS
 /** `action` sits on the heading's right: FG's My Day card puts a link to the bay page there.
  *  `big`: the read-only page's desktop glance (docs/ticket-lot-view-desktop-layout.md). From `lg` up the counts grow to
  *  read from across a desk; on a phone it changes nothing. */
-export function LotBayStrip({ bay, nowMs, action, controls, big = false }: { bay: LotBay; nowMs: number; action?: React.ReactNode; controls?: BayControls; big?: boolean }) {
+/** `idle`: the read-only page's count is past being kept and shown anyway; the stamps go loud (see IDLE_STAMP). */
+export function LotBayStrip({ bay, nowMs, action, controls, big = false, idle = false }: { bay: LotBay; nowMs: number; action?: React.ReactNode; controls?: BayControls; big?: boolean; idle?: boolean }) {
   const [editing, setEditing] = useState(false);
   const cleansOld = isBayStale(bay.cleansAt, nowMs);
   const dirtiesOld = isBayStale(bay.dirtiesAt, nowMs);
@@ -73,7 +81,7 @@ export function LotBayStrip({ bay, nowMs, action, controls, big = false }: { bay
         <div {...fitCell} className={cell}>
           <b {...fitNum} className={`block ${num} font-extrabold tabular-nums ${cleansOld ? 'text-amber-700 dark:text-amber-400' : 'text-green-700 dark:text-green-400'}`}>{bay.cleans}</b>
           <span {...fitWhat} className={what}>cleans ready for the airport</span>
-          <Stamp at={bay.cleansAt} nowMs={nowMs} />
+          <Stamp at={bay.cleansAt} nowMs={nowMs} idle={idle} />
           {controls && (
             <div className="grid grid-cols-[1fr_1.4fr] gap-1.5 mt-1.5">
               <button type="button" onClick={() => controls.onCleans(-1)} aria-label="Minus one clean, used"
@@ -93,7 +101,7 @@ export function LotBayStrip({ bay, nowMs, action, controls, big = false }: { bay
             <b {...fitNum} className={`block ${num} font-extrabold tabular-nums ${dirtiesColour}`}>{bay.dirties ?? '–'}</b>
           )}
           <span {...fitWhat} className={what}>dirties waiting</span>
-          <Stamp at={bay.dirtiesAt} nowMs={nowMs} />
+          <Stamp at={bay.dirtiesAt} nowMs={nowMs} idle={idle} />
           {controls && editing && <DirtiesEdit current={bay.dirties} onSave={controls.onDirties} onClose={() => setEditing(false)} />}
         </div>
       </div>

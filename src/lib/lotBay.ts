@@ -34,7 +34,12 @@ export interface LotBay {
   breakAt?: string | null;
   /** Which pause breakAt is (migration 171): On break, or Pulled away onto other work. Means nothing without breakAt. */
   breakKind?: BayPauseKind;
+  /** His own line on Pulled away (migration 172); null = none. Means nothing without a pulled breakAt. */
+  breakNote?: string | null;
 }
+
+/** Mirrors PAUSE_NOTE_MAX in api/_lib/lotRequest.ts and the column's check (migration 172). */
+export const PAUSE_NOTE_MAX = 80;
 
 /** docs/ticket-lot-bay-pulled-away.md. Aaron: *"a generic pause when pulled. Could be driving. Maybe a meeting"*. */
 export type BayPauseKind = 'break' | 'pulled';
@@ -62,6 +67,8 @@ export interface BayRow {
   break_at?: string | null;
   /** Absent before migration 171: a break. */
   break_kind?: string | null;
+  /** Absent before migration 172: no note. */
+  break_note?: string | null;
 }
 
 export function bayFromRow(r: BayRow): LotBay {
@@ -70,6 +77,7 @@ export function bayFromRow(r: BayRow): LotBay {
     dirties: r.dirties, dirtiesBy: r.dirties_by, dirtiesAt: r.dirties_at,
     used: r.used, usedOn: r.used_on, breakAt: r.break_at ?? null,
     breakKind: r.break_kind === 'pulled' ? 'pulled' : 'break',
+    breakNote: r.break_note || null,
   };
 }
 

@@ -7,6 +7,7 @@
 // on other work. Aaron: *"What about a generic pause when pulled. Could be driving. Maybe a meeting or doing something
 // else"*. Generic on purpose: the read-only link reaches his manager, so it never says what the work was.
 import { PAUSE_LABEL, type BayPauseKind } from '../../lib/lotBay';
+import { BayPulledNote } from './BayPulledNote';
 
 export function BayBreakButton({ onBreak, kind = 'break' }: { onBreak: () => void; kind?: BayPauseKind }) {
   return (
@@ -17,16 +18,22 @@ export function BayBreakButton({ onBreak, kind = 'break' }: { onBreak: () => voi
   );
 }
 
-export function BayBreakStrip({ onBack, kind = 'break' }: { onBack: () => void; kind?: BayPauseKind }) {
+// His note (migration 172, docs/ticket-lot-bay-pulled-away-note.md): Pulled away only, under the strip's line.
+export function BayBreakStrip({ onBack, kind = 'break', note = null, onNote }: {
+  onBack: () => void; kind?: BayPauseKind; note?: string | null; onNote?: (note: string | null) => Promise<boolean>;
+}) {
   return (
-    <div role="status" className="flex items-center justify-between gap-3 rounded-2xl border border-sky-300 dark:border-sky-700 bg-sky-50 dark:bg-sky-950 px-4 py-2.5">
-      <p className="text-sm text-sky-900 dark:text-sky-100">
-        <span className="font-bold">{PAUSE_LABEL[kind]}.</span> The read-only page says the count is paused. Any tap ends it.
-      </p>
-      <button type="button" onClick={onBack}
-        className="shrink-0 rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white hover:bg-sky-700 cursor-pointer">
-        Back
-      </button>
+    <div className="rounded-2xl border border-sky-300 dark:border-sky-700 bg-sky-50 dark:bg-sky-950 px-4 py-2.5">
+      <div role="status" className="flex items-center justify-between gap-3">
+        <p className="text-sm text-sky-900 dark:text-sky-100">
+          <span className="font-bold">{PAUSE_LABEL[kind]}.</span> The read-only page says the count is paused. Any tap ends it.
+        </p>
+        <button type="button" onClick={onBack}
+          className="shrink-0 rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white hover:bg-sky-700 cursor-pointer">
+          Back
+        </button>
+      </div>
+      {kind === 'pulled' && onNote && <BayPulledNote note={note} onNote={onNote} />}
     </div>
   );
 }

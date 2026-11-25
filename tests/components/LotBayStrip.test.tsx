@@ -55,3 +55,24 @@ describe('LotBayStrip, big (the desktop glance)', () => {
     expect(container.innerHTML).not.toContain('lg:');
   });
 });
+
+// Louder when idle (2026-11-25, docs/ticket-lot-view-stale-count-louder.md): his ask, bigger and pulsing; DiZee's
+// limit, only idle, never the 30-min amber, and motion-safe so reduce-motion gets it still.
+describe('LotBayStrip, idle stamps', () => {
+  it('⭐ idle: both stamps grow and pulse, motion-safe only', () => {
+    const { container } = render(<LotBayStrip bay={bay({ cleansAt: minsAgo(200), dirtiesAt: minsAgo(190) })} nowMs={NOW} idle />);
+    const stamps = container.querySelectorAll('[data-stamp="idle"]');
+    expect(stamps).toHaveLength(2);
+    for (const s of stamps) {
+      expect(s.className).toContain('motion-safe:animate-pulse');
+      expect(s.className).toContain('text-sm');
+      expect(s.className).not.toMatch(/(^| )animate-pulse/);   // never a pulse that ignores reduce-motion
+    }
+  });
+
+  it('⭐ the 30-min amber alone never pulses', () => {
+    const { container } = render(<LotBayStrip bay={bay({ cleansAt: minsAgo(45), dirtiesAt: minsAgo(50) })} nowMs={NOW} />);
+    expect(container.querySelector('[data-stamp="idle"]')).toBeNull();
+    expect(container.innerHTML).not.toContain('animate-pulse');
+  });
+});

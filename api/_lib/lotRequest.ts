@@ -15,13 +15,16 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** Which pause (migration 171, docs/ticket-lot-bay-pulled-away.md): On break, or Pulled away onto other work. */
 export type BayPauseKind = 'break' | 'pulled';
 const PAUSE_KINDS: readonly BayPauseKind[] = ['break', 'pulled'];
+/** His own line on Pulled away (migration 172, docs/ticket-lot-bay-pulled-away-note.md). Mirrors the column's check. */
+export const PAUSE_NOTE_MAX = 80;
 
 export type LotRequest =
   | BayRequest
   | BayLogRequest
   | { action: 'leaveOff'; user: string; off: boolean; by: string }
   // On break (migration 166): on = he's off the floor, off = he's back. Any later tap ends it on its own.
-  | { action: 'bayBreak'; on: boolean; by: string; kind: BayPauseKind };
+  // note (migration 172): his own line, Pulled away only; null = none.
+  | { action: 'bayBreak'; on: boolean; by: string; kind: BayPauseKind; note: string | null };
 
 /** A typed count at Erin St (dirties, and cleans since migration 156). A cap, so a fat-fingered 2300 is refused. */
 export const DIRTIES_MAX = 300;
@@ -109,11 +112,19 @@ export function parseLotRequest(body: unknown): LotRequest | { error: string } {
       if (typeof b.user !== 'string' || !UUID.test(b.user)) return { error: 'Pick who this is for.' };
       if (typeof b.off !== 'boolean') return { error: 'Leave off, or bring back?' };
       return { action: 'leaveOff', user: b.user, off: b.off, by };
-    case 'bayBreak':
+    case 'bayBreak': {
       if (typeof b.on !== 'boolean') return { error: 'On break, or back?' };
       // No kind = a break, so every client from before migration 171 means what it always meant.
       if (b.kind !== undefined && !PAUSE_KINDS.includes(b.kind as BayPauseKind)) return { error: 'A break, or pulled away?' };
-      return { action: 'bayBreak', on: b.on, by, kind: (b.kind as BayPauseKind | undefined) ?? 'break' };
+      const kind = (b.kind as BayPauseKind | undefined) ?? 'break';
+      // His note (migration 172): one line, whitespace folded. Only a Pulled away pause carries one; a break or Back
+      // that sends one is refused rather than quietly dropping what he typed.
+      if (b.note !== undefined && b.note !== null && typeof b.note !== 'string') return { error: 'The note is text.' };
+      const note = typeof b.note === 'string' ? b.note.trim().replace(/\s+/g, ' ') : '';
+      if (note && !(b.on && kind === 'pulled')) return { error: 'A note goes with Pulled away.' };
+      if (note.length > PAUSE_NOTE_MAX) return { error: `Keep the note to ${PAUSE_NOTE_MAX} characters.` };
+      return { action: 'bayBreak', on: b.on, by, kind, note: note || null };
+    }
     default:
       return { error: 'Unknown action.' };
   }

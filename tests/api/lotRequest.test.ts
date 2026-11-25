@@ -114,7 +114,7 @@ describe('parseLotRequest — leaveOff (migration 155)', () => {
 
 describe('parseLotRequest — bayBreak (migration 166, docs/ticket-lot-bay-on-break.md)', () => {
   it('on break, and back', () => {
-    expect(parseLotRequest({ action: 'bayBreak', on: true, by: 'AS' })).toEqual({ action: 'bayBreak', on: true, by: 'AS', kind: 'break' });
+    expect(parseLotRequest({ action: 'bayBreak', on: true, by: 'AS' })).toEqual({ action: 'bayBreak', on: true, by: 'AS', kind: 'break', note: null });
     expect(parseLotRequest({ action: 'bayBreak', on: false })).toMatchObject({ action: 'bayBreak', on: false });
   });
   it('refuses a break with no on/off', () => {
@@ -128,5 +128,24 @@ describe('parseLotRequest — bayBreak (migration 166, docs/ticket-lot-bay-on-br
   });
   it('refuses a kind that is neither', () => {
     expect(parseLotRequest({ action: 'bayBreak', on: true, kind: 'lunch', by: 'AS' })).toHaveProperty('error');
+  });
+  // His note (migration 172, docs/ticket-lot-bay-pulled-away-note.md).
+  it('⭐ Pulled away carries his note, one line, whitespace folded', () => {
+    expect(parseLotRequest({ action: 'bayBreak', on: true, kind: 'pulled', note: '  Driving to the\n airport,  back soon ', by: 'AS' }))
+      .toMatchObject({ kind: 'pulled', note: 'Driving to the airport, back soon' });
+  });
+  it('no note, an empty one, or null is no note', () => {
+    expect(parseLotRequest({ action: 'bayBreak', on: true, kind: 'pulled', by: 'AS' })).toMatchObject({ note: null });
+    expect(parseLotRequest({ action: 'bayBreak', on: true, kind: 'pulled', note: '   ', by: 'AS' })).toMatchObject({ note: null });
+    expect(parseLotRequest({ action: 'bayBreak', on: true, kind: 'pulled', note: null, by: 'AS' })).toMatchObject({ note: null });
+  });
+  it('⭐ a note on a break or on Back is refused, never quietly dropped', () => {
+    expect(parseLotRequest({ action: 'bayBreak', on: true, note: 'lunch', by: 'AS' })).toHaveProperty('error');
+    expect(parseLotRequest({ action: 'bayBreak', on: false, kind: 'pulled', note: 'back', by: 'AS' })).toHaveProperty('error');
+  });
+  it('refuses a note past 80 characters, or one that is not text', () => {
+    expect(parseLotRequest({ action: 'bayBreak', on: true, kind: 'pulled', note: 'x'.repeat(80), by: 'AS' })).not.toHaveProperty('error');
+    expect(parseLotRequest({ action: 'bayBreak', on: true, kind: 'pulled', note: 'x'.repeat(81), by: 'AS' })).toHaveProperty('error');
+    expect(parseLotRequest({ action: 'bayBreak', on: true, kind: 'pulled', note: 42, by: 'AS' })).toHaveProperty('error');
   });
 });

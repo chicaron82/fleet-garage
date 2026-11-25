@@ -141,11 +141,16 @@ function useBayWriter(state: LotBayState, toast: BayToast, send: Send, by: strin
   }, [state, write, by, toast, undoTo]);
 
   /** On break / Pulled away / Back (migrations 166, 171): a stamp on the row, not a count. Any later tap ends it. */
-  const setBreak = useCallback(async (on: boolean, kind: BayPauseKind = 'break') => {
-    const saved = await write({ action: 'bayBreak', on, kind },
-      (b, at) => (on ? { ...b, breakAt: at, breakKind: kind } : { ...b, breakAt: null }));
+  // His note (migration 172, docs/ticket-lot-bay-pulled-away-note.md): Pulled away only. Saving one re-stamps the pause
+  // with it, so the pause holds and the note shows; a new pause without one clears the last.
+  const setBreak = useCallback(async (on: boolean, kind: BayPauseKind = 'break', note: string | null = null) => {
+    const withNote = on && kind === 'pulled' ? note : null;
+    const saved = await write({ action: 'bayBreak', on, kind, ...(withNote ? { note: withNote } : {}) },
+      (b, at) => (on ? { ...b, breakAt: at, breakKind: kind, breakNote: withNote } : { ...b, breakAt: null, breakNote: null }));
     if (saved) toast(!on ? 'Back. The count is live again.'
+      : withNote ? 'Note added. The read-only page shows it while you\'re away.'
       : `${kind === 'pulled' ? 'Pulled away' : 'On break'}. The read-only page says the count is paused.`);
+    return !!saved;
   }, [write, toast]);
 
   return { tapCleans, stepDirties, setCount, setDirties, drain, fill, setBoth, setBreak };

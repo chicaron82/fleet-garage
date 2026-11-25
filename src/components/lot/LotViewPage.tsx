@@ -59,7 +59,10 @@ export function LotViewPage() {
   const last = lastActivity(erin.bay, bay.rows);
   const breakAt = erin.bay?.breakAt;
   const hand = lastHand(last, breakAt);
-  const covered = erin.loaded && bay.loaded && !shown && !isCountKept(hand, erin.nowMs);
+  // Idle (2 h, countKept.ts): the card covers it; Show it anyway lifts the card but keeps it LOUD (2026-11-25,
+  // docs/ticket-lot-view-stale-count-louder.md): a line that says it's old and to contact the bay, and pulsing stamps.
+  const idle = erin.loaded && bay.loaded && !isCountKept(hand, erin.nowMs);
+  const covered = idle && !shown;
   const onBreak = !covered && isCountKept(hand, erin.nowMs) && isOnBreak(breakAt, last);
   // Steps 0–2 are sizes; 3 is the smallest, scrolling (lotFit.css).
   const { outer: fitOuter, inner: fitInner, tier: fitStep } = useFitTier(3);
@@ -84,13 +87,15 @@ export function LotViewPage() {
             <section aria-label="Not being kept" className="absolute inset-x-0 top-6 z-10 mx-2 lg:mx-auto lg:max-w-md rounded-2xl border border-gray-300 dark:border-gray-600 bg-white/95 dark:bg-gray-900/95 px-4 py-4 text-center shadow-lg">
               <p className="font-bold">The count isn't being kept right now.</p>
               {last && <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Last updated {whenOf(last, erin.nowMs)}.</p>}
+              {/* Aaron, 2026-11-25: the card said the count was old but not what to do instead. */}
+              <p className="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100">Contact the bay directly.</p>
               <button type="button" onClick={() => setShown(true)}
                 className="mt-3 rounded-xl border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-semibold text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800">
                 Show it anyway
               </button>
             </section>
           )}
-          <div className={`${COLUMNS} ${covered ? 'blur-sm pointer-events-none select-none' : ''}`} aria-hidden={covered || undefined}>
+          <div className={`${COLUMNS} ${covered ? 'blur-md pointer-events-none select-none' : ''}`} aria-hidden={covered || undefined}>
             <div data-column="glance" ref={fitOuter} data-fit={fitStep} className="lg:sticky lg:top-6">
             <div ref={fitInner} data-fit-stack className="flex flex-col gap-3 lg:gap-5">
             {onBreak && (
@@ -99,6 +104,16 @@ export function LotViewPage() {
                 <span className="font-bold">{erin.bay?.breakKind === 'pulled'
                   ? 'The count is paused while the bay crew is on other work.'
                   : 'The count is paused for a break.'}</span> It catches up after.
+                {/* His own line (migration 172, docs/ticket-lot-bay-pulled-away-note.md): Pulled away only, his words, still
+                    no time. It goes when the pause does, since this whole strip does. */}
+                {erin.bay?.breakKind === 'pulled' && erin.bay.breakNote && (
+                  <span data-pulled-note className="mt-1 block">From the bay: <span className="font-semibold">“{erin.bay.breakNote}”</span></span>
+                )}
+              </p>
+            )}
+            {idle && shown && (
+              <p data-stale-line className="rounded-2xl border-2 border-amber-500 bg-amber-50 dark:bg-amber-950 px-4 py-2.5 text-sm font-semibold text-amber-900 dark:text-amber-100">
+                Old count{last ? `, from ${whenOf(last, erin.nowMs)}` : ''}. Contact the bay directly.
               </p>
             )}
             <section aria-label="In the bay now" data-fit-cell
@@ -114,7 +129,7 @@ export function LotViewPage() {
                 </>
               ) : <p className="mt-1 text-sm lg:text-lg text-gray-600 dark:text-gray-300">Nothing in the bay right now.</p>}
             </section>
-            {erin.bay ? <LotBayStrip bay={erin.bay} nowMs={erin.nowMs} big />
+            {erin.bay ? <LotBayStrip bay={erin.bay} nowMs={erin.nowMs} big idle={idle && shown} />
               : <p className="text-sm text-red-700 dark:text-red-400">Erin St's count could not load.</p>}
             <div data-desktop-only data-fit-stack className="hidden lg:flex lg:flex-col gap-5">
               <BayTodayTiles rows={bay.rows} filter={filter} onFilter={setFilter} />

@@ -1096,6 +1096,7 @@ export type Database = {
         Row: {
           break_at: string | null
           break_kind: string
+          break_note: string | null
           cleans: number
           cleans_at: string | null
           cleans_by: string | null
@@ -1109,6 +1110,7 @@ export type Database = {
         Insert: {
           break_at?: string | null
           break_kind?: string
+          break_note?: string | null
           cleans?: number
           cleans_at?: string | null
           cleans_by?: string | null
@@ -1122,6 +1124,7 @@ export type Database = {
         Update: {
           break_at?: string | null
           break_kind?: string
+          break_note?: string | null
           cleans?: number
           cleans_at?: string | null
           cleans_by?: string | null
