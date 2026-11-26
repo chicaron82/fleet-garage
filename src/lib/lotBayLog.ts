@@ -57,7 +57,8 @@ export type BayLineKind = BayExit | 'bay';
 /** `note` is the list's own word (mechanical, still to do); `memo` is what HE wrote, '' for none. */
 /** `sentUp`: ✈ marked (a Clean only). `sentAtExit`: it LEFT as ✈ Clean · sent up, so its mark is fixed (migration 169).
  *  `was`: the first exit's label once the exit was changed, '' when it wasn't. */
-export interface BayLine { id: number; time: string; plate: string; car: string; kind: BayLineKind; label: string; note: string; memo: string; sentUp: boolean; sentAtExit: boolean; was: string }
+/** `odo`: the row's reading (taken at start or exit, or a later same-day reading, migration 173); null = none. */
+export interface BayLine { id: number; time: string; plate: string; car: string; kind: BayLineKind; label: string; note: string; memo: string; sentUp: boolean; sentAtExit: boolean; was: string; odo: number | null }
 
 const LABEL: Record<BayLineKind, string> = { clean: 'Clean', mhold: 'M hold', bhold: 'B hold', skip: 'Bumped', erin: 'Erin', bay: 'In the bay' };
 /** On the read-only link a hold is "Held"; which kind is the note, and the hold itself stays in FG. */
@@ -91,7 +92,7 @@ export function bayLines(rows: readonly BayLogRow[], { readOnly = false }: { rea
     const sentUp = kind === 'clean' && r.sent_up === true;
     const was = r.was_exit && r.was_exit !== kind ? labels[r.was_exit] : '';
     const sentAtExit = kind === 'clean' && r.sent_at_exit === true;
-    return { id: r.id, time, plate: r.plate, car: r.car ?? '', kind, label: labels[kind], note, memo: r.note ?? '', sentUp, sentAtExit, was };
+    return { id: r.id, time, plate: r.plate, car: r.car ?? '', kind, label: labels[kind], note, memo: r.note ?? '', sentUp, sentAtExit, was, odo: r.odometer ?? null };
   });
 }
 

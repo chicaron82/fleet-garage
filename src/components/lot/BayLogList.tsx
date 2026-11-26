@@ -135,6 +135,9 @@ export function BayLogList({ rows, readOnly = false, heading, empty = 'No cars t
                     <span className={`min-w-0 flex-1 ${readOnly ? WIDE.middle : ''}`}>
                       <span className={`block font-mono text-sm font-bold text-gray-900 dark:text-gray-100 ${readOnly ? WIDE.plate : ''}`}>{l.plate}</span>
                       {l.car && <span className={`block truncate text-xs text-gray-500 dark:text-gray-400 ${readOnly ? WIDE.car : ''}`}>{l.car}</span>}
+                      {/* The odo (2026-11-26, docs/ticket-bay-log-odo-shown.md): his ask, on both lists. Car data, not his, so
+                          fine on the read-only link. Nothing when there's no reading: no blank, no dash. */}
+                      {l.odo != null && <span data-odo className={`block text-xs tabular-nums text-gray-500 dark:text-gray-400 ${readOnly ? WIDE.car : ''}`}>odo {l.odo.toLocaleString('en-CA')} km</span>}
                       {l.memo && !(isOpen && open.what === 'note') && (
                         canEdit ? (
                           <button type="button" onClick={() => setOpen({ id: l.id, what: 'note' })}
