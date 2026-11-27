@@ -1150,8 +1150,8 @@ export type Database = {
           plate: string
           pulled_by: number | null
           redo_of: number | null
-          sent_up: boolean
           sent_at_exit: boolean
+          sent_up: boolean
           shift_day: string
           started_at: string
           started_by: string | null
@@ -1172,8 +1172,8 @@ export type Database = {
           plate: string
           pulled_by?: number | null
           redo_of?: number | null
-          sent_up?: boolean
           sent_at_exit?: boolean
+          sent_up?: boolean
           shift_day: string
           started_at?: string
           started_by?: string | null
@@ -1194,8 +1194,8 @@ export type Database = {
           plate?: string
           pulled_by?: number | null
           redo_of?: number | null
-          sent_up?: boolean
           sent_at_exit?: boolean
+          sent_up?: boolean
           shift_day?: string
           started_at?: string
           started_by?: string | null
@@ -2647,6 +2647,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      bay_log_shift_day: { Args: { ts: string }; Returns: string }
       get_my_branch_id: { Args: never; Returns: string }
       give_away_shift: {
         Args: {
